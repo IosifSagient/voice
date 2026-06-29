@@ -53,6 +53,8 @@ export const spacing = {
   xl:   24,
   xxl:  32,
   xxxl: 48,
+  // clears home indicator / FAB area at list bottom
+  listBottomInset: 60,
 } as const;
 
 // System font (San Francisco on iOS, Roboto on Android)

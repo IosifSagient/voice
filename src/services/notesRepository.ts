@@ -1,5 +1,6 @@
 // Thin async wrapper around db.js — swap the backend by editing db.js, not this file.
 import {
+  saveNote,
   getRecentNotes,
   searchNotes,
   getNote,
@@ -8,8 +9,11 @@ import {
   setActionCalendarEvent,
 } from '../db';
 import type { Note } from '../types/note';
+import type { ExtractedNote } from './extraction';
 
 export const notesRepository = {
+  create: (extraction: ExtractedNote, transcript: string): Promise<string> =>
+    saveNote(extraction, transcript),
   list: (): Promise<Note[]> => getRecentNotes(),
   search: (query: string): Promise<Note[]> => searchNotes(query),
   get: (id: string): Promise<Note | null> => getNote(id),

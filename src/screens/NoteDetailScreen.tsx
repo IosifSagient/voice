@@ -12,28 +12,17 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
-import { ensurePermission, addReminder, removeReminder } from "../services/calendar";
 import { extractNote } from "../services/extraction";
+import { useCalendarToggle } from "../hooks/useCalendarToggle";
 import { NoteCard } from "../components/NoteCard";
 import { NoteEditForm } from "../components/NoteEditForm";
 import { formatDateTime } from "../lib/dateFormat";
 import type { Note, ActionItem } from "../types/note";
+import { copyNote } from "../types/note";
 import { colors, spacing, type, radii } from "../config/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "NoteDetail">;
 type Mode = "view" | "edit" | "transcript";
-
-function copyNote(n: Note): Note {
-  return {
-    ...n,
-    action_items: n.action_items.map((item) => ({ ...item })),
-    people: [...n.people],
-    topics: [...n.topics],
-    products: [...n.products],
-    companies: [...n.companies],
-    decisions: [...n.decisions],
-  };
-}
 
 export function NoteDetailScreen({ route, navigation }: Props) {
   const [note, setNote] = useState<Note | null>(null);
@@ -52,50 +41,10 @@ export function NoteDetailScreen({ route, navigation }: Props) {
     })();
   }, [route.params.id]);
 
-  if (!note) return null;
+  // Must be called before the early return so the hook runs unconditionally.
+  const handleToggleCalendar = useCalendarToggle(note, setNote);
 
-  const handleToggleCalendar = async (itemId: string, currentEventId: string | null) => {
-    if (currentEventId) {
-      await removeReminder(currentEventId);
-      await notesRepository.setCalendarEvent(itemId, null);
-      setNote((prev) =>
-        prev
-          ? {
-              ...prev,
-              action_items: prev.action_items.map((it) =>
-                it.id === itemId ? { ...it, calendar_event_id: null } : it
-              ),
-            }
-          : null
-      );
-    } else {
-      const granted = await ensurePermission();
-      if (!granted) {
-        Alert.alert("Ημερολόγιο", "Χρειάζεται πρόσβαση στο ημερολόγιο για να προσθέσεις υπενθύμιση.");
-        return;
-      }
-      const item = note.action_items.find((it) => it.id === itemId);
-      if (!item?.due_date) return;
-      const eventId = await addReminder({
-        text: item.text,
-        due_date: item.due_date,
-        due_time: item.due_time,
-        all_day: item.all_day,
-      });
-      if (!eventId) return;
-      await notesRepository.setCalendarEvent(itemId, eventId);
-      setNote((prev) =>
-        prev
-          ? {
-              ...prev,
-              action_items: prev.action_items.map((it) =>
-                it.id === itemId ? { ...it, calendar_event_id: eventId } : it
-              ),
-            }
-          : null
-      );
-    }
-  };
+  if (!note) return null;
 
   const enterEdit = () => {
     setDraft(copyNote(note));
@@ -282,7 +231,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
             <ActivityIndicator
               size="small"
               color={colors.accent}
-              style={{ marginTop: spacing.xl }}
+              style={styles.regeneratingSpinner}
             />
           ) : (
             <View style={styles.editActions}>
@@ -310,7 +259,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgBase },
   container: {
     padding: spacing.base,
-    paddingBottom: 60,
+    paddingBottom: spacing.listBottomInset,
   },
   viewActions: {
     marginTop: spacing.xl,
@@ -394,4 +343,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   pressed: { opacity: 0.7 },
+  regeneratingSpinner: { marginTop: spacing.xl },
 });

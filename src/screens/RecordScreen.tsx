@@ -1,169 +1,55 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   StyleSheet,
   Text,
   View,
   Pressable,
-  Alert,
   ScrollView,
   ActivityIndicator,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import {
-  useAudioRecorder,
-  useAudioRecorderState,
-  AudioModule,
-  RecordingPresets,
-  setAudioModeAsync,
-} from "expo-audio";
 import { useHeaderHeight } from "@react-navigation/elements";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
-import { transcribe } from "../services/transcription";
-import { extractNote } from "../services/extraction";
-import { saveNote, getNote, setActionCalendarEvent } from "../db";
-import { ensurePermission, addReminder, removeReminder } from "../services/calendar";
+import { useRecorder } from "../hooks/useRecorder";
+import { usePipelineRun } from "../hooks/usePipelineRun";
+import { useCalendarToggle } from "../hooks/useCalendarToggle";
 import { NoteCard } from "../components/NoteCard";
-import type { Note } from "../types/note";
 import { colors, spacing, type, radii, recordButton } from "../config/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Record">;
 
-type Phase = "idle" | "transcribing" | "extracting" | "done" | "error";
-
 export function RecordScreen({ navigation }: Props) {
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(recorder);
-  const [elapsed, setElapsed] = useState(0);
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [note, setNote] = useState<Note | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { isRecording, elapsed, uri: recordingUri, start, stop } = useRecorder();
+  const { phase, note, error, setNote, runFromUri, runFromText, reset } = usePipelineRun();
   const [showTextEntry, setShowTextEntry] = useState(false);
   const [textEntry, setTextEntry] = useState("");
   const headerHeight = useHeaderHeight();
-
-  useEffect(() => {
-    (async () => {
-      const status = await AudioModule.requestRecordingPermissionsAsync();
-      if (!status.granted) {
-        Alert.alert("Permission needed", "Microphone access denied.");
-        return;
-      }
-      await setAudioModeAsync({
-        playsInSilentMode: true,
-        allowsRecording: true,
-      });
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!recorderState.isRecording) {
-      setElapsed(0);
-      return;
-    }
-    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [recorderState.isRecording]);
+  const handleToggleCalendar = useCalendarToggle(note, setNote);
 
   const handleStart = async () => {
-    setNote(null);
-    setError(null);
-    setPhase("idle");
+    reset();
     setShowTextEntry(false);
     setTextEntry("");
-    await recorder.prepareToRecordAsync();
-    recorder.record();
+    await start();
   };
 
   const handleStop = async () => {
-    await recorder.stop();
-    const uri = recorder.uri;
-    if (!uri) {
-      setError("No recording URI");
-      setPhase("error");
-      return;
-    }
-    try {
-      setPhase("transcribing");
-      const text = await transcribe(uri);
-      setPhase("extracting");
-      const extracted = await extractNote(text);
-      const noteId = await saveNote(extracted, text);
-      const saved = await getNote(noteId);
-      setNote(saved);
-      setPhase("done");
-    } catch (e: any) {
-      setError(e.message ?? String(e));
-      setPhase("error");
-    }
+    await stop();
+    if (!recordingUri) return;
+    await runFromUri(recordingUri);
   };
 
   const handleTextBuild = async () => {
     const trimmed = textEntry.trim();
     if (!trimmed) return;
-    setNote(null);
-    setError(null);
-    try {
-      setPhase("extracting");
-      const extracted = await extractNote(trimmed);
-      const noteId = await saveNote(extracted, trimmed);
-      const saved = await getNote(noteId);
-      setNote(saved);
-      setPhase("done");
-      setShowTextEntry(false);
-      setTextEntry("");
-    } catch (e: any) {
-      setError(e.message ?? String(e));
-      setPhase("error");
-    }
+    await runFromText(trimmed);
+    setShowTextEntry(false);
+    setTextEntry("");
   };
 
-  const handleToggleCalendar = async (itemId: string, currentEventId: string | null) => {
-    if (currentEventId) {
-      await removeReminder(currentEventId);
-      await setActionCalendarEvent(itemId, null);
-      setNote((prev) =>
-        prev
-          ? {
-              ...prev,
-              action_items: prev.action_items.map((it) =>
-                it.id === itemId ? { ...it, calendar_event_id: null } : it
-              ),
-            }
-          : null
-      );
-    } else {
-      const granted = await ensurePermission();
-      if (!granted) {
-        Alert.alert("Ημερολόγιο", "Χρειάζεται πρόσβαση στο ημερολόγιο για να προσθέσεις υπενθύμιση.");
-        return;
-      }
-      const item = note?.action_items.find((it) => it.id === itemId);
-      if (!item?.due_date) return;
-      const eventId = await addReminder({
-        text: item.text,
-        due_date: item.due_date,
-        due_time: item.due_time,
-        all_day: item.all_day,
-      });
-      if (!eventId) return;
-      await setActionCalendarEvent(itemId, eventId);
-      setNote((prev) =>
-        prev
-          ? {
-              ...prev,
-              action_items: prev.action_items.map((it) =>
-                it.id === itemId ? { ...it, calendar_event_id: eventId } : it
-              ),
-            }
-          : null
-      );
-    }
-  };
-
-  const isRecording = recorderState.isRecording;
   const busy = phase === "transcribing" || phase === "extracting";
 
   return (
