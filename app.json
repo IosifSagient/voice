@@ -20,6 +20,21 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow VoiceNote to access your microphone to record visit notes."
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Το VoiceNote χρειάζεται πρόσβαση στο ημερολόγιό σας για να προσθέτει υπενθυμίσεις από τις ενέργειές σας."
+        }
+      ]
+    ]
   }
 }
