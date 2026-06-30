@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+// DEV ONLY — remove when agent UI is built
+import { runAgent } from "../services/agent";
 import {
   View,
   Text,
@@ -21,6 +23,21 @@ type Props = NativeStackScreenProps<RootStackParamList, "NotesList">;
 export function NotesListScreen({ navigation }: Props) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [query, setQuery] = useState("");
+  // DEV ONLY
+  const [agentBusy, setAgentBusy] = useState(false);
+
+  const handleDevAgent = async () => {
+    setAgentBusy(true);
+    try {
+      const res = await runAgent("Τι έχω να κάνω αυτή την εβδομάδα;");
+      console.log("[agent] tool calls:", JSON.stringify(res.toolCallLog, null, 2));
+      Alert.alert("Agent answer", res.answer);
+    } catch (e) {
+      Alert.alert("Agent error", e instanceof Error ? e.message : String(e));
+    } finally {
+      setAgentBusy(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +68,15 @@ export function NotesListScreen({ navigation }: Props) {
           returnKeyType="search"
         />
       </View>
+
+      {/* DEV ONLY — remove when agent UI is built */}
+      <Pressable
+        onPress={handleDevAgent}
+        disabled={agentBusy}
+        style={({ pressed }) => [styles.devBtn, (pressed || agentBusy) && styles.devBtnPressed]}
+      >
+        <Text style={styles.devBtnText}>{agentBusy ? "Agent…" : "DEV: Ask agent"}</Text>
+      </Pressable>
 
       <FlatList
         data={notes}
@@ -178,5 +204,22 @@ const styles = StyleSheet.create({
   badgeText: {
     ...type.meta,
     color: colors.accent,
+  },
+  // DEV ONLY
+  devBtn: {
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.sm,
+    alignItems: "center" as const,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed" as const,
+  },
+  devBtnPressed: { opacity: 0.5 },
+  devBtnText: {
+    ...type.meta,
+    color: colors.textMuted,
   },
 });

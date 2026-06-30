@@ -220,6 +220,100 @@ export async function getOpenActionItems(limit = 50) {
   );
 }
 
+// --- agent query helpers ---------------------------------------------------
+
+export async function getActionItemsFiltered({ status, dueBefore, dueAfter } = {}) {
+  const db = await getDb();
+  const conditions = [];
+  const params = [];
+
+  if (status) {
+    conditions.push('a.status = ?');
+    params.push(status);
+  }
+  if (dueBefore) {
+    const ts = parseDueDate(dueBefore);
+    if (ts != null) {
+      // inclusive: end of that day
+      conditions.push('a.due_date IS NOT NULL AND a.due_date <= ?');
+      params.push(ts + 86400000 - 1);
+    }
+  }
+  if (dueAfter) {
+    const ts = parseDueDate(dueAfter);
+    if (ts != null) {
+      conditions.push('(a.due_date IS NULL OR a.due_date > ?)');
+      params.push(ts + 86400000 - 1);
+    }
+  }
+
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+  const rows = await db.getAllAsync(
+    `SELECT a.id, a.text, a.due_date, a.status, a.note_id, n.summary AS note_summary
+     FROM action_items a
+     JOIN notes n ON a.note_id = n.id
+     ${where}
+     ORDER BY (a.due_date IS NULL), a.due_date ASC
+     LIMIT 50`,
+    ...params
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    text: r.text,
+    due_date: r.due_date ? new Date(r.due_date).toISOString().slice(0, 10) : null,
+    status: r.status,
+    note_id: r.note_id,
+    note_summary: r.note_summary ?? '',
+  }));
+}
+
+export async function getNotesByDateRange(from, to) {
+  const db = await getDb();
+  const fromTs = parseDueDate(from);
+  const toTs = parseDueDate(to);
+  if (fromTs == null || toTs == null) return [];
+  const rows = await db.getAllAsync(
+    `SELECT notes.*,
+       (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
+     FROM notes
+     WHERE notes.created_at >= ? AND notes.created_at < ?
+     ORDER BY notes.created_at DESC LIMIT 50`,
+    fromTs, toTs + 86400000
+  );
+  return rows.map(hydrateNote);
+}
+
+export async function getNotesByTag(tagType, value) {
+  const db = await getDb();
+  const columnMap = { person: 'people_json', product: 'topics_json', company: 'companies_json' };
+  const column = columnMap[tagType];
+  if (!column) return [];
+  const like = `%${value}%`;
+  const rows = await db.getAllAsync(
+    `SELECT notes.*,
+       (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
+     FROM notes
+     WHERE notes.${column} LIKE ?
+     ORDER BY notes.created_at DESC LIMIT 20`,
+    like
+  );
+  return rows.map(hydrateNote);
+}
+
+export async function getRecentNotesByDays(days = 7) {
+  const db = await getDb();
+  const since = Date.now() - days * 24 * 60 * 60 * 1000;
+  const rows = await db.getAllAsync(
+    `SELECT notes.*,
+       (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
+     FROM notes
+     WHERE notes.created_at >= ?
+     ORDER BY notes.created_at DESC LIMIT 50`,
+    since
+  );
+  return rows.map(hydrateNote);
+}
+
 // --- helpers ---------------------------------------------------------------
 
 export function hydrateNote(row) {

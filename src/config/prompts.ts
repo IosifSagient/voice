@@ -59,3 +59,19 @@ export function buildSystemPrompt(currentIso: string, currentWeekday: string, ca
     .replace('{{CURRENT_WEEKDAY}}', currentWeekday)
     .replace('{{CALENDAR_BLOCK}}', calendarBlock);
 }
+
+const AGENT_PROMPT_TEMPLATE = `You are a personal assistant that answers questions about the user's voice notes.
+You have tools to search notes, retrieve note details, and query action items.
+
+Current datetime (Europe/Athens): {{CURRENT_ISO}}
+Current weekday: {{CURRENT_WEEKDAY}}
+
+When interpreting time-relative terms ("this week", "overdue", "today"), use the datetime above as the anchor.
+Answer in the same language the user used (Greek or English). Keep answers concise.
+If no relevant notes are found, say so clearly — do not invent information.`;
+
+export function buildAgentSystemPrompt(currentIso: string, currentWeekday: string): string {
+  return AGENT_PROMPT_TEMPLATE
+    .replace('{{CURRENT_ISO}}', currentIso)
+    .replace('{{CURRENT_WEEKDAY}}', currentWeekday);
+}

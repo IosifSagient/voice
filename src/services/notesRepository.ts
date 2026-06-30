@@ -7,6 +7,10 @@ import {
   deleteNote,
   updateNote,
   setActionCalendarEvent,
+  getActionItemsFiltered,
+  getNotesByDateRange,
+  getNotesByTag,
+  getRecentNotesByDays,
 } from '../db';
 import type { Note } from '../types/note';
 import type { ExtractedNote } from './extraction';
@@ -21,4 +25,12 @@ export const notesRepository = {
   save: (note: Note): Promise<void> => updateNote(note),
   setCalendarEvent: (actionItemId: string, eventId: string | null): Promise<void> =>
     setActionCalendarEvent(actionItemId, eventId),
+  getActionItems: (filter: { status?: string; dueBefore?: string; dueAfter?: string }) =>
+    getActionItemsFiltered(filter),
+  getNotesByDateRange: (from: string, to: string): Promise<Note[]> =>
+    getNotesByDateRange(from, to),
+  getNotesByTag: (tagType: 'person' | 'product' | 'company', value: string): Promise<Note[]> =>
+    getNotesByTag(tagType, value),
+  getRecentByDays: (days: number): Promise<Note[]> =>
+    getRecentNotesByDays(days),
 };
