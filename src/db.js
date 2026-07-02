@@ -1,5 +1,5 @@
 // db.js — local-first persistence for notes + action items (expo-sqlite, SDK 54 async API)
-import * as SQLite from 'expo-sqlite';
+import * as SQLite from "expo-sqlite";
 
 const SCHEMA = `
   PRAGMA journal_mode = WAL;
@@ -33,19 +33,23 @@ const SCHEMA = `
 // Adds columns introduced after the initial schema without breaking existing DBs.
 async function migrate(db) {
   const migrations = [
-    'ALTER TABLE notes ADD COLUMN companies_json TEXT',
-    'ALTER TABLE action_items ADD COLUMN due_time TEXT',
-    'ALTER TABLE action_items ADD COLUMN all_day INTEGER DEFAULT 1',
+    "ALTER TABLE notes ADD COLUMN companies_json TEXT",
+    "ALTER TABLE action_items ADD COLUMN due_time TEXT",
+    "ALTER TABLE action_items ADD COLUMN all_day INTEGER DEFAULT 1",
   ];
   for (const sql of migrations) {
-    try { await db.execAsync(sql); } catch { /* column already exists — safe to ignore */ }
+    try {
+      await db.execAsync(sql);
+    } catch {
+      /* column already exists — safe to ignore */
+    }
   }
 }
 
 let dbPromise = null;
 function getDb() {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync('voicenote_v2.db').then(async (db) => {
+    dbPromise = SQLite.openDatabaseAsync("voicenote_v2.db").then(async (db) => {
       await db.execAsync(SCHEMA);
       await migrate(db);
       return db;
@@ -63,15 +67,15 @@ export async function initDb() {
 // Using Date.UTC avoids local-timezone shifts that cause off-by-one day bugs.
 function parseDueDate(str) {
   if (!str) return null;
-  const [y, m, d] = str.slice(0, 10).split('-').map(Number);
+  const [y, m, d] = str.slice(0, 10).split("-").map(Number);
   if (!y || !m || !d) return null;
   return Date.UTC(y, m - 1, d);
 }
 
 function uuid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -83,10 +87,10 @@ export async function saveNote(extraction, transcript) {
   const noteId = uuid();
   const now = Date.now();
   const {
-    summary = '',
+    summary = "",
     people = [],
-    products = [],   // new field; stored in topics_json column
-    companies = [],  // new field; stored in companies_json column
+    products = [], // new field; stored in topics_json column
+    companies = [], // new field; stored in companies_json column
     action_items = [],
   } = extraction || {};
 
@@ -94,8 +98,14 @@ export async function saveNote(extraction, transcript) {
     await db.runAsync(
       `INSERT INTO notes (id, created_at, transcript, summary, people_json, topics_json, decisions_json, companies_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      noteId, now, transcript ?? '', summary,
-      JSON.stringify(people), JSON.stringify(products), JSON.stringify([]), JSON.stringify(companies)
+      noteId,
+      now,
+      transcript ?? "",
+      summary,
+      JSON.stringify(people),
+      JSON.stringify(products),
+      JSON.stringify([]),
+      JSON.stringify(companies),
     );
 
     for (const item of action_items) {
@@ -103,11 +113,13 @@ export async function saveNote(extraction, transcript) {
       await db.runAsync(
         `INSERT INTO action_items (id, note_id, text, due_date, due_time, all_day, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`,
-        uuid(), noteId, item.text ?? '',
+        uuid(),
+        noteId,
+        item.text ?? "",
         Number.isFinite(due) ? due : null,
         item.due_time ?? null,
         item.all_day === false ? 0 : 1,
-        now
+        now,
       );
     }
   });
@@ -121,24 +133,27 @@ export async function updateNote(note) {
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `UPDATE notes SET transcript = ?, summary = ?, people_json = ?, topics_json = ?, decisions_json = ?, companies_json = ? WHERE id = ?`,
-      note.transcript ?? '', note.summary ?? '',
+      note.transcript ?? "",
+      note.summary ?? "",
       JSON.stringify(note.people || []),
-      JSON.stringify(note.topics || []),       // edit form writes topics → stored as products
+      JSON.stringify(note.topics || []), // edit form writes topics → stored as products
       JSON.stringify(note.decisions || []),
       JSON.stringify(note.companies || []),
-      note.id
+      note.id,
     );
-    await db.runAsync('DELETE FROM action_items WHERE note_id = ?', note.id);
-    for (const item of (note.action_items || [])) {
+    await db.runAsync("DELETE FROM action_items WHERE note_id = ?", note.id);
+    for (const item of note.action_items || []) {
       const due = parseDueDate(item?.due_date);
       await db.runAsync(
         `INSERT INTO action_items (id, note_id, text, due_date, due_time, all_day, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`,
-        uuid(), note.id, item.text ?? '',
+        uuid(),
+        note.id,
+        item.text ?? "",
         Number.isFinite(due) ? due : null,
         item.due_time ?? null,
         item.all_day === false ? 0 : 1,
-        now
+        now,
       );
     }
   });
@@ -146,7 +161,7 @@ export async function updateNote(note) {
 
 export async function deleteNote(id) {
   const db = await getDb();
-  await db.runAsync('DELETE FROM notes WHERE id = ?', id);
+  await db.runAsync("DELETE FROM notes WHERE id = ?", id);
 }
 
 export async function completeActionItem(id) {
@@ -156,25 +171,31 @@ export async function completeActionItem(id) {
 
 export async function setActionCalendarEvent(id, calendarEventId) {
   const db = await getDb();
-  await db.runAsync(`UPDATE action_items SET calendar_event_id = ? WHERE id = ?`, calendarEventId, id);
+  await db.runAsync(
+    `UPDATE action_items SET calendar_event_id = ? WHERE id = ?`,
+    calendarEventId,
+    id,
+  );
 }
 
 // --- READ ------------------------------------------------------------------
 
 export async function getNote(id) {
   const db = await getDb();
-  const row = await db.getFirstAsync('SELECT * FROM notes WHERE id = ?', id);
+  const row = await db.getFirstAsync("SELECT * FROM notes WHERE id = ?", id);
   if (!row) return null;
   const note = hydrateNote(row);
   const items = await db.getAllAsync(
     `SELECT id, text, due_date, due_time, all_day, status, calendar_event_id
      FROM action_items WHERE note_id = ? AND status = 'open' ORDER BY created_at`,
-    id
+    id,
   );
   note.action_items = items.map((r) => ({
     id: r.id,
     text: r.text,
-    due_date: r.due_date ? new Date(r.due_date).toISOString().slice(0, 10) : null,
+    due_date: r.due_date
+      ? new Date(r.due_date).toISOString().slice(0, 10)
+      : null,
     due_time: r.due_time ?? null,
     all_day: r.all_day !== 0,
     status: r.status,
@@ -190,7 +211,7 @@ export async function getRecentNotes(limit = 20) {
        (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
      FROM notes
      ORDER BY notes.created_at DESC LIMIT ?`,
-    limit
+    limit,
   );
   return rows.map(hydrateNote);
 }
@@ -204,7 +225,11 @@ export async function searchNotes(query, limit = 10) {
      FROM notes
      WHERE notes.transcript LIKE ? OR notes.summary LIKE ? OR notes.people_json LIKE ? OR notes.topics_json LIKE ?
      ORDER BY notes.created_at DESC LIMIT ?`,
-    like, like, like, like, limit
+    like,
+    like,
+    like,
+    like,
+    limit,
   );
   return rows.map(hydrateNote);
 }
@@ -216,54 +241,68 @@ export async function getOpenActionItems(limit = 50) {
      WHERE status = 'open'
      ORDER BY (due_date IS NULL), due_date ASC
      LIMIT ?`,
-    limit
+    limit,
   );
 }
 
 // --- agent query helpers ---------------------------------------------------
 
-export async function getActionItemsFiltered({ status, dueBefore, dueAfter } = {}) {
+export async function getActionItemsFiltered({
+  status,
+  dueBefore,
+  dueAfter,
+} = {}) {
   const db = await getDb();
   const conditions = [];
   const params = [];
 
   if (status) {
-    conditions.push('a.status = ?');
+    conditions.push("a.status = ?");
     params.push(status);
   }
   if (dueBefore) {
     const ts = parseDueDate(dueBefore);
     if (ts != null) {
       // inclusive: end of that day
-      conditions.push('a.due_date IS NOT NULL AND a.due_date <= ?');
+      conditions.push("a.due_date IS NOT NULL AND a.due_date <= ?");
       params.push(ts + 86400000 - 1);
     }
   }
   if (dueAfter) {
     const ts = parseDueDate(dueAfter);
     if (ts != null) {
-      conditions.push('(a.due_date IS NULL OR a.due_date > ?)');
+      conditions.push("(a.due_date IS NULL OR a.due_date > ?)");
       params.push(ts + 86400000 - 1);
     }
   }
 
-  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+  const where =
+    conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
   const rows = await db.getAllAsync(
-    `SELECT a.id, a.text, a.due_date, a.status, a.note_id, n.summary AS note_summary
+    `SELECT a.id, a.text, a.due_date, a.due_time, a.all_day, a.status,
+       a.calendar_event_id, a.created_at, a.note_id,
+       n.summary AS note_summary, n.people_json
      FROM action_items a
      JOIN notes n ON a.note_id = n.id
      ${where}
      ORDER BY (a.due_date IS NULL), a.due_date ASC
      LIMIT 50`,
-    ...params
+    ...params,
   );
   return rows.map((r) => ({
     id: r.id,
+    noteId: r.note_id,
     text: r.text,
-    due_date: r.due_date ? new Date(r.due_date).toISOString().slice(0, 10) : null,
+    dueDate: r.due_date
+      ? new Date(r.due_date).toISOString().slice(0, 10)
+      : null,
+    dueTime: r.due_time ?? null,
+    allDay: r.all_day !== 0,
     status: r.status,
-    note_id: r.note_id,
-    note_summary: r.note_summary ?? '',
+    calendarEventId: r.calendar_event_id ?? null,
+    createdAt: r.created_at,
+    noteSummary: r.note_summary ?? "",
+    notePeople: JSON.parse(r.people_json || "[]"),
   }));
 }
 
@@ -278,14 +317,19 @@ export async function getNotesByDateRange(from, to) {
      FROM notes
      WHERE notes.created_at >= ? AND notes.created_at < ?
      ORDER BY notes.created_at DESC LIMIT 50`,
-    fromTs, toTs + 86400000
+    fromTs,
+    toTs + 86400000,
   );
   return rows.map(hydrateNote);
 }
 
 export async function getNotesByTag(tagType, value) {
   const db = await getDb();
-  const columnMap = { person: 'people_json', product: 'topics_json', company: 'companies_json' };
+  const columnMap = {
+    person: "people_json",
+    product: "topics_json",
+    company: "companies_json",
+  };
   const column = columnMap[tagType];
   if (!column) return [];
   const like = `%${value}%`;
@@ -295,7 +339,7 @@ export async function getNotesByTag(tagType, value) {
      FROM notes
      WHERE notes.${column} LIKE ?
      ORDER BY notes.created_at DESC LIMIT 20`,
-    like
+    like,
   );
   return rows.map(hydrateNote);
 }
@@ -309,25 +353,41 @@ export async function getRecentNotesByDays(days = 7) {
      FROM notes
      WHERE notes.created_at >= ?
      ORDER BY notes.created_at DESC LIMIT 50`,
-    since
+    since,
   );
   return rows.map(hydrateNote);
+}
+
+export async function reopenActionItem(id) {
+  const db = await getDb();
+  await db.runAsync(`UPDATE action_items SET status = 'open' WHERE id = ?`, id);
+}
+
+export async function deleteActionItem(id) {
+  const db = await getDb();
+  const row = await db.getFirstAsync(
+    `SELECT calendar_event_id FROM action_items WHERE id = ?`,
+    id,
+  );
+  if (!row) return null;
+  await db.runAsync(`DELETE FROM action_items WHERE id = ?`, id);
+  return row.calendar_event_id ?? null;
 }
 
 // --- helpers ---------------------------------------------------------------
 
 export function hydrateNote(row) {
-  const products = JSON.parse(row.topics_json || '[]');
+  const products = JSON.parse(row.topics_json || "[]");
   return {
     id: row.id,
     timestamp: row.created_at,
     transcript: row.transcript,
     summary: row.summary,
-    people: JSON.parse(row.people_json || '[]'),
-    topics: products,                                   // mirrors products for edit-form compat
+    people: JSON.parse(row.people_json || "[]"),
+    topics: products, // mirrors products for edit-form compat
     products,
-    companies: JSON.parse(row.companies_json || '[]'),
-    decisions: JSON.parse(row.decisions_json || '[]'),
+    companies: JSON.parse(row.companies_json || "[]"),
+    decisions: JSON.parse(row.decisions_json || "[]"),
     action_items: [],
     openActionCount: row.open_count ?? 0,
   };

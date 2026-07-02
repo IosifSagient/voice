@@ -10,10 +10,10 @@ export type CompactNote = {
 export type AgentActionItem = {
   id: string;
   text: string;
-  due_date: string | null;
+  dueDate: string | null;
   status: string;
-  note_id: string;
-  note_summary: string;
+  noteId: string;
+  noteSummary: string;
 };
 
 export type ToolCall = {
@@ -27,6 +27,13 @@ export type ChatMessage =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
   | { role: 'tool'; content: string; tool_call_id: string };
+
+// Visible conversation turn — user and assistant text only.
+// Tool rounds are internal to the agent loop and never appear here.
+export type VisibleMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
 
 export type AgentResponse = {
   answer: string;

@@ -4,7 +4,7 @@ import { AGENT_MODEL } from '../config/models';
 import { buildAgentSystemPrompt } from '../config/prompts';
 import { buildAnchor } from '../lib/dateAnchor';
 import type { Note } from '../types/note';
-import type { ChatMessage, ToolCall, AgentResponse, CompactNote } from '../types/agent';
+import type { ChatMessage, ToolCall, AgentResponse, CompactNote, VisibleMessage } from '../types/agent';
 
 // ── Tool definitions ────────────────────────────────────────────────────────
 
@@ -175,12 +175,18 @@ type ApiResponse = {
   }>;
 };
 
-export async function runAgent(question: string): Promise<AgentResponse> {
+export async function runAgent(
+  question: string,
+  history: VisibleMessage[] = [],
+): Promise<AgentResponse> {
   const { iso, weekday } = buildAnchor();
   const systemPrompt = buildAgentSystemPrompt(iso, weekday);
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
+    // Prior visible turns give the model multi-turn context.
+    // Tool rounds from previous calls are NOT included — they stay internal.
+    ...history.map((m): ChatMessage => ({ role: m.role, content: m.content })),
     { role: 'user', content: question },
   ];
 

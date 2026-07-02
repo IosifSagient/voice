@@ -11,6 +11,9 @@ import {
   getNotesByDateRange,
   getNotesByTag,
   getRecentNotesByDays,
+  completeActionItem,
+  reopenActionItem,
+  deleteActionItem,
 } from '../db';
 import type { Note } from '../types/note';
 import type { ExtractedNote } from './extraction';
@@ -33,4 +36,7 @@ export const notesRepository = {
     getNotesByTag(tagType, value),
   getRecentByDays: (days: number): Promise<Note[]> =>
     getRecentNotesByDays(days),
+  completeActionItem: (id: string): Promise<void> => completeActionItem(id),
+  reopenActionItem: (id: string): Promise<void> => reopenActionItem(id),
+  deleteActionItem: (id: string): Promise<string | null> => deleteActionItem(id),
 };

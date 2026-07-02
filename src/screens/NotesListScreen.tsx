@@ -1,6 +1,4 @@
 import { useState, useCallback } from "react";
-// DEV ONLY — remove when agent UI is built
-import { runAgent } from "../services/agent";
 import {
   View,
   Text,
@@ -10,34 +8,25 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
+import * as SQLite from "expo-sqlite";
 import { useFocusEffect } from "@react-navigation/native";
+import type { CompositeScreenProps } from "@react-navigation/native";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "../../App";
+import type { RootStackParamList, MainTabParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
 import { formatDate } from "../lib/dateFormat";
 import type { Note } from "../types/note";
 import { colors, spacing, type, radii } from "../config/theme";
 
-type Props = NativeStackScreenProps<RootStackParamList, "NotesList">;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, "NotesList">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export function NotesListScreen({ navigation }: Props) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [query, setQuery] = useState("");
-  // DEV ONLY
-  const [agentBusy, setAgentBusy] = useState(false);
-
-  const handleDevAgent = async () => {
-    setAgentBusy(true);
-    try {
-      const res = await runAgent("Τι έχω να κάνω αυτή την εβδομάδα;");
-      console.log("[agent] tool calls:", JSON.stringify(res.toolCallLog, null, 2));
-      Alert.alert("Agent answer", res.answer);
-    } catch (e) {
-      Alert.alert("Agent error", e instanceof Error ? e.message : String(e));
-    } finally {
-      setAgentBusy(false);
-    }
-  };
 
   useFocusEffect(
     useCallback(() => {
@@ -55,6 +44,43 @@ export function NotesListScreen({ navigation }: Props) {
     setNotes(results);
   };
 
+  // DEV ONLY — remove before shipping
+  const devDumpDb = async () => {
+    try {
+      const db = await SQLite.openDatabaseAsync("voicenote_v2.db");
+
+      // 1. Person tags containing παπαδ (both cases)
+      const noteRows = await db.getAllAsync<{ id: string; people_json: string }>(
+        "SELECT id, people_json FROM notes WHERE people_json LIKE '%παπαδ%' OR people_json LIKE '%Παπαδ%'"
+      );
+      const personMatches: { note_id: string; raw_value: string }[] = [];
+      for (const row of noteRows) {
+        const people: string[] = JSON.parse(row.people_json || "[]");
+        const lower = (s: string) => s.toLowerCase();
+        for (const p of people) {
+          if (lower(p).includes("παπαδ")) {
+            personMatches.push({ note_id: row.id, raw_value: p });
+          }
+        }
+      }
+      console.log('[DEV] === Person tags containing "παπαδ" ===');
+      console.log(JSON.stringify(personMatches, null, 2));
+
+      // 2. Action items with Αντωνίου or μελέτη — all columns raw
+      const actionRows = await db.getAllAsync<Record<string, unknown>>(
+        "SELECT * FROM action_items WHERE text LIKE '%Αντωνίου%' OR text LIKE '%μελέτη%'"
+      );
+      const rawActions = actionRows.map((r) => ({
+        ...r,
+        due_date: r.due_date != null ? r.due_date : "NULL",
+      }));
+      console.log('[DEV] === Action items with "Αντωνίου" or "μελέτη" ===');
+      console.log(JSON.stringify(rawActions, null, 2));
+    } catch (e) {
+      console.error("[DEV] devDumpDb error:", e);
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <View style={styles.searchWrapper}>
@@ -69,13 +95,9 @@ export function NotesListScreen({ navigation }: Props) {
         />
       </View>
 
-      {/* DEV ONLY — remove when agent UI is built */}
-      <Pressable
-        onPress={handleDevAgent}
-        disabled={agentBusy}
-        style={({ pressed }) => [styles.devBtn, (pressed || agentBusy) && styles.devBtnPressed]}
-      >
-        <Text style={styles.devBtnText}>{agentBusy ? "Agent…" : "DEV: Ask agent"}</Text>
+      {/* DEV ONLY — remove before shipping */}
+      <Pressable onPress={devDumpDb} style={styles.devBtn}>
+        <Text style={styles.devBtnText}>DEV: Dump DB</Text>
       </Pressable>
 
       <FlatList
@@ -205,21 +227,18 @@ const styles = StyleSheet.create({
     ...type.meta,
     color: colors.accent,
   },
-  // DEV ONLY
   devBtn: {
     marginHorizontal: spacing.base,
     marginBottom: spacing.sm,
-    backgroundColor: colors.bgElevated,
+    backgroundColor: "#5a0000",
     borderRadius: radii.lg,
-    paddingVertical: spacing.sm,
-    alignItems: "center" as const,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: "dashed" as const,
+    paddingVertical: 8,
+    alignItems: "center",
   },
-  devBtnPressed: { opacity: 0.5 },
   devBtnText: {
-    ...type.meta,
-    color: colors.textMuted,
+    color: "#ff8080",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 });
