@@ -65,7 +65,7 @@ export async function initDb() {
 
 // Always convert a YYYY-MM-DD (or YYYY-MM-DDTHH:MM:SS...) string to UTC midnight.
 // Using Date.UTC avoids local-timezone shifts that cause off-by-one day bugs.
-function parseDueDate(str) {
+export function parseDueDate(str) {
   if (!str) return null;
   const [y, m, d] = str.slice(0, 10).split("-").map(Number);
   if (!y || !m || !d) return null;

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Pressable, Text, StyleSheet } from "react-native";
+import { Pressable, Text, StyleSheet, View, ActivityIndicator } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -11,13 +11,19 @@ import { RecordScreen } from "./src/screens/RecordScreen";
 import { NoteDetailScreen } from "./src/screens/NoteDetailScreen";
 import { ChatScreen } from "./src/screens/ChatScreen";
 import { TasksScreen } from "./src/screens/TasksScreen";
-import { colors, radii, type } from "./src/config/theme";
+import { AuthScreen } from "./src/screens/AuthScreen";
+import { LockScreen } from "./src/screens/LockScreen";
+import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { colors, radii, type, spacing } from "./src/config/theme";
 import { initDb } from "./src/db";
+import { useAuth } from "./src/hooks/useAuth";
+import { useAppLock } from "./src/hooks/useAppLock";
 
 export type RootStackParamList = {
   Main: undefined;
   Record: undefined;
   NoteDetail: { id: string };
+  Settings: undefined;
 };
 
 export type MainTabParamList = {
@@ -57,6 +63,18 @@ function MainTabs() {
           tabBarLabel: "Σημειώσεις",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="document-text-outline" size={size} color={color} />
+          ),
+          headerLeft: () => (
+            <Pressable
+              onPress={() =>
+                navigation
+                  .getParent<NativeStackNavigationProp<RootStackParamList>>()
+                  ?.navigate("Settings")
+              }
+              style={styles.signOutBtn}
+            >
+              <Ionicons name="person-outline" size={20} color={colors.textMuted} />
+            </Pressable>
           ),
           headerRight: () => (
             <Pressable
@@ -99,18 +117,36 @@ function MainTabs() {
 }
 
 export default function App() {
+  const { session, loading, signOut } = useAuth();
+  const { locked, lockAvailable, lockEnabled, unlock, setLockEnabled } =
+    useAppLock(!!session);
+
   useEffect(() => {
     initDb().catch(console.error);
   }, []);
 
+  if (loading) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen />;
+  }
+
+  if (locked) {
+    return <LockScreen onUnlock={unlock} />;
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={sharedHeaderOptions}>
-        <Stack.Screen
-          name="Main"
-          component={MainTabs}
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="Main" options={{ headerShown: false }}>
+          {() => <MainTabs />}
+        </Stack.Screen>
         <Stack.Screen
           name="Record"
           component={RecordScreen}
@@ -121,12 +157,31 @@ export default function App() {
           component={NoteDetailScreen}
           options={{ title: "" }}
         />
+        <Stack.Screen
+          name="Settings"
+          options={{ title: "Ρυθμίσεις" }}
+        >
+          {() => (
+            <SettingsScreen
+              lockAvailable={lockAvailable}
+              lockEnabled={lockEnabled}
+              onSetLockEnabled={setLockEnabled}
+              onSignOut={signOut}
+            />
+          )}
+        </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    backgroundColor: colors.bgBase,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   fab: {
     backgroundColor: colors.accent,
     paddingHorizontal: 14,
@@ -138,5 +193,9 @@ const styles = StyleSheet.create({
   fabText: {
     ...type.buttonSmall,
     color: colors.bgBase,
+  },
+  signOutBtn: {
+    marginLeft: spacing.base,
+    padding: spacing.xs,
   },
 });

@@ -1,34 +1,40 @@
-const BASE_URL = "https://api.openai.com/v1";
-const OPENAI_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+import { supabase } from '../lib/supabase';
 
-function requireKey(): string {
-  if (!OPENAI_KEY) throw new Error("Missing EXPO_PUBLIC_OPENAI_API_KEY");
-  return OPENAI_KEY;
+const PROXY_BASE = 'https://ccebaccebrzcvhgcypvz.supabase.co/functions/v1/openai-proxy';
+
+const PATH_MAP: Record<string, string> = {
+  '/audio/transcriptions': '/transcribe',
+  '/chat/completions':     '/chat',
+};
+
+async function getToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('No active session — cannot call proxy');
+  return token;
 }
 
-// POST a JSON body and return the parsed response.
 export async function openaiPost(path: string, body: object): Promise<unknown> {
-  const key = requireKey();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
+  const token = await getToken();
+  const res = await fetch(`${PROXY_BASE}${PATH_MAP[path] ?? path}`, {
+    method: 'POST',
     headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`OpenAI ${path} ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Proxy ${path} ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
-// POST a multipart FormData body (used for audio uploads) and return the parsed response.
 export async function openaiUpload(path: string, form: FormData): Promise<unknown> {
-  const key = requireKey();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}` },
+  const token = await getToken();
+  const res = await fetch(`${PROXY_BASE}${PATH_MAP[path] ?? path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
     body: form,
   });
-  if (!res.ok) throw new Error(`OpenAI ${path} ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Proxy ${path} ${res.status}: ${await res.text()}`);
   return res.json();
 }
