@@ -34,7 +34,7 @@ export function NotesListScreen({ navigation }: Props) {
         const results = await notesRepository.list();
         setNotes(results);
       })();
-    }, [])
+    }, []),
   );
 
   const search = async (q: string) => {
@@ -49,35 +49,38 @@ export function NotesListScreen({ navigation }: Props) {
     try {
       const db = await SQLite.openDatabaseAsync("voicenote_v2.db");
 
-      // 1. Person tags containing παπαδ (both cases)
-      const noteRows = await db.getAllAsync<{ id: string; people_json: string }>(
-        "SELECT id, people_json FROM notes WHERE people_json LIKE '%παπαδ%' OR people_json LIKE '%Παπαδ%'"
-      );
-      const personMatches: { note_id: string; raw_value: string }[] = [];
-      for (const row of noteRows) {
-        const people: string[] = JSON.parse(row.people_json || "[]");
-        const lower = (s: string) => s.toLowerCase();
-        for (const p of people) {
-          if (lower(p).includes("παπαδ")) {
-            personMatches.push({ note_id: row.id, raw_value: p });
-          }
-        }
-      }
-      console.log('[DEV] === Person tags containing "παπαδ" ===');
-      console.log(JSON.stringify(personMatches, null, 2));
+      type Row = {
+        id: string;
+        summary_preview: string;
+        people_json: string;
+        people_normalized_json: string;
+      };
 
-      // 2. Action items with Αντωνίου or μελέτη — all columns raw
-      const actionRows = await db.getAllAsync<Record<string, unknown>>(
-        "SELECT * FROM action_items WHERE text LIKE '%Αντωνίου%' OR text LIKE '%μελέτη%'"
+      const rows = await db.getAllAsync<Row>(
+        `SELECT
+           id,
+           substr(summary, 1, 80) AS summary_preview,
+           people_json,
+           people_normalized_json
+         FROM notes
+         ORDER BY created_at DESC`,
       );
-      const rawActions = actionRows.map((r) => ({
-        ...r,
-        due_date: r.due_date != null ? r.due_date : "NULL",
-      }));
-      console.log('[DEV] === Action items with "Αντωνίου" or "μελέτη" ===');
-      console.log(JSON.stringify(rawActions, null, 2));
+
+      if (rows.length === 0) {
+        Alert.alert("DB Query", "0 rows matched.");
+        return;
+      }
+
+      const lines = rows.map(
+        (r, i) =>
+          `[${i + 1}] id: ${r.id}\n` +
+          `summary: ${r.summary_preview}\n` +
+          `people_json: ${r.people_json}\n` +
+          `people_norm: ${r.people_normalized_json}`,
+      );
+      Alert.alert(`DB: ${rows.length} row(s)`, lines.join("\n\n─────\n\n"));
     } catch (e) {
-      console.error("[DEV] devDumpDb error:", e);
+      Alert.alert("DB Error", String(e));
     }
   };
 
@@ -89,14 +92,20 @@ export function NotesListScreen({ navigation }: Props) {
           placeholder="Αναζήτηση…"
           placeholderTextColor={colors.textMuted}
           value={query}
-          onChangeText={(t) => { setQuery(t); search(t); }}
+          onChangeText={(t) => {
+            setQuery(t);
+            search(t);
+          }}
           clearButtonMode="while-editing"
           returnKeyType="search"
         />
       </View>
 
       {/* DEV ONLY — remove before shipping */}
-      <Pressable onPress={devDumpDb} style={styles.devBtn}>
+      <Pressable
+        onPress={devDumpDb}
+        style={styles.devBtn}
+      >
         <Text style={styles.devBtnText}>DEV: Dump DB</Text>
       </Pressable>
 
@@ -135,7 +144,10 @@ export function NotesListScreen({ navigation }: Props) {
             }
           >
             <Text style={styles.rowDate}>{formatDate(item.timestamp)}</Text>
-            <Text style={styles.rowSummary} numberOfLines={2}>
+            <Text
+              style={styles.rowSummary}
+              numberOfLines={2}
+            >
               {item.summary || "—"}
             </Text>
             {(item.openActionCount ?? 0) > 0 && (

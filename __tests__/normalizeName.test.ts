@@ -1,4 +1,4 @@
-import { normalizePersonName } from '../src/lib/normalizeName';
+import { normalizePersonName } from '../src/normalizeName';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

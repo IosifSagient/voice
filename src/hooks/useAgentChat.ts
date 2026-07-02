@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { runAgent } from '../services/agent';
-import type { VisibleMessage } from '../types/agent';
+import { useState } from "react";
+import { runAgent } from "../services/agent";
+import type { VisibleMessage } from "../types/agent";
 
 type State = {
   messages: VisibleMessage[];
@@ -25,7 +25,7 @@ export function useAgentChat() {
 
     setState((s) => ({
       ...s,
-      messages: [...s.messages, { role: 'user', content: trimmed }],
+      messages: [...s.messages, { role: "user", content: trimmed }],
       isThinking: true,
       error: null,
     }));
@@ -34,7 +34,7 @@ export function useAgentChat() {
       const res = await runAgent(trimmed, historySnapshot);
       setState((s) => ({
         ...s,
-        messages: [...s.messages, { role: 'assistant', content: res.answer }],
+        messages: [...s.messages, { role: "assistant", content: res.answer }],
         isThinking: false,
       }));
     } catch (e) {
@@ -43,7 +43,7 @@ export function useAgentChat() {
         ...s,
         messages: [
           ...s.messages,
-          { role: 'assistant', content: 'Κάτι πήγε στραβά, δοκίμασε ξανά.' },
+          { role: "assistant", content: "Κάτι πήγε στραβά, δοκίμασε ξανά." },
         ],
         isThinking: false,
         error: msg,
@@ -51,5 +51,12 @@ export function useAgentChat() {
     }
   };
 
-  return { ...state, send };
+  const clear = () => {
+    setState({
+      messages: [],
+      isThinking: false,
+      error: null,
+    });
+  };
+  return { ...state, send, clear };
 }

@@ -1,5 +1,6 @@
 // db.js — local-first persistence for notes + action items (expo-sqlite, SDK 54 async API)
 import * as SQLite from "expo-sqlite";
+import { normalizePersonName } from "./normalizeName";
 
 const SCHEMA = `
   PRAGMA journal_mode = WAL;
@@ -36,6 +37,7 @@ async function migrate(db) {
     "ALTER TABLE notes ADD COLUMN companies_json TEXT",
     "ALTER TABLE action_items ADD COLUMN due_time TEXT",
     "ALTER TABLE action_items ADD COLUMN all_day INTEGER DEFAULT 1",
+    "ALTER TABLE notes ADD COLUMN people_normalized_json TEXT",
   ];
   for (const sql of migrations) {
     try {
@@ -46,12 +48,27 @@ async function migrate(db) {
   }
 }
 
+async function backfill(db) {
+  const rows = await db.getAllAsync(
+    "SELECT id, people_json FROM notes WHERE people_normalized_json IS NULL",
+  );
+  for (const row of rows) {
+    const raw = JSON.parse(row.people_json || "[]");
+    await db.runAsync(
+      "UPDATE notes SET people_normalized_json = ? WHERE id = ?",
+      JSON.stringify(normalizeAndDedupeNames(raw)),
+      row.id,
+    );
+  }
+}
+
 let dbPromise = null;
 function getDb() {
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync("voicenote_v2.db").then(async (db) => {
       await db.execAsync(SCHEMA);
       await migrate(db);
+      await backfill(db);
       return db;
     });
   }
@@ -70,6 +87,18 @@ export function parseDueDate(str) {
   const [y, m, d] = str.slice(0, 10).split("-").map(Number);
   if (!y || !m || !d) return null;
   return Date.UTC(y, m - 1, d);
+}
+
+// Normalizes each raw name via normalizePersonName, deduping by key (first occurrence wins).
+// Exported so the dedup logic can be unit-tested without a SQLite dependency.
+export function normalizeAndDedupeNames(rawNames) {
+  const seen = new Map();
+  for (const name of rawNames) {
+    if (typeof name !== "string" || !name.trim()) continue;
+    const { key, display } = normalizePersonName(name);
+    if (!seen.has(key)) seen.set(key, { key, display });
+  }
+  return [...seen.values()];
 }
 
 function uuid() {
@@ -96,8 +125,8 @@ export async function saveNote(extraction, transcript) {
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `INSERT INTO notes (id, created_at, transcript, summary, people_json, topics_json, decisions_json, companies_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO notes (id, created_at, transcript, summary, people_json, topics_json, decisions_json, companies_json, people_normalized_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       noteId,
       now,
       transcript ?? "",
@@ -106,6 +135,7 @@ export async function saveNote(extraction, transcript) {
       JSON.stringify(products),
       JSON.stringify([]),
       JSON.stringify(companies),
+      JSON.stringify(normalizeAndDedupeNames(people)),
     );
 
     for (const item of action_items) {
@@ -132,13 +162,14 @@ export async function updateNote(note) {
   const now = Date.now();
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `UPDATE notes SET transcript = ?, summary = ?, people_json = ?, topics_json = ?, decisions_json = ?, companies_json = ? WHERE id = ?`,
+      `UPDATE notes SET transcript = ?, summary = ?, people_json = ?, topics_json = ?, decisions_json = ?, companies_json = ?, people_normalized_json = ? WHERE id = ?`,
       note.transcript ?? "",
       note.summary ?? "",
       JSON.stringify(note.people || []),
       JSON.stringify(note.topics || []), // edit form writes topics → stored as products
       JSON.stringify(note.decisions || []),
       JSON.stringify(note.companies || []),
+      JSON.stringify(normalizeAndDedupeNames(note.people || [])),
       note.id,
     );
     await db.runAsync("DELETE FROM action_items WHERE note_id = ?", note.id);
@@ -325,8 +356,23 @@ export async function getNotesByDateRange(from, to) {
 
 export async function getNotesByTag(tagType, value) {
   const db = await getDb();
+
+  if (tagType === "person") {
+    // people_normalized_json stores {"key":...,"display":...} with key first;
+    // if the object shape changes, this LIKE pattern breaks silently.
+    const keyLike = `%"key":"${normalizePersonName(value).key}"%`;
+    const rows = await db.getAllAsync(
+      `SELECT notes.*,
+         (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
+       FROM notes
+       WHERE notes.people_normalized_json LIKE ?
+       ORDER BY notes.created_at DESC LIMIT 20`,
+      keyLike,
+    );
+    return rows.map(hydrateNote);
+  }
+
   const columnMap = {
-    person: "people_json",
     product: "topics_json",
     company: "companies_json",
   };
