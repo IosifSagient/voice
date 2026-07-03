@@ -8,9 +8,11 @@ import { colors, spacing, type, radii } from "../config/theme";
 type Props = {
   note: Note;
   onToggleCalendar?: (itemId: string, currentEventId: string | null) => void;
+  onCompleteActionItem?: (itemId: string) => void;
+  onDeleteActionItem?: (itemId: string) => void;
 };
 
-export function NoteCard({ note, onToggleCalendar }: Props) {
+export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDeleteActionItem }: Props) {
   const [showTranscript, setShowTranscript] = useState(false);
 
   return (
@@ -29,6 +31,16 @@ export function NoteCard({ note, onToggleCalendar }: Props) {
               onToggleCalendar={
                 onToggleCalendar && item.id
                   ? () => onToggleCalendar(item.id!, item.calendar_event_id ?? null)
+                  : undefined
+              }
+              onComplete={
+                onCompleteActionItem && item.id
+                  ? () => onCompleteActionItem(item.id!)
+                  : undefined
+              }
+              onDelete={
+                onDeleteActionItem && item.id
+                  ? () => onDeleteActionItem(item.id!)
                   : undefined
               }
             />

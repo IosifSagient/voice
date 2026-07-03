@@ -1,18 +1,38 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, Alert, StyleSheet } from "react-native";
 import type { ActionItem } from "../types/note";
 import { colors, spacing, type, radii } from "../config/theme";
 
 type Props = {
   item: ActionItem;
   onToggleCalendar?: () => void;
+  onComplete?: () => void;
+  onDelete?: () => void;
 };
 
-export function FollowUpRow({ item, onToggleCalendar }: Props) {
+export function FollowUpRow({ item, onToggleCalendar, onComplete, onDelete }: Props) {
   const hasCalendar = !!item.calendar_event_id;
 
+  const handleLongPress = () => {
+    Alert.alert("Διαγραφή ενέργειας;", undefined, [
+      { text: "Άκυρο", style: "cancel" },
+      { text: "Διαγραφή", style: "destructive", onPress: onDelete },
+    ]);
+  };
+
   return (
-    <View style={styles.row}>
-      <View style={styles.dot} />
+    <Pressable
+      style={styles.row}
+      onLongPress={onDelete ? handleLongPress : undefined}
+    >
+      {onComplete ? (
+        <Pressable
+          style={styles.checkbox}
+          onPress={onComplete}
+          hitSlop={8}
+        />
+      ) : (
+        <View style={styles.dot} />
+      )}
       <View style={styles.textCol}>
         <Text style={styles.action}>{item.text}</Text>
         {item.due_date ? (
@@ -31,7 +51,7 @@ export function FollowUpRow({ item, onToggleCalendar }: Props) {
           </View>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -48,6 +68,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     marginRight: spacing.md,
     marginTop: 7,
+    flexShrink: 0,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: radii.full,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    marginRight: spacing.md,
+    marginTop: 1,
     flexShrink: 0,
   },
   textCol: {

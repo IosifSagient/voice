@@ -17,6 +17,7 @@ import type { RootStackParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
 import { useCalendarToggle } from "../hooks/useCalendarToggle";
 import { useRegenerateNote } from "../hooks/useRegenerateNote";
+import { useNoteActionItems } from "../hooks/useNoteActionItems";
 import { NoteCard } from "../components/NoteCard";
 import { NoteEditForm } from "../components/NoteEditForm";
 import { formatDateTime } from "../lib/dateFormat";
@@ -47,6 +48,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   // Must be called before the early return so the hooks run unconditionally.
   const handleToggleCalendar = useCalendarToggle(note, setNote);
   const { regenerating, regenerate } = useRegenerateNote(note, setNote);
+  const { completeItem, deleteItem } = useNoteActionItems(note, setNote);
 
   if (!note) return null;
 
@@ -127,7 +129,12 @@ export function NoteDetailScreen({ route, navigation }: Props) {
       {/* ── VIEW ─────────────────────────────────────────────────── */}
       {mode === "view" && (
         <>
-          <NoteCard note={note} onToggleCalendar={handleToggleCalendar} />
+          <NoteCard
+            note={note}
+            onToggleCalendar={handleToggleCalendar}
+            onCompleteActionItem={completeItem}
+            onDeleteActionItem={deleteItem}
+          />
           <View style={styles.viewActions}>
             <Pressable
               onPress={enterEdit}
