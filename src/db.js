@@ -210,20 +210,69 @@ export async function updateNote(note) {
       JSON.stringify(normalizedPeople),
       note.id,
     );
-    await db.runAsync("DELETE FROM action_items WHERE note_id = ?", note.id);
-    for (const item of note.action_items || []) {
+
+    const existing = await db.getAllAsync(
+      "SELECT id, text FROM action_items WHERE note_id = ?",
+      note.id,
+    );
+
+    // Pair incoming items to existing rows by exact trimmed-text match so a matched
+    // row keeps its status/calendar_event_id across the edit; unmatched existing
+    // rows are deleted and unmatched incoming items are inserted fresh. An edited
+    // title has no match under this rule and is therefore treated as delete+insert
+    // — the item loses its status/calendar link. This is an accepted tradeoff.
+    // Duplicate texts within one note are paired first-come-first-served (the Nth
+    // existing row with a given text pairs with the Nth incoming item with that
+    // text) rather than cross-matched — good enough since duplicate action-item
+    // text is a rare edge case, not the common path.
+    const availableByText = new Map();
+    for (const row of existing) {
+      const key = (row.text ?? "").trim();
+      if (!availableByText.has(key)) availableByText.set(key, []);
+      availableByText.get(key).push(row);
+    }
+
+    const matchedIds = new Set();
+    const plan = (note.action_items || []).map((item) => {
+      const key = (item.text ?? "").trim();
+      const bucket = availableByText.get(key);
+      const match = bucket && bucket.length ? bucket.shift() : null;
+      if (match) matchedIds.add(match.id);
+      return { item, match };
+    });
+
+    for (const row of existing) {
+      if (!matchedIds.has(row.id)) {
+        await db.runAsync("DELETE FROM action_items WHERE id = ?", row.id);
+      }
+    }
+
+    for (const { item, match } of plan) {
       const due = parseDueDate(item?.due_date);
-      await db.runAsync(
-        `INSERT INTO action_items (id, note_id, text, due_date, due_time, all_day, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`,
-        uuid(),
-        note.id,
-        item.text ?? "",
-        Number.isFinite(due) ? due : null,
-        item.due_time ?? null,
-        item.all_day === false ? 0 : 1,
-        now,
-      );
+      const dueTime = item.due_time ?? null;
+      const allDay = item.all_day === false ? 0 : 1;
+      if (match) {
+        await db.runAsync(
+          `UPDATE action_items SET text = ?, due_date = ?, due_time = ?, all_day = ? WHERE id = ?`,
+          item.text ?? "",
+          Number.isFinite(due) ? due : null,
+          dueTime,
+          allDay,
+          match.id,
+        );
+      } else {
+        await db.runAsync(
+          `INSERT INTO action_items (id, note_id, text, due_date, due_time, all_day, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`,
+          uuid(),
+          note.id,
+          item.text ?? "",
+          Number.isFinite(due) ? due : null,
+          dueTime,
+          allDay,
+          now,
+        );
+      }
     }
   });
 }
