@@ -211,8 +211,12 @@ export async function updateNote(note) {
       note.id,
     );
 
+    // Scoped to status='open' to mirror getNote(), which only ever returns open
+    // action items — done items are outside the editor's contract (it never saw
+    // them, so it can't have "removed" them) and must stay completely untouched
+    // by this diff: not matched, not updated, not deleted.
     const existing = await db.getAllAsync(
-      "SELECT id, text FROM action_items WHERE note_id = ?",
+      "SELECT id, text FROM action_items WHERE note_id = ? AND status = 'open'",
       note.id,
     );
 

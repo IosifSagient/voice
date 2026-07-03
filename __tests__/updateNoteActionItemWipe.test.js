@@ -2,10 +2,13 @@
 // updateNote used to delete every action_items row for a note and re-insert
 // fresh rows from note.action_items, hard-coding status='open' and omitting
 // calendar_event_id (see CLEANUP_REPORT.md §3). It now diffs incoming items
-// against existing rows by exact trimmed-text match: a matched row keeps its
-// status/calendar_event_id and only has due_date/due_time/all_day updated;
-// unmatched existing rows are deleted; unmatched incoming items are inserted
-// fresh as 'open'. These tests document that contract.
+// against existing OPEN rows by exact trimmed-text match: a matched row keeps
+// its calendar_event_id and only has due_date/due_time/all_day updated;
+// unmatched existing (open) rows are deleted; unmatched incoming items are
+// inserted fresh as 'open'. Done rows are scoped out of the existing-rows
+// query entirely (mirroring getNote(), which only ever returns open items) —
+// they are never matched, updated, or deleted by an edit-save. These tests
+// document that contract.
 
 jest.mock('expo-sqlite', () => {
   function makeSqliteMock() {
@@ -17,8 +20,12 @@ jest.mock('expo-sqlite', () => {
       /* schema / PRAGMA / ALTER TABLE statements — no-op for this mock */
     }
 
-    async function getFirstAsync(sql) {
+    async function getFirstAsync(sql, ...params) {
       if (sql.includes('PRAGMA user_version')) return { user_version: userVersion };
+      if (sql.includes('SELECT * FROM notes WHERE id = ?')) {
+        const [id] = params;
+        return notes.find((n) => n.id === id) ?? null;
+      }
       return null;
     }
 
@@ -26,10 +33,29 @@ jest.mock('expo-sqlite', () => {
       if (sql.includes('SELECT id, people_json FROM notes WHERE people_normalized_json IS NULL')) {
         return [];
       }
-      if (sql.includes('SELECT id, text FROM action_items WHERE note_id')) {
+      // getNote()'s action-items query — only ever returns open items, same as prod.
+      if (sql.includes('FROM action_items WHERE note_id = ? AND status = \'open\' ORDER BY created_at')) {
         const [noteId] = params;
         return actionItems
-          .filter((a) => a.note_id === noteId)
+          .filter((a) => a.note_id === noteId && a.status === 'open')
+          .map((a) => ({
+            id: a.id,
+            text: a.text,
+            due_date: a.due_date,
+            due_time: a.due_time,
+            all_day: a.all_day,
+            status: a.status,
+            calendar_event_id: a.calendar_event_id,
+          }));
+      }
+      // updateNote()'s existing-rows query — scoped to status='open' in prod code;
+      // honor that scoping here too so this mock actually distinguishes the fixed
+      // behavior from the old (unscoped) one instead of masking it.
+      if (sql.includes('SELECT id, text FROM action_items WHERE note_id')) {
+        const openOnly = sql.includes("status = 'open'");
+        const [noteId] = params;
+        return actionItems
+          .filter((a) => a.note_id === noteId && (!openOnly || a.status === 'open'))
           .map((a) => ({ id: a.id, text: a.text }));
       }
       if (sql.includes('FROM action_items a') && sql.includes('JOIN notes n')) {
@@ -107,7 +133,10 @@ jest.mock('expo-sqlite', () => {
   };
 });
 
-const { saveNote, updateNote, completeActionItem, setActionCalendarEvent, getActionItemsFiltered } = require('../src/db');
+const {
+  saveNote, updateNote, getNote, completeActionItem, setActionCalendarEvent, getActionItemsFiltered,
+} = require('../src/db');
+const { copyNote } = require('../src/types/note');
 
 function saveTestNote(actionItems) {
   return saveNote({ summary: 's', people: [], topics: [], action_items: actionItems }, 't');
@@ -125,11 +154,10 @@ async function itemsByText(noteId) {
 }
 
 describe('updateNote — action-item diffing', () => {
-  it('preserves status and calendar_event_id for an unchanged action item across an edit-save', async () => {
+  it('preserves calendar_event_id for an unchanged open action item across an edit-save', async () => {
     const noteId = await saveTestNote([{ text: 'Κάλεσε υδραυλικό', due_date: '2025-07-10' }]);
 
     const [item] = [...(await itemsByText(noteId)).values()];
-    await completeActionItem(item.id);
     await setActionCalendarEvent(item.id, 'cal-123');
 
     // Edit-form save round-trips only {text, due_date} for each action item —
@@ -137,7 +165,7 @@ describe('updateNote — action-item diffing', () => {
     await updateNote(baseNotePayload(noteId, [{ text: 'Κάλεσε υδραυλικό', due_date: '2025-07-10' }]));
 
     const [updated] = [...(await itemsByText(noteId)).values()];
-    expect(updated.status).toBe('done');
+    expect(updated.status).toBe('open');
     expect(updated.calendarEventId).toBe('cal-123');
   });
 
@@ -171,11 +199,10 @@ describe('updateNote — action-item diffing', () => {
     expect(byText.has('Keep me')).toBe(true);
   });
 
-  it('treats an edited title as delete+insert, losing status/calendar_event_id', async () => {
+  it('treats an edited title as delete+insert, losing calendar_event_id', async () => {
     const noteId = await saveTestNote([{ text: 'Old title', due_date: '2025-07-10' }]);
 
     const [item] = [...(await itemsByText(noteId)).values()];
-    await completeActionItem(item.id);
     await setActionCalendarEvent(item.id, 'cal-456');
 
     await updateNote(baseNotePayload(noteId, [{ text: 'New title', due_date: '2025-07-10' }]));
@@ -199,7 +226,7 @@ describe('updateNote — action-item diffing', () => {
     const raw = (await getActionItemsFiltered({})).filter((i) => i.noteId === noteId);
     expect(raw).toHaveLength(2);
     const [first] = raw.sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
-    await completeActionItem(first.id); // mark the 2025-07-10 one done
+    await setActionCalendarEvent(first.id, 'cal-dup'); // tag the 2025-07-10 row
 
     // Incoming list keeps two "Duplicate" items but swaps their due dates.
     await updateNote(
@@ -211,10 +238,41 @@ describe('updateNote — action-item diffing', () => {
 
     const updated = (await getActionItemsFiltered({})).filter((i) => i.noteId === noteId);
     expect(updated).toHaveLength(2);
-    // No crash, no cross-contamination beyond the deterministic first-come pairing:
-    // exactly one of the two rows should still carry the 'done' status picked up
-    // before the edit, and every row's text is still 'Duplicate'.
     expect(updated.every((i) => i.text === 'Duplicate')).toBe(true);
-    expect(updated.filter((i) => i.status === 'done')).toHaveLength(1);
+    // The row created first (which carried the calendar link) pairs with the
+    // first incoming duplicate — its calendar_event_id survives the edit, proving
+    // first-come-first-served pairing rather than cross-matching.
+    const linked = updated.find((i) => i.calendarEventId === 'cal-dup');
+    expect(linked).toBeDefined();
+    expect(linked.dueDate).toBe('2025-07-12');
+  });
+
+  it('leaves a done action item completely untouched across the real getNote -> edit -> updateNote pipeline', async () => {
+    const noteId = await saveTestNote([
+      { text: 'Still open', due_date: '2025-07-10' },
+      { text: 'Already done', due_date: '2025-07-11' },
+    ]);
+
+    const beforeEdit = await itemsByText(noteId);
+    const doneItem = beforeEdit.get('Already done');
+    await completeActionItem(doneItem.id);
+    await setActionCalendarEvent(doneItem.id, 'cal-789');
+
+    // This mirrors NoteDetailScreen exactly: load via getNote() (open items only),
+    // then copyNote() to build the edit draft — the done item is invisible to both.
+    const note = await getNote(noteId);
+    expect(note.action_items.map((i) => i.text)).toEqual(['Still open']);
+    const draft = copyNote(note);
+
+    // User edits only the summary and saves without touching action items at all.
+    draft.summary = 'Edited summary';
+    await updateNote(draft);
+
+    const afterSave = await itemsByText(noteId);
+    expect(afterSave.has('Already done')).toBe(true);
+    const stillDone = afterSave.get('Already done');
+    expect(stillDone.status).toBe('done');
+    expect(stillDone.calendarEventId).toBe('cal-789');
+    expect(afterSave.has('Still open')).toBe(true);
   });
 });
