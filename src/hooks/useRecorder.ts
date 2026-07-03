@@ -27,7 +27,7 @@ export function useRecorder(): RecorderState {
     (async () => {
       const status = await AudioModule.requestRecordingPermissionsAsync();
       if (!status.granted) {
-        Alert.alert("Permission needed", "Microphone access denied.");
+        Alert.alert("Απαιτείται άδεια", "Δεν επιτράπηκε η πρόσβαση στο μικρόφωνο.");
         return;
       }
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });

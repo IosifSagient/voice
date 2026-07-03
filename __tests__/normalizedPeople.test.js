@@ -7,4 +7,11 @@ describe('normalizeAndDedupeNames', () => {
     expect(result[0].key).toBe('παπαδοπουλοσ');
     expect(result[0].display).toBe('Παπαδόπουλος');
   });
+
+  it('dedupes "δόκτωρ Παπαδόπουλος" and "Δρ Παπαδόπουλος" into a single entry', () => {
+    const result = normalizeAndDedupeNames(['δόκτωρ Παπαδόπουλος', 'Δρ Παπαδόπουλος']);
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe('παπαδοπουλοσ');
+    expect(result[0].display).toBe('Παπαδόπουλος');
+  });
 });

@@ -13,9 +13,7 @@ export type Note = {
   timestamp: number;
   summary: string;
   people: string[];
-  topics: string[];       // kept for edit-form backward compat; mirrors products on new notes
-  products: string[];
-  companies: string[];
+  topics: string[];       // general subjects/entities mentioned (includes organizations)
   decisions: string[];    // kept for old notes; new extractions produce []
   action_items: ActionItem[];
   transcript: string;
@@ -30,8 +28,6 @@ export function copyNote(n: Note): Note {
     action_items: n.action_items.map((item) => ({ ...item })),
     people: [...n.people],
     topics: [...n.topics],
-    products: [...n.products],
-    companies: [...n.companies],
     decisions: [...n.decisions],
   };
 }

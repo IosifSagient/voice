@@ -7,8 +7,7 @@ import type { ActionItem } from "../types/note";
 export type ExtractedNote = {
   summary: string;
   people: string[];
-  products: string[];
-  companies: string[];
+  topics: string[];
   action_items: ActionItem[];
 };
 
@@ -30,8 +29,7 @@ export async function extractNote(transcript: string): Promise<ExtractedNote> {
   return {
     summary: parsed.summary ?? "",
     people: Array.isArray(parsed.people) ? parsed.people : [],
-    products: Array.isArray(parsed.products) ? parsed.products : [],
-    companies: Array.isArray(parsed.companies) ? parsed.companies : [],
+    topics: Array.isArray(parsed.topics) ? parsed.topics : [],
     action_items: Array.isArray(parsed.actions)
       ? parsed.actions.map((a: Record<string, unknown>) => ({
           text: (a.title as string) ?? "",

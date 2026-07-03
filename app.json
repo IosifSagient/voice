@@ -25,7 +25,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow VoiceNote to access your microphone to record visit notes."
+          "microphonePermission": "Allow VoiceNote to access your microphone to record voice notes."
         }
       ],
       "expo-sqlite",

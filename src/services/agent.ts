@@ -66,13 +66,13 @@ const TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'get_notes_by_tag',
-      description: 'Find notes mentioning a specific person, product, or company.',
+      description: 'Find notes mentioning a specific person or topic.',
       parameters: {
         type: 'object',
         properties: {
           tag_type: {
             type: 'string',
-            enum: ['person', 'product', 'company'],
+            enum: ['person', 'topic'],
           },
           value: { type: 'string', description: 'The name to look for' },
         },
@@ -118,7 +118,7 @@ function toCompactNotes(notes: Note[]): CompactNote[] {
     date: new Date(n.timestamp).toISOString().slice(0, 10),
     summary: n.summary,
     people: n.people,
-    products: n.products,
+    topics: n.topics,
     open_actions: n.openActionCount ?? 0,
   }));
 }
@@ -145,7 +145,7 @@ async function dispatch(name: string, args: Record<string, unknown>): Promise<un
     case 'get_notes_by_tag':
       return toCompactNotes(
         await notesRepository.getNotesByTag(
-          args.tag_type as 'person' | 'product' | 'company',
+          args.tag_type as 'person' | 'topic',
           args.value as string
         )
       );

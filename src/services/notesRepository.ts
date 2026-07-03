@@ -38,7 +38,7 @@ export const notesRepository = {
   getNotesByDateRange: (from: string, to: string): Promise<Note[]> =>
     getNotesByDateRange(from, to),
   getNotesByTag: (
-    tagType: "person" | "product" | "company",
+    tagType: "person" | "topic",
     value: string,
   ): Promise<Note[]> => getNotesByTag(tagType, value),
   getRecentByDays: (days: number): Promise<Note[]> =>

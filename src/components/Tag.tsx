@@ -3,7 +3,7 @@ import { colors, radii, type } from "../config/theme";
 
 type Props = {
   label: string;
-  variant: "person" | "product" | "company";
+  variant: "person" | "topic";
 };
 
 export function Tag({ label, variant }: Props) {
@@ -26,12 +26,8 @@ const styles = StyleSheet.create({
     color: colors.personText,
     backgroundColor: colors.personBg,
   },
-  product: {
-    color: colors.productText,
-    backgroundColor: colors.productBg,
-  },
-  company: {
-    color: colors.companyText,
-    backgroundColor: colors.companyBg,
+  topic: {
+    color: colors.topicText,
+    backgroundColor: colors.topicBg,
   },
 });

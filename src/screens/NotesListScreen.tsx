@@ -8,7 +8,6 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
-import * as SQLite from "expo-sqlite";
 import { useFocusEffect } from "@react-navigation/native";
 import type { CompositeScreenProps } from "@react-navigation/native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
@@ -44,46 +43,6 @@ export function NotesListScreen({ navigation }: Props) {
     setNotes(results);
   };
 
-  // DEV ONLY — remove before shipping
-  const devDumpDb = async () => {
-    try {
-      const db = await SQLite.openDatabaseAsync("voicenote_v2.db");
-
-      type Row = {
-        id: string;
-        summary_preview: string;
-        people_json: string;
-        people_normalized_json: string;
-      };
-
-      const rows = await db.getAllAsync<Row>(
-        `SELECT
-           id,
-           substr(summary, 1, 80) AS summary_preview,
-           people_json,
-           people_normalized_json
-         FROM notes
-         ORDER BY created_at DESC`,
-      );
-
-      if (rows.length === 0) {
-        Alert.alert("DB Query", "0 rows matched.");
-        return;
-      }
-
-      const lines = rows.map(
-        (r, i) =>
-          `[${i + 1}] id: ${r.id}\n` +
-          `summary: ${r.summary_preview}\n` +
-          `people_json: ${r.people_json}\n` +
-          `people_norm: ${r.people_normalized_json}`,
-      );
-      Alert.alert(`DB: ${rows.length} row(s)`, lines.join("\n\n─────\n\n"));
-    } catch (e) {
-      Alert.alert("DB Error", String(e));
-    }
-  };
-
   return (
     <View style={styles.screen}>
       <View style={styles.searchWrapper}>
@@ -100,14 +59,6 @@ export function NotesListScreen({ navigation }: Props) {
           returnKeyType="search"
         />
       </View>
-
-      {/* DEV ONLY — remove before shipping */}
-      <Pressable
-        onPress={devDumpDb}
-        style={styles.devBtn}
-      >
-        <Text style={styles.devBtnText}>DEV: Dump DB</Text>
-      </Pressable>
 
       <FlatList
         data={notes}
@@ -238,19 +189,5 @@ const styles = StyleSheet.create({
   badgeText: {
     ...type.meta,
     color: colors.accent,
-  },
-  devBtn: {
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.sm,
-    backgroundColor: "#5a0000",
-    borderRadius: radii.lg,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  devBtnText: {
-    color: "#ff8080",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.5,
   },
 });

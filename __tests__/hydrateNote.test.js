@@ -7,9 +7,8 @@ function makeRow(overrides = {}) {
     transcript: 'hello',
     summary: 'test summary',
     people_json: '["Alice","Bob"]',
-    topics_json: '["ProductX"]',
+    topics_json: '["TopicX"]',
     decisions_json: '[]',
-    companies_json: '["Acme"]',
     open_count: 3,
     ...overrides,
   };
@@ -29,15 +28,9 @@ describe('hydrateNote', () => {
     expect(note.people).toEqual(['Alice', 'Bob']);
   });
 
-  it('parses topics_json into both products and topics', () => {
+  it('parses topics_json into an array', () => {
     const note = hydrateNote(makeRow());
-    expect(note.products).toEqual(['ProductX']);
-    expect(note.topics).toEqual(['ProductX']); // mirror
-  });
-
-  it('parses companies_json', () => {
-    const note = hydrateNote(makeRow());
-    expect(note.companies).toEqual(['Acme']);
+    expect(note.topics).toEqual(['TopicX']);
   });
 
   it('maps open_count to openActionCount', () => {
@@ -61,12 +54,10 @@ describe('hydrateNote', () => {
     const note = hydrateNote(makeRow({
       people_json: null,
       topics_json: null,
-      companies_json: null,
       decisions_json: null,
     }));
     expect(note.people).toEqual([]);
-    expect(note.products).toEqual([]);
-    expect(note.companies).toEqual([]);
+    expect(note.topics).toEqual([]);
     expect(note.decisions).toEqual([]);
   });
 });

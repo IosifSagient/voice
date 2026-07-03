@@ -3,17 +3,8 @@ export type CompactNote = {
   date: string;
   summary: string;
   people: string[];
-  products: string[];
+  topics: string[];
   open_actions: number;
-};
-
-export type AgentActionItem = {
-  id: string;
-  text: string;
-  dueDate: string | null;
-  status: string;
-  noteId: string;
-  noteSummary: string;
 };
 
 export type ToolCall = {

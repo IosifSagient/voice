@@ -9,8 +9,6 @@ function makeNote(overrides: Partial<Note> = {}): Note {
     transcript: 'raw transcript',
     people: ['Alice'],
     topics: ['Topic A'],
-    products: ['Product A'],
-    companies: ['Acme'],
     decisions: ['Go ahead'],
     action_items: [{ text: 'Do something', due_date: '2025-07-10' }],
     openActionCount: 1,
@@ -54,20 +52,6 @@ describe('copyNote', () => {
     expect(original.topics).toEqual(['Topic A']);
   });
 
-  it('deep-copies products array', () => {
-    const original = makeNote();
-    const copy = copyNote(original);
-    copy.products.push('Product B');
-    expect(original.products).toEqual(['Product A']);
-  });
-
-  it('deep-copies companies array', () => {
-    const original = makeNote();
-    const copy = copyNote(original);
-    copy.companies.push('Other Corp');
-    expect(original.companies).toEqual(['Acme']);
-  });
-
   it('deep-copies decisions array', () => {
     const original = makeNote();
     const copy = copyNote(original);
@@ -77,7 +61,7 @@ describe('copyNote', () => {
 
   it('handles empty arrays without throwing', () => {
     const original = makeNote({
-      people: [], topics: [], products: [], companies: [],
+      people: [], topics: [],
       decisions: [], action_items: [],
     });
     expect(() => copyNote(original)).not.toThrow();

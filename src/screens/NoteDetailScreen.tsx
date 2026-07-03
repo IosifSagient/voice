@@ -8,12 +8,15 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import { useHeaderHeight } from "@react-navigation/elements";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
-import { extractNote } from "../services/extraction";
 import { useCalendarToggle } from "../hooks/useCalendarToggle";
+import { useRegenerateNote } from "../hooks/useRegenerateNote";
 import { NoteCard } from "../components/NoteCard";
 import { NoteEditForm } from "../components/NoteEditForm";
 import { formatDateTime } from "../lib/dateFormat";
@@ -29,7 +32,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const [mode, setMode] = useState<Mode>("view");
   const [draft, setDraft] = useState<Note | null>(null);
   const [transcriptDraft, setTranscriptDraft] = useState("");
-  const [regenerating, setRegenerating] = useState(false);
+  const headerHeight = useHeaderHeight();
 
   useEffect(() => {
     (async () => {
@@ -41,8 +44,9 @@ export function NoteDetailScreen({ route, navigation }: Props) {
     })();
   }, [route.params.id]);
 
-  // Must be called before the early return so the hook runs unconditionally.
+  // Must be called before the early return so the hooks run unconditionally.
   const handleToggleCalendar = useCalendarToggle(note, setNote);
+  const { regenerating, regenerate } = useRegenerateNote(note, setNote);
 
   if (!note) return null;
 
@@ -99,18 +103,12 @@ export function NoteDetailScreen({ route, navigation }: Props) {
           text: "Ξαναδημιουργία",
           style: "destructive",
           onPress: async () => {
-            setRegenerating(true);
             try {
-              const extracted = await extractNote(transcriptDraft);
-              const updated: Note = { ...note, transcript: transcriptDraft, ...extracted };
-              await notesRepository.save(updated);
-              setNote(updated);
+              await regenerate(transcriptDraft);
               setTranscriptDraft("");
               setMode("view");
-            } catch (e: any) {
-              Alert.alert("Σφάλμα", e.message ?? String(e));
-            } finally {
-              setRegenerating(false);
+            } catch {
+              // Alert already shown by useRegenerateNote
             }
           },
         },
@@ -119,6 +117,11 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   };
 
   return (
+    <KeyboardAvoidingView
+      style={styles.kav}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={headerHeight}
+    >
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
 
       {/* ── VIEW ─────────────────────────────────────────────────── */}
@@ -252,10 +255,12 @@ export function NoteDetailScreen({ route, navigation }: Props) {
         </>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  kav: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.bgBase },
   container: {
     padding: spacing.base,

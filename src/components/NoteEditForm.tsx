@@ -132,9 +132,9 @@ export function NoteEditForm({
             <Pressable
               key={i}
               onPress={() => onTopicRemove(i)}
-              style={({ pressed }) => [styles.chip, styles.productChip, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.chip, styles.topicChip, pressed && styles.pressed]}
             >
-              <Text style={styles.productChipText}>{t} ×</Text>
+              <Text style={styles.topicChipText}>{t} ×</Text>
             </Pressable>
           ))}
         </View>
@@ -250,12 +250,12 @@ const styles = StyleSheet.create({
     ...type.meta,
     color: colors.personText,
   },
-  productChip: {
-    backgroundColor: colors.productBg,
+  topicChip: {
+    backgroundColor: colors.topicBg,
   },
-  productChipText: {
+  topicChipText: {
     ...type.meta,
-    color: colors.productText,
+    color: colors.topicText,
   },
   addTagRow: {
     flexDirection: "row",

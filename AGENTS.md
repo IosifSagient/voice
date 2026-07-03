@@ -1,14 +1,17 @@
-# VoiceNote — voice-note AI assistant
+# VoiceNote — personal voice-note assistant
 
 ## What this is
 
-An Expo (SDK 54) React Native + TypeScript mobile app, **general-purpose** across all
-business departments. A user speaks → the app transcribes → extracts a structured
-note → saves it locally → (roadmap) sends reminders and answers questions about notes.
+An Expo (SDK 54) React Native + TypeScript mobile app. A **personal assistant for a
+person's own life** — appointments, errands, people, reminders, ideas — not a
+business or team tool. A user speaks → the app transcribes → extracts a structured
+note → saves it locally → surfaces open to-dos → answers questions about notes via
+an agent chat.
 
-Pipeline: record (expo-audio) → transcribe (OpenAI gpt-4o-transcribe, Greek) →
-extract structured note (gpt-4o-mini, JSON) → saveNote() → render note card.
-OpenAI key is in .env as `EXPO_PUBLIC_OPENAI_API_KEY`.
+Pipeline: record (expo-audio) → transcribe (OpenAI `gpt-4o-transcribe`, Greek) →
+extract structured note (`gpt-4o-mini`, JSON) → `saveNote()` → render note card.
+All OpenAI calls go through a Supabase Edge Function proxy (`src/services/openaiClient.ts`),
+authenticated with the user's Supabase session token — the OpenAI key is never on-device.
 
 ## Design philosophy (do NOT violate)
 
@@ -16,53 +19,113 @@ OpenAI key is in .env as `EXPO_PUBLIC_OPENAI_API_KEY`.
   NO team views, NO analytics, NO "you are being watched" surfaces.
 - The hook is follow-up capture: "what did I say I'd do." Keep action_items central.
 - Don't guess data. Empty fields are fine; wrong fields destroy user trust.
-- LOCAL-FIRST. On-device storage only (expo-sqlite via src/db.js). No backend, no
-  cloud sync, no auth until adoption is proven.
+- Notes and all app data live on-device (expo-sqlite via `src/db.js`) — there is no
+  server-side data store and no cloud sync of notes. Auth (Supabase) and the OpenAI
+  proxy exist solely to keep the OpenAI API key off-device; they are not a general
+  backend, and no note data is ever sent to or stored on the proxy.
 
 ## Stack
 
 - Expo SDK 54 — PINNED for Expo Go compatibility. Do not bump it.
 - React Native, single codebase iOS + Android.
+- `@react-navigation` (native-stack + bottom-tabs) for navigation.
 - expo-audio (NOT the deprecated expo-av).
 - expo-sqlite ~16.x — async API. All DB access goes through `src/db.js`.
-- OpenAI: `gpt-4o-transcribe` (STT), `gpt-4o-mini` (extraction).
+- expo-calendar — device calendar reminders for action items.
+- expo-local-authentication + expo-secure-store — app-lock (biometric/PIN gate).
+- `@supabase/supabase-js` — auth session + the OpenAI proxy's auth token. No note
+  data is stored in Supabase; it is not a second data layer.
+- OpenAI: `gpt-4o-transcribe` (STT), `gpt-4o-mini` (extraction + agent).
 
-## Extraction schema (exact — only JSON, no markdown)
+## Extraction schema (exact — what the LLM returns; see `src/config/prompts.ts`)
 
 ```json
 {
   "summary": "string",
+  "actions": [
+    {
+      "title": "string",
+      "date_reasoning": "string",
+      "due_date": "YYYY-MM-DD or null",
+      "due_time": "HH:MM 24h or null",
+      "all_day": true,
+      "add_to_calendar": true
+    }
+  ],
   "people": ["string"],
-  "topics": ["string"],
-  "decisions": ["string"],
-  "action_items": [{ "text": "string", "due_date": "ISO date or null" }]
+  "topics": ["string"]
 }
 ```
 
-`topics` covers everything that was "products" in the old medical schema.
-Never add medical-specific fields back.
+`src/services/extraction.ts` maps this onto the app-level `Note`/`ActionItem` types
+(`types/note.ts`): `actions[].title` → `ActionItem.text`, `due_date`/`due_time`/`all_day`
+pass through as-is. `ActionItem` additionally carries `status` and `calendar_event_id`,
+which are app-managed (never produced by the LLM).
+
+`topics` is a single general-purpose tag for subjects, things, or organizations
+mentioned — it replaced an earlier `products`/`companies` split left over from a
+medical-sales-rep version of this app. Never reintroduce a domain-specific tag field.
+
+`decisions` exists on the stored `Note` type (kept so old notes still round-trip) but
+is **not** produced by the current prompt and has no UI. Do not build prompt/UI support
+for it unless a future task explicitly asks — it was evaluated and intentionally
+dropped as unneeded for the personal-assistant use case.
 
 ## Persistence — `src/db.js` (single data layer)
 
-Public functions: `initDb()`, `saveNote(extraction, transcript)`,
-`getNote(id)`, `getRecentNotes(limit)`, `searchNotes(query, limit)`,
-`getOpenActionItems(limit)`, `completeActionItem(id)`,
-`updateNote(note)`, `deleteNote(id)`.
+Representative public functions: `initDb()`, `saveNote(extraction, transcript)`,
+`getNote(id)`, `updateNote(note)`, `deleteNote(id)`, `getRecentNotes(limit)`,
+`searchNotes(query, limit)`, `getNotesByTag(tagType, value)`,
+`getNotesByDateRange(from, to)`, `getRecentNotesByDays(days)`,
+`getActionItemsFiltered({status, dueBefore, dueAfter})`, `completeActionItem(id)`,
+`reopenActionItem(id)`, `deleteActionItem(id)`, `setActionCalendarEvent(id, eventId)`,
+`backfill(db)` (one-time data-repair helper, also called from every migration path).
 
 Use ONLY these. `src/services/notesRepository.ts` is a thin async wrapper
 around them — do not add a second data layer.
+
+### The `people_normalized_json` schema and its LIKE-match dependency
+
+Each note stores people twice: `people_json` (display strings, honorifics stripped)
+and `people_normalized_json` — an array of `{key, display}` objects, where `key` is
+the accent-free/lowercase/final-sigma-folded dedup key (`src/normalizeName.ts`) and
+`display` is the cleaned name shown in the UI.
+
+`getNotesByTag('person', value)` matches people by doing a raw
+`LIKE '%"key":"<value-key>"%'` against `people_normalized_json` rather than parsing
+JSON in SQL. **This depends on `key` serializing as the first field of the object.**
+Both the write site (`normalizeAndDedupeNames` in `db.js`) and the read site
+(`getNotesByTag`) carry a comment noting this — do not reorder those fields without
+checking both.
+
+### Migration / backfill mechanism
+
+`db.js` bumps SQLite's `user_version` PRAGMA once per one-time data repair (see
+`migrate()`): `user_version < 1` re-derives `people_json`/`people_normalized_json`
+for every existing note (the honorific-stripping policy change); `user_version < 2`
+merged the old `companies_json` column into `topics_json` and dropped the column
+(the products/companies → topics migration). Follow this pattern for any future
+one-time repair: add an idempotent `ALTER TABLE` (if needed) to the unconditional
+migrations list, then gate the one-time data rewrite behind the next `user_version`.
 
 ## Code structure
 
 ```
 /src
-  /screens    — RecordScreen, NotesListScreen, NoteDetailScreen
-  /hooks      — stateful logic that wraps services (e.g. useRecorder, useNotes)
-  /components — NoteCard, FollowUpRow, Tag, NoteEditForm
-  /services   — transcription.ts, extraction.ts, notesRepository.ts (db.js wrapper)
-  /types      — note.ts (Note, ActionItem — single source of truth)
-  /lib        — dateFormat.ts, id.ts
-  /config     — theme.ts, models.ts, prompts.ts
+  /screens    — RecordScreen, NotesListScreen, NoteDetailScreen, TasksScreen,
+                ChatScreen, AuthScreen, LockScreen, SettingsScreen
+  /hooks      — stateful logic that wraps services (useRecorder, usePipelineRun,
+                useRegenerateNote, useCalendarToggle, useTasks, useAgentChat,
+                useAuth, useAppLock)
+  /components — NoteCard, FollowUpRow, Tag, NoteEditForm, TaskRow, TaskFilterBar,
+                TasksEmptyState
+  /services   — transcription.ts, extraction.ts, agent.ts (tool-use loop),
+                calendar.ts, authService.ts, openaiClient.ts (Supabase proxy client),
+                notesRepository.ts (db.js wrapper)
+  /types      — note.ts (Note, ActionItem), agent.ts, tasks.ts
+  /lib        — dateFormat.ts, dateAnchor.ts, supabase.ts (client init)
+  /config     — theme.ts, models.ts, prompts.ts, supabase.ts (project URL/anon key)
+  normalizeName.ts — honorific stripping + name dedup key (used by db.js)
   db.js       — expo-sqlite persistence (all DB logic lives here)
 ```
 
@@ -115,10 +178,9 @@ its own and ends with a way to verify on-device.
 6. `components` — presentational pieces, fed entirely by props.
 7. `screens` — wire the hook to the components.
 
-Example (roadmap step 4, agent Q&A): `types` (Query/Response shapes) → `prompts.ts`
-
-- `models.ts` → `services/agent.ts` (tool-use loop over `searchNotes` /
-  `getOpenActionItems`) → `useAgentQuery` hook → chat components → screen.
+Example of this in practice: agent Q&A was built as `types/agent.ts` (tool/message
+shapes) → `prompts.ts` (agent system prompt) → `services/agent.ts` (tool-use loop
+over `notesRepository` methods) → `useAgentChat` hook → `ChatScreen`.
 
 Definition of done — every feature checks:
 
@@ -128,21 +190,22 @@ Definition of done — every feature checks:
 - [ ] Reuses the existing error-handling pattern — doesn't invent a new one.
 - [ ] No dead code or leftover scaffolding from the attempt.
 
-## Roadmap (in order)
+## Roadmap
 
-1. ✅ persistence + schema generalisation
-2. UI for notes list + open to-dos (reading from db.js)
-3. reminders via `expo-calendar` (writes to device calendar)
-4. agent Q&A: tool-use loop with gpt-4o-mini, tools = searchNotes / getOpenActionItems
-5. write-actions (create calendar events etc.) + thin backend proxy for the OpenAI key
+Built: persistence + schema generalisation, notes list + open to-dos UI, calendar
+reminders (`expo-calendar`), agent Q&A (tool-use loop over notes/action items),
+Supabase auth + app-lock, and the OpenAI proxy (key is off-device). There is no
+currently planned next roadmap item — propose one before starting speculative work.
 
 ## Rules — DO NOT
 
-- Add medical-specific fields (products/pharma terms belong under "topics").
+- Reintroduce a domain-specific tag field (e.g. a medical/sales "product" or
+  "company" field) — general subjects/entities belong under `topics`.
+- Add a `decisions` prompt/UI — it was evaluated and intentionally left unimplemented.
 - Add vector DB (keyword search is enough at this scale).
-- Add a backend before step 5.
 - Break Expo Go compatibility (no custom dev-build-only libraries without flagging it first).
-- Put the OpenAI key in a backend before step 5 — it lives on-device until then.
+- Send note data (transcripts, summaries, tags) to Supabase or any other server —
+  it stays on-device; Supabase is auth + an OpenAI-proxy relay only.
 - Create a second data layer beside `db.js`.
 
 ## Working agreement

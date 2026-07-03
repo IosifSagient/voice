@@ -45,16 +45,13 @@ export function NoteCard({ note, onToggleCalendar }: Props) {
         </View>
       )}
 
-      {(note.people.length > 0 || note.products.length > 0 || note.companies.length > 0) && (
+      {(note.people.length > 0 || note.topics.length > 0) && (
         <View style={styles.tagsRow}>
           {note.people.map((p, i) => (
             <Tag key={`pe-${i}`} label={p} variant="person" />
           ))}
-          {note.products.map((p, i) => (
-            <Tag key={`pr-${i}`} label={p} variant="product" />
-          ))}
-          {note.companies.map((c, i) => (
-            <Tag key={`co-${i}`} label={c} variant="company" />
+          {note.topics.map((t, i) => (
+            <Tag key={`to-${i}`} label={t} variant="topic" />
           ))}
         </View>
       )}

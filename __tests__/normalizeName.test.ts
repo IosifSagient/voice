@@ -146,3 +146,26 @@ describe('other honorific prefixes are stripped', () => {
     expect(display('Mr. Smith')).toBe('Smith');
   });
 });
+
+// ── full-word Greek honorifics (policy: person tags carry no honorifics/roles) ─
+
+describe('full-word Greek honorifics are stripped', () => {
+  it('strips "δόκτωρ" and yields the documented key/display pair', () => {
+    expect(normalizePersonName('δόκτωρ Παπαδόπουλος')).toEqual({
+      key: 'παπαδοπουλοσ',
+      display: 'Παπαδόπουλος',
+    });
+  });
+
+  it('strips "καθηγητής" (professor)', () => {
+    expect(key('καθηγητής Νικολάου')).toBe('νικολαου');
+  });
+
+  it('negative: "Δοκτωρίδης" (surname starting with "δοκτωρ-") is NOT stripped', () => {
+    expect(display('Δοκτωρίδης')).toBe('Δοκτωρίδης');
+  });
+
+  it('negative: "Δοκτωρίδης" is not stripped even as the first of two tokens', () => {
+    expect(display('Δοκτωρίδης Νίκος')).toBe('Δοκτωρίδης Νίκος');
+  });
+});

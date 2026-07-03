@@ -4,7 +4,7 @@ import { extractNote } from "../services/extraction";
 import { notesRepository } from "../services/notesRepository";
 import type { Note } from "../types/note";
 
-export type PipelinePhase = "idle" | "transcribing" | "extracting" | "done" | "error";
+type PipelinePhase = "idle" | "transcribing" | "extracting" | "done" | "error";
 
 export type PipelineRunState = {
   phase: PipelinePhase;

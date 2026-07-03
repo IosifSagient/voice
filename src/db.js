@@ -46,17 +46,51 @@ async function migrate(db) {
       /* column already exists — safe to ignore */
     }
   }
+
+  // One-time repair for the "no honorifics in person tags" policy change: force
+  // every existing note back through backfill() so people_json / people_normalized_json
+  // get re-derived under the updated normalizeName rules.
+  const { user_version } = await db.getFirstAsync("PRAGMA user_version");
+  if (user_version < 1) {
+    await db.execAsync("UPDATE notes SET people_normalized_json = NULL");
+    await db.execAsync("PRAGMA user_version = 1");
+  }
+
+  // One-time repair for the products/companies → single "topics" field merge:
+  // fold companies_json into topics_json, then drop the now-unused column.
+  if (user_version < 2) {
+    const rows = await db.getAllAsync("SELECT id, topics_json, companies_json FROM notes");
+    for (const row of rows) {
+      const merged = [
+        ...JSON.parse(row.topics_json || "[]"),
+        ...JSON.parse(row.companies_json || "[]"),
+      ];
+      await db.runAsync(
+        "UPDATE notes SET topics_json = ? WHERE id = ?",
+        JSON.stringify(merged),
+        row.id,
+      );
+    }
+    try {
+      await db.execAsync("ALTER TABLE notes DROP COLUMN companies_json");
+    } catch {
+      /* older SQLite without DROP COLUMN support — column stays, just unused */
+    }
+    await db.execAsync("PRAGMA user_version = 2");
+  }
 }
 
-async function backfill(db) {
+export async function backfill(db) {
   const rows = await db.getAllAsync(
     "SELECT id, people_json FROM notes WHERE people_normalized_json IS NULL",
   );
   for (const row of rows) {
     const raw = JSON.parse(row.people_json || "[]");
+    const normalized = normalizeAndDedupeNames(raw);
     await db.runAsync(
-      "UPDATE notes SET people_normalized_json = ? WHERE id = ?",
-      JSON.stringify(normalizeAndDedupeNames(raw)),
+      "UPDATE notes SET people_json = ?, people_normalized_json = ? WHERE id = ?",
+      JSON.stringify(normalized.map((n) => n.display)),
+      JSON.stringify(normalized),
       row.id,
     );
   }
@@ -91,6 +125,11 @@ export function parseDueDate(str) {
 
 // Normalizes each raw name via normalizePersonName, deduping by key (first occurrence wins).
 // Exported so the dedup logic can be unit-tested without a SQLite dependency.
+//
+// Field order matters here: this object is JSON.stringify'd into people_normalized_json,
+// and getNotesByTag's person-tag lookup does a LIKE '%"key":"..."%' match against that
+// string — it depends on "key" serializing as the first field. Do not reorder these two
+// fields without checking the read site (search for "LIKE" in this file).
 export function normalizeAndDedupeNames(rawNames) {
   const seen = new Map();
   for (const name of rawNames) {
@@ -118,24 +157,23 @@ export async function saveNote(extraction, transcript) {
   const {
     summary = "",
     people = [],
-    products = [], // new field; stored in topics_json column
-    companies = [], // new field; stored in companies_json column
+    topics = [],
     action_items = [],
   } = extraction || {};
+  const normalizedPeople = normalizeAndDedupeNames(people);
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `INSERT INTO notes (id, created_at, transcript, summary, people_json, topics_json, decisions_json, companies_json, people_normalized_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO notes (id, created_at, transcript, summary, people_json, topics_json, decisions_json, people_normalized_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       noteId,
       now,
       transcript ?? "",
       summary,
-      JSON.stringify(people),
-      JSON.stringify(products),
+      JSON.stringify(normalizedPeople.map((n) => n.display)),
+      JSON.stringify(topics),
       JSON.stringify([]),
-      JSON.stringify(companies),
-      JSON.stringify(normalizeAndDedupeNames(people)),
+      JSON.stringify(normalizedPeople),
     );
 
     for (const item of action_items) {
@@ -160,16 +198,16 @@ export async function saveNote(extraction, transcript) {
 export async function updateNote(note) {
   const db = await getDb();
   const now = Date.now();
+  const normalizedPeople = normalizeAndDedupeNames(note.people || []);
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `UPDATE notes SET transcript = ?, summary = ?, people_json = ?, topics_json = ?, decisions_json = ?, companies_json = ?, people_normalized_json = ? WHERE id = ?`,
+      `UPDATE notes SET transcript = ?, summary = ?, people_json = ?, topics_json = ?, decisions_json = ?, people_normalized_json = ? WHERE id = ?`,
       note.transcript ?? "",
       note.summary ?? "",
-      JSON.stringify(note.people || []),
-      JSON.stringify(note.topics || []), // edit form writes topics → stored as products
+      JSON.stringify(normalizedPeople.map((n) => n.display)),
+      JSON.stringify(note.topics || []),
       JSON.stringify(note.decisions || []),
-      JSON.stringify(note.companies || []),
-      JSON.stringify(normalizeAndDedupeNames(note.people || [])),
+      JSON.stringify(normalizedPeople),
       note.id,
     );
     await db.runAsync("DELETE FROM action_items WHERE note_id = ?", note.id);
@@ -263,17 +301,6 @@ export async function searchNotes(query, limit = 10) {
     limit,
   );
   return rows.map(hydrateNote);
-}
-
-export async function getOpenActionItems(limit = 50) {
-  const db = await getDb();
-  return db.getAllAsync(
-    `SELECT * FROM action_items
-     WHERE status = 'open'
-     ORDER BY (due_date IS NULL), due_date ASC
-     LIMIT ?`,
-    limit,
-  );
 }
 
 // --- agent query helpers ---------------------------------------------------
@@ -373,8 +400,7 @@ export async function getNotesByTag(tagType, value) {
   }
 
   const columnMap = {
-    product: "topics_json",
-    company: "companies_json",
+    topic: "topics_json",
   };
   const column = columnMap[tagType];
   if (!column) return [];
@@ -423,16 +449,13 @@ export async function deleteActionItem(id) {
 // --- helpers ---------------------------------------------------------------
 
 export function hydrateNote(row) {
-  const products = JSON.parse(row.topics_json || "[]");
   return {
     id: row.id,
     timestamp: row.created_at,
     transcript: row.transcript,
     summary: row.summary,
     people: JSON.parse(row.people_json || "[]"),
-    topics: products, // mirrors products for edit-form compat
-    products,
-    companies: JSON.parse(row.companies_json || "[]"),
+    topics: JSON.parse(row.topics_json || "[]"),
     decisions: JSON.parse(row.decisions_json || "[]"),
     action_items: [],
     openActionCount: row.open_count ?? 0,

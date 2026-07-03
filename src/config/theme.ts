@@ -4,7 +4,7 @@ export const colors = {
   bgCard:     "#161A22",
   bgElevated: "#1E2330",
 
-  // Primary accent — teal, clinical
+  // Primary accent — teal
   accent:      "#2DD4BF",
   accentMuted: "#0D2926",
 
@@ -21,13 +21,9 @@ export const colors = {
   personText: "#C9922A",
   personBg:   "#1C1608",
 
-  // Product tags — teal-green, clinical but distinct from accent
-  productText: "#2BB5A2",
-  productBg:   "#071916",
-
-  // Company tags — indigo, distinct from people and products
-  companyText: "#818CF8",
-  companyBg:   "#0C0C1C",
+  // Topic tags — teal-green, distinct from accent
+  topicText: "#2BB5A2",
+  topicBg:   "#071916",
 
   // Due date chip
   dueText: "#7ED8CF",
