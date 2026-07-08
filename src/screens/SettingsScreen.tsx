@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Switch, StyleSheet, Alert } from 'react-native';
+import { View, Text, Pressable, Switch, StyleSheet, Alert, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, type, radii } from '../config/theme';
 import type { CalendarOption } from '../types/calendar';
@@ -99,6 +99,15 @@ export function SettingsScreen({
               </Pressable>
             ))}
           </>
+        )}
+
+        {Platform.OS === 'ios' && (
+          <Pressable onPress={() => Linking.openURL('app-settings:')}>
+            <Text style={styles.rowHint}>
+              Δεν βλέπετε το Google Calendar; Προσθέστε τον λογαριασμό Google στις
+              Ρυθμίσεις iOS → Εφαρμογές → Ημερολόγιο → Λογαριασμοί.
+            </Text>
+          </Pressable>
         )}
       </View>
 
