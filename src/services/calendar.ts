@@ -1,8 +1,18 @@
 import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import type { CalendarOption } from '../types/calendar';
+import { getPreferredCalendarId } from './calendarPrefs';
 
 let cachedCalendarId: string | null = null;
+let preferredCalendarStale = false;
+
+// True when the user has a preferred calendar set but it no longer exists on
+// the device (e.g. an Android account was removed) — surfaced so Settings UI
+// can prompt for a re-pick. Clears itself as soon as the calendar is valid
+// again (e.g. the account resyncs) without requiring any user action.
+export function isPreferredCalendarStale(): boolean {
+  return preferredCalendarStale;
+}
 
 export async function ensurePermission(): Promise<boolean> {
   const { status } = await Calendar.requestCalendarPermissionsAsync();
@@ -36,21 +46,22 @@ export async function listWritableCalendars(): Promise<CalendarOption[]> {
     }));
 }
 
-async function getOrCreateCalendarId(): Promise<string | null> {
-  if (cachedCalendarId) return cachedCalendarId;
-
+// `cache` is false when resolving a one-off fallback for a stale preferred
+// calendar — caching that result would mask the preference becoming valid
+// again on a later call (see getOrCreateCalendarId).
+async function resolveDefaultCalendarId(cache: boolean): Promise<string | null> {
   if (Platform.OS === 'ios') {
     const cal = await Calendar.getDefaultCalendarAsync();
-    cachedCalendarId = cal.id;
-    return cachedCalendarId;
+    if (cache) cachedCalendarId = cal.id;
+    return cal.id;
   }
 
   // Android — find any calendar that allows modification
   const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
   const writable = calendars.find((c) => c.allowsModifications);
   if (writable) {
-    cachedCalendarId = writable.id;
-    return cachedCalendarId;
+    if (cache) cachedCalendarId = writable.id;
+    return writable.id;
   }
 
   // Fallback: create a local VoiceNote calendar
@@ -69,11 +80,35 @@ async function getOrCreateCalendarId(): Promise<string | null> {
       ownerAccount: 'personal',
       accessLevel: Calendar.CalendarAccessLevel.OWNER,
     });
-    cachedCalendarId = id;
-    return cachedCalendarId;
+    if (cache) cachedCalendarId = id;
+    return id;
   } catch {
     return null;
   }
+}
+
+async function getOrCreateCalendarId(): Promise<string | null> {
+  if (cachedCalendarId) return cachedCalendarId;
+
+  const preferredId = await getPreferredCalendarId();
+  if (preferredId) {
+    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    if (calendars.some((c) => c.id === preferredId)) {
+      preferredCalendarStale = false;
+      cachedCalendarId = preferredId;
+      return preferredId;
+    }
+
+    // Preferred calendar is gone (e.g. an Android account was removed). Fall
+    // back for this event only — deliberately not cached and the stored
+    // preference is left untouched, so if the calendar reappears (account
+    // resync) it's picked up again automatically without a re-pick.
+    preferredCalendarStale = true;
+    return resolveDefaultCalendarId(false);
+  }
+
+  preferredCalendarStale = false;
+  return resolveDefaultCalendarId(true);
 }
 
 // Assumes ensurePermission() was already called and granted.
