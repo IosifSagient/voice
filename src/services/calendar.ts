@@ -8,6 +8,13 @@ export async function ensurePermission(): Promise<boolean> {
   return status === 'granted';
 }
 
+// Called by calendarPrefs.setPreferredCalendarId() whenever the user changes
+// their preferred calendar, so a stale resolution isn't reused for the rest
+// of the process lifetime.
+export function clearCachedCalendarId(): void {
+  cachedCalendarId = null;
+}
+
 async function getOrCreateCalendarId(): Promise<string | null> {
   if (cachedCalendarId) return cachedCalendarId;
 
