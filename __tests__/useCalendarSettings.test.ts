@@ -59,7 +59,7 @@ beforeEach(() => {
 
 describe('useCalendarSettings — no permission', () => {
   it('exposes permissionGranted false and an empty calendar list without calling listWritableCalendars', async () => {
-    mockGetPermissionStatus.mockResolvedValue(false);
+    mockGetPermissionStatus.mockResolvedValue({ granted: false, canAskAgain: true });
     const { getResult } = await renderUseCalendarSettings();
 
     expect(getResult().loading).toBe(false);
@@ -70,11 +70,11 @@ describe('useCalendarSettings — no permission', () => {
   });
 
   it('requestPermission() grants access and refreshes the calendar list', async () => {
-    mockGetPermissionStatus.mockResolvedValueOnce(false); // initial load, before granting
+    mockGetPermissionStatus.mockResolvedValueOnce({ granted: false, canAskAgain: true }); // initial load, before granting
     const { getResult } = await renderUseCalendarSettings();
 
     mockEnsurePermission.mockResolvedValueOnce(true);
-    mockGetPermissionStatus.mockResolvedValueOnce(true); // refresh() re-checks after granting
+    mockGetPermissionStatus.mockResolvedValueOnce({ granted: true, canAskAgain: true }); // refresh() re-checks after granting
     mockListWritableCalendars.mockResolvedValueOnce([CAL_A]);
     mockGetPreferredCalendarId.mockResolvedValueOnce(null);
 
@@ -87,10 +87,11 @@ describe('useCalendarSettings — no permission', () => {
   });
 
   it('requestPermission() stays ungranted when the user declines', async () => {
-    mockGetPermissionStatus.mockResolvedValue(false);
+    mockGetPermissionStatus.mockResolvedValueOnce({ granted: false, canAskAgain: true }); // initial load
     const { getResult } = await renderUseCalendarSettings();
 
     mockEnsurePermission.mockResolvedValueOnce(false);
+    mockGetPermissionStatus.mockResolvedValueOnce({ granted: false, canAskAgain: true }); // refresh() re-checks after declining
 
     await act(async () => {
       await getResult().requestPermission();
@@ -99,11 +100,27 @@ describe('useCalendarSettings — no permission', () => {
     expect(getResult().permissionGranted).toBe(false);
     expect(getResult().calendars).toEqual([]);
   });
+
+  it('canAskAgain starts true and flips to false once iOS determines the permission (denial or write-only) and won\'t re-prompt', async () => {
+    mockGetPermissionStatus.mockResolvedValueOnce({ granted: false, canAskAgain: true }); // initial load
+    const { getResult } = await renderUseCalendarSettings();
+    expect(getResult().canAskAgain).toBe(true);
+
+    mockEnsurePermission.mockResolvedValueOnce(false);
+    mockGetPermissionStatus.mockResolvedValueOnce({ granted: false, canAskAgain: false }); // refresh() after the OS prompt was consumed
+
+    await act(async () => {
+      await getResult().requestPermission();
+    });
+
+    expect(getResult().permissionGranted).toBe(false);
+    expect(getResult().canAskAgain).toBe(false);
+  });
 });
 
 describe('useCalendarSettings — permission already granted', () => {
   it('loads calendars and the current selection', async () => {
-    mockGetPermissionStatus.mockResolvedValue(true);
+    mockGetPermissionStatus.mockResolvedValue({ granted: true, canAskAgain: true });
     mockListWritableCalendars.mockResolvedValue([CAL_A, CAL_B]);
     mockGetPreferredCalendarId.mockResolvedValue('b');
 
@@ -116,7 +133,7 @@ describe('useCalendarSettings — permission already granted', () => {
   });
 
   it('flags rePickNeeded when the stored preference is not in the writable list', async () => {
-    mockGetPermissionStatus.mockResolvedValue(true);
+    mockGetPermissionStatus.mockResolvedValue({ granted: true, canAskAgain: true });
     mockListWritableCalendars.mockResolvedValue([CAL_A]);
     mockGetPreferredCalendarId.mockResolvedValue('missing-id');
 
@@ -126,7 +143,7 @@ describe('useCalendarSettings — permission already granted', () => {
   });
 
   it('selectCalendar() persists the choice and clears rePickNeeded', async () => {
-    mockGetPermissionStatus.mockResolvedValue(true);
+    mockGetPermissionStatus.mockResolvedValue({ granted: true, canAskAgain: true });
     mockListWritableCalendars.mockResolvedValue([CAL_A, CAL_B]);
     mockGetPreferredCalendarId.mockResolvedValue('missing-id');
 

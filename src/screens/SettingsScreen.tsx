@@ -10,6 +10,7 @@ type Props = {
   onSignOut: () => void;
   calendarLoading: boolean;
   calendarPermissionGranted: boolean;
+  calendarCanAskAgain: boolean;
   calendars: CalendarOption[];
   selectedCalendarId: string | null;
   calendarRePickNeeded: boolean;
@@ -24,6 +25,7 @@ export function SettingsScreen({
   onSignOut,
   calendarLoading,
   calendarPermissionGranted,
+  calendarCanAskAgain,
   calendars,
   selectedCalendarId,
   calendarRePickNeeded,
@@ -61,15 +63,32 @@ export function SettingsScreen({
 
         {!calendarLoading && !calendarPermissionGranted && (
           <>
-            <Pressable
-              onPress={onRequestCalendarPermission}
-              style={({ pressed }) => [styles.row, pressed && styles.btnPressed]}
-            >
-              <Text style={styles.rowLabel}>Παραχώρηση πρόσβασης</Text>
-            </Pressable>
-            <Text style={styles.rowHint}>
-              Χρειάζεται για να επιλέξετε πού αποθηκεύονται οι υπενθυμίσεις.
-            </Text>
+            {calendarCanAskAgain ? (
+              <>
+                <Pressable
+                  onPress={onRequestCalendarPermission}
+                  style={({ pressed }) => [styles.row, pressed && styles.btnPressed]}
+                >
+                  <Text style={styles.rowLabel}>Παραχώρηση πρόσβασης</Text>
+                </Pressable>
+                <Text style={styles.rowHint}>
+                  Χρειάζεται για να επιλέξετε πού αποθηκεύονται οι υπενθυμίσεις.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  onPress={() => Linking.openSettings()}
+                  style={({ pressed }) => [styles.row, pressed && styles.btnPressed]}
+                >
+                  <Text style={styles.rowLabel}>Άνοιγμα Ρυθμίσεων</Text>
+                </Pressable>
+                <Text style={styles.rowHint}>
+                  Η επιλογή ημερολογίου απαιτεί πλήρη πρόσβαση. Αν είχατε επιλέξει
+                  «Προσθήκη συμβάντων μόνο», μετράει ως περιορισμένη πρόσβαση.
+                </Text>
+              </>
+            )}
           </>
         )}
 

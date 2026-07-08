@@ -40,13 +40,21 @@ beforeEach(() => {
 });
 
 test('getPermissionStatus reflects granted status without prompting', async () => {
-  mockGetPermissions.mockResolvedValueOnce({ status: 'granted' });
-  await expect(getPermissionStatus()).resolves.toBe(true);
+  mockGetPermissions.mockResolvedValueOnce({ status: 'granted', canAskAgain: true });
+  await expect(getPermissionStatus()).resolves.toEqual({ granted: true, canAskAgain: true });
 });
 
 test('getPermissionStatus reflects undetermined/denied status', async () => {
-  mockGetPermissions.mockResolvedValueOnce({ status: 'undetermined' });
-  await expect(getPermissionStatus()).resolves.toBe(false);
+  mockGetPermissions.mockResolvedValueOnce({ status: 'undetermined', canAskAgain: true });
+  await expect(getPermissionStatus()).resolves.toEqual({ granted: false, canAskAgain: true });
+});
+
+// Write-only access is folded into 'denied' by expo-calendar's iOS wrapper and
+// determined permissions report canAskAgain: false — the signal Settings UI
+// uses to send the user to the OS Settings app instead of re-prompting.
+test('getPermissionStatus surfaces canAskAgain: false for a determined denial (incl. write-only)', async () => {
+  mockGetPermissions.mockResolvedValueOnce({ status: 'denied', canAskAgain: false });
+  await expect(getPermissionStatus()).resolves.toEqual({ granted: false, canAskAgain: false });
 });
 
 test('listWritableCalendars filters to allowsModifications and maps fields', async () => {

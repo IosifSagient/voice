@@ -16,14 +16,16 @@ import type { CalendarOption } from "../types/calendar";
 export function useCalendarSettings() {
   const [loading, setLoading] = useState(true);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [canAskAgain, setCanAskAgain] = useState(true);
   const [calendars, setCalendars] = useState<CalendarOption[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rePickNeeded, setRePickNeeded] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const granted = await getPermissionStatus();
+    const { granted, canAskAgain: askAgain } = await getPermissionStatus();
     setPermissionGranted(granted);
+    setCanAskAgain(askAgain);
 
     if (!granted) {
       setCalendars([]);
@@ -49,11 +51,9 @@ export function useCalendarSettings() {
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     const granted = await ensurePermission();
-    if (granted) {
-      await refresh();
-    } else {
-      setPermissionGranted(false);
-    }
+    // Refresh either way — a denial also updates canAskAgain, since iOS
+    // marks the permission as determined and won't prompt again.
+    await refresh();
     return granted;
   }, [refresh]);
 
@@ -66,6 +66,7 @@ export function useCalendarSettings() {
   return {
     loading,
     permissionGranted,
+    canAskAgain,
     calendars,
     selectedId,
     rePickNeeded,

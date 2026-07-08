@@ -19,11 +19,20 @@ export async function ensurePermission(): Promise<boolean> {
   return status === 'granted';
 }
 
+export type CalendarPermissionState = {
+  granted: boolean;
+  // False once iOS has already determined the permission (denied, or granted
+  // write-only access folded into 'denied' by expo-calendar — see
+  // CalendarPermissionsRequester.swift) and won't show its prompt again;
+  // the user must be sent to Settings instead of re-requesting.
+  canAskAgain: boolean;
+};
+
 // Checks current permission without prompting — for UI that needs to show a
 // "grant access" state and request only on explicit user interaction.
-export async function getPermissionStatus(): Promise<boolean> {
-  const { status } = await Calendar.getCalendarPermissionsAsync();
-  return status === 'granted';
+export async function getPermissionStatus(): Promise<CalendarPermissionState> {
+  const { status, canAskAgain } = await Calendar.getCalendarPermissionsAsync();
+  return { granted: status === 'granted', canAskAgain };
 }
 
 // Called by calendarPrefs.setPreferredCalendarId() whenever the user changes

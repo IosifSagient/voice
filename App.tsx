@@ -124,6 +124,7 @@ export default function App() {
   const {
     loading: calendarLoading,
     permissionGranted: calendarPermissionGranted,
+    canAskAgain: calendarCanAskAgain,
     calendars,
     selectedId: selectedCalendarId,
     rePickNeeded: calendarRePickNeeded,
@@ -179,6 +180,7 @@ export default function App() {
               onSignOut={signOut}
               calendarLoading={calendarLoading}
               calendarPermissionGranted={calendarPermissionGranted}
+              calendarCanAskAgain={calendarCanAskAgain}
               calendars={calendars}
               selectedCalendarId={selectedCalendarId}
               calendarRePickNeeded={calendarRePickNeeded}
