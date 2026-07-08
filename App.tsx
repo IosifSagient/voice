@@ -18,6 +18,7 @@ import { colors, radii, type, spacing } from "./src/config/theme";
 import { initDb } from "./src/db";
 import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
+import { useCalendarSettings } from "./src/hooks/useCalendarSettings";
 
 export type RootStackParamList = {
   Main: undefined;
@@ -120,6 +121,15 @@ export default function App() {
   const { session, loading, signOut } = useAuth();
   const { locked, lockAvailable, lockEnabled, unlock, setLockEnabled } =
     useAppLock(!!session);
+  const {
+    loading: calendarLoading,
+    permissionGranted: calendarPermissionGranted,
+    calendars,
+    selectedId: selectedCalendarId,
+    rePickNeeded: calendarRePickNeeded,
+    requestPermission: onRequestCalendarPermission,
+    selectCalendar: onSelectCalendar,
+  } = useCalendarSettings();
 
   useEffect(() => {
     initDb().catch(console.error);
@@ -167,6 +177,13 @@ export default function App() {
               lockEnabled={lockEnabled}
               onSetLockEnabled={setLockEnabled}
               onSignOut={signOut}
+              calendarLoading={calendarLoading}
+              calendarPermissionGranted={calendarPermissionGranted}
+              calendars={calendars}
+              selectedCalendarId={selectedCalendarId}
+              calendarRePickNeeded={calendarRePickNeeded}
+              onRequestCalendarPermission={onRequestCalendarPermission}
+              onSelectCalendar={onSelectCalendar}
             />
           )}
         </Stack.Screen>
