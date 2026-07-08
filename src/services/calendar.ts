@@ -1,5 +1,6 @@
 import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
+import type { CalendarOption } from '../types/calendar';
 
 let cachedCalendarId: string | null = null;
 
@@ -8,11 +9,31 @@ export async function ensurePermission(): Promise<boolean> {
   return status === 'granted';
 }
 
+// Checks current permission without prompting — for UI that needs to show a
+// "grant access" state and request only on explicit user interaction.
+export async function getPermissionStatus(): Promise<boolean> {
+  const { status } = await Calendar.getCalendarPermissionsAsync();
+  return status === 'granted';
+}
+
 // Called by calendarPrefs.setPreferredCalendarId() whenever the user changes
 // their preferred calendar, so a stale resolution isn't reused for the rest
 // of the process lifetime.
 export function clearCachedCalendarId(): void {
   cachedCalendarId = null;
+}
+
+// Assumes ensurePermission() was already called and granted.
+export async function listWritableCalendars(): Promise<CalendarOption[]> {
+  const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+  return calendars
+    .filter((c) => c.allowsModifications)
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      accountName: c.source.name,
+      color: c.color,
+    }));
 }
 
 async function getOrCreateCalendarId(): Promise<string | null> {
