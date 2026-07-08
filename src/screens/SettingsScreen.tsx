@@ -1,11 +1,20 @@
 import { View, Text, Pressable, Switch, StyleSheet, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, type, radii } from '../config/theme';
+import type { CalendarOption } from '../types/calendar';
 
 type Props = {
   lockAvailable: boolean;
   lockEnabled: boolean;
   onSetLockEnabled: (enabled: boolean) => void;
   onSignOut: () => void;
+  calendarLoading: boolean;
+  calendarPermissionGranted: boolean;
+  calendars: CalendarOption[];
+  selectedCalendarId: string | null;
+  calendarRePickNeeded: boolean;
+  onRequestCalendarPermission: () => void;
+  onSelectCalendar: (id: string) => void;
 };
 
 export function SettingsScreen({
@@ -13,6 +22,13 @@ export function SettingsScreen({
   lockEnabled,
   onSetLockEnabled,
   onSignOut,
+  calendarLoading,
+  calendarPermissionGranted,
+  calendars,
+  selectedCalendarId,
+  calendarRePickNeeded,
+  onRequestCalendarPermission,
+  onSelectCalendar,
 }: Props) {
   function handleSignOut() {
     Alert.alert('Αποσύνδεση;', undefined, [
@@ -39,6 +55,52 @@ export function SettingsScreen({
           </Text>
         </View>
       )}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Ημερολόγιο</Text>
+
+        {!calendarLoading && !calendarPermissionGranted && (
+          <>
+            <Pressable
+              onPress={onRequestCalendarPermission}
+              style={({ pressed }) => [styles.row, pressed && styles.btnPressed]}
+            >
+              <Text style={styles.rowLabel}>Παραχώρηση πρόσβασης</Text>
+            </Pressable>
+            <Text style={styles.rowHint}>
+              Χρειάζεται για να επιλέξετε πού αποθηκεύονται οι υπενθυμίσεις.
+            </Text>
+          </>
+        )}
+
+        {!calendarLoading && calendarPermissionGranted && (
+          <>
+            {calendarRePickNeeded && (
+              <Text style={[styles.rowHint, styles.rowHintWarning]}>
+                Το προηγούμενο ημερολόγιο δεν είναι πια διαθέσιμο. Επιλέξτε ένα νέο.
+              </Text>
+            )}
+            {calendars.map((cal) => (
+              <Pressable
+                key={cal.id}
+                onPress={() => onSelectCalendar(cal.id)}
+                style={({ pressed }) => [styles.row, pressed && styles.btnPressed]}
+              >
+                <View style={styles.calendarRowMain}>
+                  <View style={[styles.colorDot, { backgroundColor: cal.color }]} />
+                  <View>
+                    <Text style={styles.rowLabel}>{cal.title}</Text>
+                    <Text style={styles.calendarAccount}>{cal.accountName}</Text>
+                  </View>
+                </View>
+                {cal.id === selectedCalendarId && (
+                  <Ionicons name="checkmark" size={20} color={colors.accent} />
+                )}
+              </Pressable>
+            ))}
+          </>
+        )}
+      </View>
 
       <View style={styles.section}>
         <Pressable
@@ -79,6 +141,27 @@ const styles = StyleSheet.create({
     ...type.meta,
     color: colors.textMuted,
     paddingBottom: spacing.base,
+  },
+  rowHintWarning: {
+    color: colors.error,
+  },
+  sectionLabel: {
+    ...type.label,
+    paddingTop: spacing.base,
+  },
+  calendarRowMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  colorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radii.full,
+  },
+  calendarAccount: {
+    ...type.meta,
+    color: colors.textMuted,
   },
   signOutBtn: {
     paddingVertical: spacing.base,
