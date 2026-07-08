@@ -14,6 +14,8 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList, MainTabParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
+import { useTodayTasks } from "../hooks/useTodayTasks";
+import { TodaySection } from "../components/TodaySection";
 import { formatDate } from "../lib/dateFormat";
 import type { Note } from "../types/note";
 import { colors, spacing, type, radii } from "../config/theme";
@@ -26,6 +28,16 @@ type Props = CompositeScreenProps<
 export function NotesListScreen({ navigation }: Props) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [query, setQuery] = useState("");
+  const {
+    overdue,
+    today,
+    upcoming,
+    loading: todayLoading,
+    error: todayError,
+    refresh: refreshTodayTasks,
+    complete: completeTodayTask,
+    reopen: reopenTodayTask,
+  } = useTodayTasks();
 
   useFocusEffect(
     useCallback(() => {
@@ -34,6 +46,12 @@ export function NotesListScreen({ navigation }: Props) {
         setNotes(results);
       })();
     }, []),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshTodayTasks();
+    }, [refreshTodayTasks]),
   );
 
   const search = async (q: string) => {
@@ -64,6 +82,18 @@ export function NotesListScreen({ navigation }: Props) {
         data={notes}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <TodaySection
+            overdue={overdue}
+            today={today}
+            upcoming={upcoming}
+            loading={todayLoading}
+            error={todayError}
+            onPressTask={(noteId) => navigation.navigate("NoteDetail", { id: noteId })}
+            onComplete={completeTodayTask}
+            onUndo={reopenTodayTask}
+          />
+        }
         ListEmptyComponent={
           query ? (
             <Text style={styles.emptySearch}>Δεν βρέθηκαν σημειώσεις.</Text>

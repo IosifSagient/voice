@@ -8,21 +8,53 @@ import {
   signUp,
 } from '../services/authService';
 
+const SESSION_LOAD_TIMEOUT_MS = 9000;
+
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getSession().then(({ data }) => {
-      setSession(data.session);
+    // Guards against getSession() both rejecting AND hanging forever (seen in
+    // production TestFlight builds) — either way we must fall through to the
+    // login screen instead of leaving the app stuck on the loading view.
+    let settled = false;
+
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      console.error(
+        `[useAuth] getSession() timed out after ${SESSION_LOAD_TIMEOUT_MS}ms (likely network) — falling through to login`,
+      );
+      setSession(null);
       setLoading(false);
-    });
+    }, SESSION_LOAD_TIMEOUT_MS);
+
+    getSession()
+      .then(({ data }) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        setSession(data.session);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        console.error('[useAuth] getSession() rejected (likely SecureStore/unhandled) — falling through to login:', error);
+        setSession(null);
+        setLoading(false);
+      });
 
     const unsubscribe = onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, []);
 
   return {

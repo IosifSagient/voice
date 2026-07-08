@@ -1,13 +1,17 @@
 {
   "expo": {
-    "name": "voicenote",
-    "slug": "voicenote",
+    "name": "heylisa",
+    "slug": "heylisa",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/branding/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.iosifsagient.heylisa",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,7 +20,13 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,7 +45,20 @@
           "calendarPermission": "Το VoiceNote χρειάζεται πρόσβαση στο ημερολόγιό σας για να προσθέτει υπενθυμίσεις από τις ενέργειές σας."
         }
       ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/branding/splash-icon.png",
+          "imageWidth": 180,
+          "backgroundColor": "#14141B"
+        }
+      ],
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "58f32cb5-f98c-42a9-bcdc-720df30af0fa"
+      }
+    }
   }
 }

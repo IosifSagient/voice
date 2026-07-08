@@ -417,6 +417,35 @@ export async function getActionItemsFiltered({
   }));
 }
 
+// All open action items with a due_date, joined with parent note context.
+// No date-bucket filtering here — that's done in the service layer
+// (src/services/taskBuckets.ts) so the boundary logic is testable in JS.
+export async function getTasksWithDueDates() {
+  const db = await getDb();
+  const rows = await db.getAllAsync(
+    `SELECT a.id, a.text, a.due_date, a.due_time, a.all_day, a.status,
+       a.calendar_event_id, a.created_at, a.note_id,
+       n.summary AS note_summary, n.people_json
+     FROM action_items a
+     JOIN notes n ON a.note_id = n.id
+     WHERE a.status = 'open' AND a.due_date IS NOT NULL
+     ORDER BY a.due_date ASC`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    noteId: r.note_id,
+    text: r.text,
+    dueDate: new Date(r.due_date).toISOString().slice(0, 10),
+    dueTime: r.due_time ?? null,
+    allDay: r.all_day !== 0,
+    status: r.status,
+    calendarEventId: r.calendar_event_id ?? null,
+    createdAt: r.created_at,
+    noteSummary: r.note_summary ?? "",
+    notePeople: JSON.parse(r.people_json || "[]"),
+  }));
+}
+
 export async function getNotesByDateRange(from, to) {
   const db = await getDb();
   const fromTs = parseDueDate(from);

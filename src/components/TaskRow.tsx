@@ -7,7 +7,7 @@ type Props = {
   task: TaskWithContext;
   onPress: () => void;
   onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
 };
 
 function formatDueDate(isoDate: string): string {
@@ -30,7 +30,7 @@ export function TaskRow({ task, onPress, onToggle, onDelete }: Props) {
   const handleLongPress = () => {
     Alert.alert("Διαγραφή ενέργειας;", undefined, [
       { text: "Άκυρο", style: "cancel" },
-      { text: "Διαγραφή", style: "destructive", onPress: () => onDelete(task.id) },
+      { text: "Διαγραφή", style: "destructive", onPress: () => onDelete!(task.id) },
     ]);
   };
 
@@ -38,12 +38,13 @@ export function TaskRow({ task, onPress, onToggle, onDelete }: Props) {
     <Pressable
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       onPress={onPress}
-      onLongPress={handleLongPress}
+      onLongPress={onDelete ? handleLongPress : undefined}
     >
       <Pressable
         style={[styles.checkbox, done && styles.checkboxDone]}
         onPress={() => onToggle(task.id)}
         hitSlop={8}
+        testID={`task-checkbox-${task.id}`}
       >
         {done && <Text style={styles.checkmark}>✓</Text>}
       </Pressable>

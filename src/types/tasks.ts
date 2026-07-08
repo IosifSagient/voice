@@ -14,3 +14,14 @@ export type TaskWithContext = {
   noteSummary: string;
   notePeople: string[];
 };
+
+// TaskWithContext narrowed to rows that are guaranteed to have a due date
+// (what getTasksWithDueDates returns) — lets bucketing code compare dueDate
+// as a string without null-checking.
+export type TaskWithDueDate = TaskWithContext & { dueDate: string };
+
+export type TaskBuckets = {
+  overdue: TaskWithDueDate[];
+  today: TaskWithDueDate[];
+  upcoming: TaskWithDueDate[];
+};

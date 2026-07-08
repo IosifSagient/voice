@@ -14,9 +14,11 @@ import {
   completeActionItem,
   reopenActionItem,
   deleteActionItem,
+  getTasksWithDueDates,
 } from "../db";
 import type { Note } from "../types/note";
 import type { ExtractedNote } from "./extraction";
+import type { TaskWithDueDate } from "../types/tasks";
 
 export const notesRepository = {
   create: (extraction: ExtractedNote, transcript: string): Promise<string> =>
@@ -47,4 +49,6 @@ export const notesRepository = {
   reopenActionItem: (id: string): Promise<void> => reopenActionItem(id),
   deleteActionItem: (id: string): Promise<string | null> =>
     deleteActionItem(id),
+  getTasksWithDueDates: (): Promise<TaskWithDueDate[]> =>
+    getTasksWithDueDates(),
 };
