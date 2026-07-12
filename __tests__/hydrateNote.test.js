@@ -60,4 +60,28 @@ describe('hydrateNote', () => {
     expect(note.topics).toEqual([]);
     expect(note.decisions).toEqual([]);
   });
+
+  it('degrades a malformed JSON column to [] instead of throwing, and logs the failing note/field', () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const note = hydrateNote(makeRow({ id: 'bad-note', people_json: '{not valid json' }));
+
+    expect(note.people).toEqual([]);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('bad-note'),
+      expect.anything(),
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('people_json'),
+      expect.anything(),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('a malformed column does not affect the other (valid) columns on the same row', () => {
+    const note = hydrateNote(makeRow({ people_json: '{not valid json', topics_json: '["fine"]' }));
+    expect(note.people).toEqual([]);
+    expect(note.topics).toEqual(['fine']);
+  });
 });

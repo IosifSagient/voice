@@ -13,6 +13,8 @@ const SESSION_LOAD_TIMEOUT_MS = 9000;
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  // TEMP DIAGNOSTIC — remove after TestFlight root-cause is confirmed.
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     // Guards against getSession() both rejecting AND hanging forever (seen in
@@ -23,9 +25,9 @@ export function useAuth() {
     const timeoutId = setTimeout(() => {
       if (settled) return;
       settled = true;
-      console.error(
-        `[useAuth] getSession() timed out after ${SESSION_LOAD_TIMEOUT_MS}ms (likely network) — falling through to login`,
-      );
+      const message = `timeout: getSession() did not resolve within ${SESSION_LOAD_TIMEOUT_MS}ms (likely network)`;
+      console.error(`[useAuth] ${message} — falling through to login`);
+      setAuthError(message);
       setSession(null);
       setLoading(false);
     }, SESSION_LOAD_TIMEOUT_MS);
@@ -35,6 +37,7 @@ export function useAuth() {
         if (settled) return;
         settled = true;
         clearTimeout(timeoutId);
+        setAuthError(null);
         setSession(data.session);
         setLoading(false);
       })
@@ -42,7 +45,9 @@ export function useAuth() {
         if (settled) return;
         settled = true;
         clearTimeout(timeoutId);
-        console.error('[useAuth] getSession() rejected (likely SecureStore/unhandled) — falling through to login:', error);
+        const message = `rejected: ${error?.message ?? String(error)}`;
+        console.error(`[useAuth] getSession() ${message} (likely SecureStore/unhandled) — falling through to login`, error);
+        setAuthError(message);
         setSession(null);
         setLoading(false);
       });
@@ -60,6 +65,8 @@ export function useAuth() {
   return {
     session,
     loading,
+    // TEMP DIAGNOSTIC — remove after TestFlight root-cause is confirmed.
+    authError,
     user: session?.user ?? null,
     signUp,
     signIn,

@@ -1,10 +1,19 @@
 import { useEffect } from "react";
-import { Pressable, Text, StyleSheet, View, ActivityIndicator } from "react-native";
+import {
+  Pressable,
+  Text,
+  StyleSheet,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+// Registers the foreground notification handler at module scope (R5) —
+// importing this once, here, before anything else runs is enough.
+import "./src/services/notifications";
 
 import { NotesListScreen } from "./src/screens/NotesListScreen";
 import { RecordScreen } from "./src/screens/RecordScreen";
@@ -19,6 +28,7 @@ import { initDb } from "./src/db";
 import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
 import { useCalendarSettings } from "./src/hooks/useCalendarSettings";
+import { useNotificationSettings } from "./src/hooks/useNotificationSettings";
 
 export type RootStackParamList = {
   Main: undefined;
@@ -63,7 +73,11 @@ function MainTabs() {
           title: "VoiceNote",
           tabBarLabel: "Σημειώσεις",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text-outline" size={size} color={color} />
+            <Ionicons
+              name="document-text-outline"
+              size={size}
+              color={color}
+            />
           ),
           headerLeft: () => (
             <Pressable
@@ -74,7 +88,11 @@ function MainTabs() {
               }
               style={styles.signOutBtn}
             >
-              <Ionicons name="person-outline" size={20} color={colors.textMuted} />
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color={colors.textMuted}
+              />
             </Pressable>
           ),
           headerRight: () => (
@@ -84,7 +102,10 @@ function MainTabs() {
                   .getParent<NativeStackNavigationProp<RootStackParamList>>()
                   ?.navigate("Record")
               }
-              style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+              style={({ pressed }) => [
+                styles.fab,
+                pressed && styles.fabPressed,
+              ]}
             >
               <Text style={styles.fabText}>+ Εγγραφή</Text>
             </Pressable>
@@ -98,7 +119,11 @@ function MainTabs() {
           title: "Εργασίες",
           tabBarLabel: "Εργασίες",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="checkmark-done-outline" size={size} color={color} />
+            <Ionicons
+              name="checkmark-done-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -109,7 +134,11 @@ function MainTabs() {
           title: "Chat",
           tabBarLabel: "Chat",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-outline" size={size} color={color} />
+            <Ionicons
+              name="chatbubble-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -118,7 +147,7 @@ function MainTabs() {
 }
 
 export default function App() {
-  const { session, loading, signOut } = useAuth();
+  const { session, loading, authError, signOut } = useAuth();
   const { locked, lockAvailable, lockEnabled, unlock, setLockEnabled } =
     useAppLock(!!session);
   const {
@@ -131,6 +160,12 @@ export default function App() {
     requestPermission: onRequestCalendarPermission,
     selectCalendar: onSelectCalendar,
   } = useCalendarSettings();
+  const {
+    loading: notificationLoading,
+    permissionGranted: notificationPermissionGranted,
+    canAskAgain: notificationCanAskAgain,
+    requestPermission: onRequestNotificationPermission,
+  } = useNotificationSettings();
 
   useEffect(() => {
     initDb().catch(console.error);
@@ -139,13 +174,16 @@ export default function App() {
   if (loading) {
     return (
       <View style={styles.splash}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator
+          size="large"
+          color={colors.accent}
+        />
       </View>
     );
   }
 
   if (!session) {
-    return <AuthScreen />;
+    return <AuthScreen authError={authError} />;
   }
 
   if (locked) {
@@ -155,7 +193,10 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={sharedHeaderOptions}>
-        <Stack.Screen name="Main" options={{ headerShown: false }}>
+        <Stack.Screen
+          name="Main"
+          options={{ headerShown: false }}
+        >
           {() => <MainTabs />}
         </Stack.Screen>
         <Stack.Screen
@@ -186,6 +227,10 @@ export default function App() {
               calendarRePickNeeded={calendarRePickNeeded}
               onRequestCalendarPermission={onRequestCalendarPermission}
               onSelectCalendar={onSelectCalendar}
+              notificationLoading={notificationLoading}
+              notificationPermissionGranted={notificationPermissionGranted}
+              notificationCanAskAgain={notificationCanAskAgain}
+              onRequestNotificationPermission={onRequestNotificationPermission}
             />
           )}
         </Stack.Screen>

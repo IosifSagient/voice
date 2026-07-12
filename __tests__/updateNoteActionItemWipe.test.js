@@ -46,17 +46,29 @@ jest.mock('expo-sqlite', () => {
             all_day: a.all_day,
             status: a.status,
             calendar_event_id: a.calendar_event_id,
+            notification_id: a.notification_id,
           }));
       }
       // updateNote()'s existing-rows query — scoped to status='open' in prod code;
       // honor that scoping here too so this mock actually distinguishes the fixed
-      // behavior from the old (unscoped) one instead of masking it.
-      if (sql.includes('SELECT id, text FROM action_items WHERE note_id')) {
+      // behavior from the old (unscoped) one instead of masking it. Matched on
+      // "no ORDER BY" rather than the exact column list, since the diffing logic
+      // now selects due_date/due_time/all_day/calendar_event_id/notification_id
+      // too (to build the removed/changed diff) instead of just id/text.
+      if (sql.includes('FROM action_items WHERE note_id = ?') && !sql.includes('ORDER BY')) {
         const openOnly = sql.includes("status = 'open'");
         const [noteId] = params;
         return actionItems
           .filter((a) => a.note_id === noteId && (!openOnly || a.status === 'open'))
-          .map((a) => ({ id: a.id, text: a.text }));
+          .map((a) => ({
+            id: a.id,
+            text: a.text,
+            due_date: a.due_date,
+            due_time: a.due_time,
+            all_day: a.all_day,
+            calendar_event_id: a.calendar_event_id,
+            notification_id: a.notification_id,
+          }));
       }
       if (sql.includes('FROM action_items a') && sql.includes('JOIN notes n')) {
         return actionItems.map((a) => {
@@ -69,6 +81,7 @@ jest.mock('expo-sqlite', () => {
             all_day: a.all_day,
             status: a.status,
             calendar_event_id: a.calendar_event_id,
+            notification_id: a.notification_id,
             created_at: a.created_at,
             note_id: a.note_id,
             note_summary: note?.summary ?? '',
@@ -88,7 +101,7 @@ jest.mock('expo-sqlite', () => {
         notes.push({ id, created_at, transcript, summary, people_json, topics_json, decisions_json, people_normalized_json });
       } else if (sql.includes('INSERT INTO action_items')) {
         const [id, note_id, text, due_date, due_time, all_day, created_at] = params;
-        actionItems.push({ id, note_id, text, due_date, due_time, all_day, status: 'open', calendar_event_id: null, created_at });
+        actionItems.push({ id, note_id, text, due_date, due_time, all_day, status: 'open', calendar_event_id: null, notification_id: null, created_at });
       } else if (sql.startsWith('UPDATE notes SET transcript')) {
         const id = params[params.length - 1];
         const row = notes.find((n) => n.id === id);
@@ -116,6 +129,10 @@ jest.mock('expo-sqlite', () => {
         const [calendarEventId, id] = params;
         const row = actionItems.find((a) => a.id === id);
         if (row) row.calendar_event_id = calendarEventId;
+      } else if (sql.includes('UPDATE action_items SET notification_id')) {
+        const [notificationId, id] = params;
+        const row = actionItems.find((a) => a.id === id);
+        if (row) row.notification_id = notificationId;
       }
       return { changes: 1 };
     }
@@ -134,7 +151,8 @@ jest.mock('expo-sqlite', () => {
 });
 
 const {
-  saveNote, updateNote, getNote, completeActionItem, setActionCalendarEvent, getActionItemsFiltered,
+  saveNote, updateNote, getNote, completeActionItem, setActionCalendarEvent,
+  setActionNotificationId, getActionItemsFiltered,
 } = require('../src/db');
 const { copyNote } = require('../src/types/note');
 
@@ -185,27 +203,32 @@ describe('updateNote — action-item diffing', () => {
     expect(byText.get('Brand new item').calendarEventId).toBeNull();
   });
 
-  it('deletes an existing item that has no match in the incoming list', async () => {
+  it('deletes an existing item that has no match in the incoming list, surfacing its reminder ids in the diff', async () => {
     const noteId = await saveTestNote([
       { text: 'Keep me', due_date: '2025-07-10' },
       { text: 'Remove me', due_date: '2025-07-11' },
     ]);
+    const removedItem = (await itemsByText(noteId)).get('Remove me');
+    await setActionCalendarEvent(removedItem.id, 'cal-gone');
+    await setActionNotificationId(removedItem.id, 'notif-gone');
 
-    await updateNote(baseNotePayload(noteId, [{ text: 'Keep me', due_date: '2025-07-10' }]));
+    const diff = await updateNote(baseNotePayload(noteId, [{ text: 'Keep me', due_date: '2025-07-10' }]));
 
     const byText = await itemsByText(noteId);
     expect(byText.size).toBe(1);
     expect(byText.has('Remove me')).toBe(false);
     expect(byText.has('Keep me')).toBe(true);
+    expect(diff.removed).toEqual([{ calendarEventId: 'cal-gone', notificationId: 'notif-gone' }]);
   });
 
-  it('treats an edited title as delete+insert, losing calendar_event_id', async () => {
+  it('treats an edited title as delete+insert, losing calendar_event_id — but the diff surfaces the old ids so the caller can cancel them', async () => {
     const noteId = await saveTestNote([{ text: 'Old title', due_date: '2025-07-10' }]);
 
     const [item] = [...(await itemsByText(noteId)).values()];
     await setActionCalendarEvent(item.id, 'cal-456');
+    await setActionNotificationId(item.id, 'notif-456');
 
-    await updateNote(baseNotePayload(noteId, [{ text: 'New title', due_date: '2025-07-10' }]));
+    const diff = await updateNote(baseNotePayload(noteId, [{ text: 'New title', due_date: '2025-07-10' }]));
 
     const byText = await itemsByText(noteId);
     expect(byText.has('Old title')).toBe(false);
@@ -213,6 +236,12 @@ describe('updateNote — action-item diffing', () => {
     expect(renamed).toBeDefined();
     expect(renamed.status).toBe('open');
     expect(renamed.calendarEventId).toBeNull();
+
+    // Regression: this used to silently lose the old row's reminder ids —
+    // updateNote() must surface them in `removed` so the caller can cancel
+    // the calendar event / notification before they're orphaned.
+    expect(diff.removed).toEqual([{ calendarEventId: 'cal-456', notificationId: 'notif-456' }]);
+    expect(diff.changed).toEqual([]);
   });
 
   it('pairs duplicate texts first-come-first-served without cross-matching', async () => {
@@ -274,5 +303,60 @@ describe('updateNote — action-item diffing', () => {
     expect(stillDone.status).toBe('done');
     expect(stillDone.calendarEventId).toBe('cal-789');
     expect(afterSave.has('Still open')).toBe(true);
+  });
+
+  it('reports a matched item in `changed` when its due_date actually changes', async () => {
+    const noteId = await saveTestNote([{ text: 'Call the plumber', due_date: '2025-07-10' }]);
+    const item = (await itemsByText(noteId)).get('Call the plumber');
+    await setActionCalendarEvent(item.id, 'cal-1');
+    await setActionNotificationId(item.id, 'notif-1');
+
+    const diff = await updateNote(baseNotePayload(noteId, [{ text: 'Call the plumber', due_date: '2025-07-15' }]));
+
+    expect(diff.removed).toEqual([]);
+    expect(diff.changed).toEqual([
+      {
+        id: item.id,
+        calendarEventId: 'cal-1',
+        notificationId: 'notif-1',
+        item: { text: 'Call the plumber', due_date: '2025-07-15', id: item.id },
+      },
+    ]);
+  });
+
+  it('omits a matched item from `changed` when nothing relevant to its fire time changed', async () => {
+    const noteId = await saveTestNote([{ text: 'Call the plumber', due_date: '2025-07-10' }]);
+    const item = (await itemsByText(noteId)).get('Call the plumber');
+    await setActionCalendarEvent(item.id, 'cal-1');
+
+    // Same due_date, only the summary changes elsewhere — a no-op save for this item.
+    const diff = await updateNote(baseNotePayload(noteId, [{ text: 'Call the plumber', due_date: '2025-07-10' }]));
+
+    expect(diff.removed).toEqual([]);
+    expect(diff.changed).toEqual([]);
+  });
+});
+
+describe('setActionNotificationId', () => {
+  it('persists a notification id that getActionItemsFiltered then surfaces as notificationId', async () => {
+    const noteId = await saveTestNote([{ text: 'Water the plants', due_date: '2025-07-10' }]);
+    const item = (await itemsByText(noteId)).get('Water the plants');
+    expect(item.notificationId).toBeNull();
+
+    await setActionNotificationId(item.id, 'notif-xyz');
+
+    const updated = (await itemsByText(noteId)).get('Water the plants');
+    expect(updated.notificationId).toBe('notif-xyz');
+  });
+
+  it('clears a notification id back to null', async () => {
+    const noteId = await saveTestNote([{ text: 'Water the plants', due_date: '2025-07-10' }]);
+    const item = (await itemsByText(noteId)).get('Water the plants');
+    await setActionNotificationId(item.id, 'notif-xyz');
+
+    await setActionNotificationId(item.id, null);
+
+    const updated = (await itemsByText(noteId)).get('Water the plants');
+    expect(updated.notificationId).toBeNull();
   });
 });

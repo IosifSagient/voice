@@ -7,6 +7,7 @@ import {
   deleteNote,
   updateNote,
   setActionCalendarEvent,
+  setActionNotificationId,
   getActionItemsFiltered,
   getNotesByDateRange,
   getNotesByTag,
@@ -16,7 +17,7 @@ import {
   deleteActionItem,
   getTasksWithDueDates,
 } from "../db";
-import type { Note } from "../types/note";
+import type { Note, ReminderIds, UpdateNoteDiff } from "../types/note";
 import type { ExtractedNote } from "./extraction";
 import type { TaskWithDueDate } from "../types/tasks";
 
@@ -26,12 +27,16 @@ export const notesRepository = {
   list: (): Promise<Note[]> => getRecentNotes(),
   search: (query: string): Promise<Note[]> => searchNotes(query),
   get: (id: string): Promise<Note | null> => getNote(id),
-  delete: (id: string): Promise<void> => deleteNote(id),
-  save: (note: Note): Promise<void> => updateNote(note),
+  delete: (id: string): Promise<ReminderIds[]> => deleteNote(id),
+  save: (note: Note): Promise<UpdateNoteDiff> => updateNote(note),
   setCalendarEvent: (
     actionItemId: string,
     eventId: string | null,
   ): Promise<void> => setActionCalendarEvent(actionItemId, eventId),
+  setNotificationId: (
+    actionItemId: string,
+    notificationId: string | null,
+  ): Promise<void> => setActionNotificationId(actionItemId, notificationId),
   getActionItems: (filter: {
     status?: string;
     dueBefore?: string;
@@ -47,7 +52,7 @@ export const notesRepository = {
     getRecentNotesByDays(days),
   completeActionItem: (id: string): Promise<void> => completeActionItem(id),
   reopenActionItem: (id: string): Promise<void> => reopenActionItem(id),
-  deleteActionItem: (id: string): Promise<string | null> =>
+  deleteActionItem: (id: string): Promise<ReminderIds | null> =>
     deleteActionItem(id),
   getTasksWithDueDates: (): Promise<TaskWithDueDate[]> =>
     getTasksWithDueDates(),

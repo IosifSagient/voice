@@ -9,6 +9,7 @@ export type TaskWithContext = {
   allDay: boolean;
   status: "open" | "done";
   calendarEventId: string | null;
+  notificationId: string | null;
   createdAt: number;
   // parent note context
   noteSummary: string;

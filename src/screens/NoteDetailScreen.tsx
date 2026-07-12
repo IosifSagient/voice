@@ -15,8 +15,10 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
+import { removeReminder } from "../services/calendar";
+import { cancelReminder } from "../services/notifications";
 import { useCalendarToggle } from "../hooks/useCalendarToggle";
-import { useRegenerateNote } from "../hooks/useRegenerateNote";
+import { useRegenerateNote, applyReminderDiff } from "../hooks/useRegenerateNote";
 import { useNoteActionItems } from "../hooks/useNoteActionItems";
 import { NoteCard } from "../components/NoteCard";
 import { NoteEditForm } from "../components/NoteEditForm";
@@ -59,7 +61,8 @@ export function NoteDetailScreen({ route, navigation }: Props) {
 
   const saveEdit = async () => {
     if (!draft) return;
-    await notesRepository.save(draft);
+    const diff = await notesRepository.save(draft);
+    await applyReminderDiff(diff);
     setNote(draft);
     setDraft(null);
     setMode("view");
@@ -80,7 +83,14 @@ export function NoteDetailScreen({ route, navigation }: Props) {
       {
         text: "Διαγραφή",
         style: "destructive",
-        onPress: async () => { await notesRepository.delete(note.id); navigation.goBack(); },
+        onPress: async () => {
+          const reminders = await notesRepository.delete(note.id);
+          for (const r of reminders) {
+            if (r.calendarEventId) await removeReminder(r.calendarEventId);
+            if (r.notificationId) await cancelReminder(r.notificationId);
+          }
+          navigation.goBack();
+        },
       },
     ]);
   };

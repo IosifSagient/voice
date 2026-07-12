@@ -38,6 +38,7 @@ async function migrate(db) {
     "ALTER TABLE action_items ADD COLUMN due_time TEXT",
     "ALTER TABLE action_items ADD COLUMN all_day INTEGER DEFAULT 1",
     "ALTER TABLE notes ADD COLUMN people_normalized_json TEXT",
+    "ALTER TABLE action_items ADD COLUMN notification_id TEXT",
   ];
   for (const sql of migrations) {
     try {
@@ -61,15 +62,21 @@ async function migrate(db) {
   if (user_version < 2) {
     const rows = await db.getAllAsync("SELECT id, topics_json, companies_json FROM notes");
     for (const row of rows) {
-      const merged = [
-        ...JSON.parse(row.topics_json || "[]"),
-        ...JSON.parse(row.companies_json || "[]"),
-      ];
-      await db.runAsync(
-        "UPDATE notes SET topics_json = ? WHERE id = ?",
-        JSON.stringify(merged),
-        row.id,
-      );
+      try {
+        const merged = [
+          ...JSON.parse(row.topics_json || "[]"),
+          ...JSON.parse(row.companies_json || "[]"),
+        ];
+        await db.runAsync(
+          "UPDATE notes SET topics_json = ? WHERE id = ?",
+          JSON.stringify(merged),
+          row.id,
+        );
+      } catch (err) {
+        // A single malformed row must not fail the whole migration — skip it
+        // and keep going so every other note still gets repaired.
+        console.error(`[db:migrate] failed to merge topics/companies for note ${row.id}, skipping`, err);
+      }
     }
     try {
       await db.execAsync("ALTER TABLE notes DROP COLUMN companies_json");
@@ -85,26 +92,42 @@ export async function backfill(db) {
     "SELECT id, people_json FROM notes WHERE people_normalized_json IS NULL",
   );
   for (const row of rows) {
-    const raw = JSON.parse(row.people_json || "[]");
-    const normalized = normalizeAndDedupeNames(raw);
-    await db.runAsync(
-      "UPDATE notes SET people_json = ?, people_normalized_json = ? WHERE id = ?",
-      JSON.stringify(normalized.map((n) => n.display)),
-      JSON.stringify(normalized),
-      row.id,
-    );
+    try {
+      const raw = JSON.parse(row.people_json || "[]");
+      const normalized = normalizeAndDedupeNames(raw);
+      await db.runAsync(
+        "UPDATE notes SET people_json = ?, people_normalized_json = ? WHERE id = ?",
+        JSON.stringify(normalized.map((n) => n.display)),
+        JSON.stringify(normalized),
+        row.id,
+      );
+    } catch (err) {
+      // A single malformed row (e.g. corrupt people_json) must not fail the
+      // whole init chain — skip it and keep going so other rows still backfill.
+      console.error(`[db:backfill] failed to backfill note ${row.id}, skipping`, err);
+    }
   }
 }
 
 let dbPromise = null;
 function getDb() {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync("voicenote_v2.db").then(async (db) => {
-      await db.execAsync(SCHEMA);
-      await migrate(db);
-      await backfill(db);
-      return db;
-    });
+    // If this chain rejects (e.g. a migration throws), clear dbPromise so the
+    // NEXT call starts a fresh attempt instead of every future db call
+    // re-awaiting the same cached rejection for the rest of the session.
+    // Callers already in flight when it rejects all see the same rejection —
+    // only one openDatabaseAsync() happens per failed attempt.
+    dbPromise = SQLite.openDatabaseAsync("voicenote_v2.db")
+      .then(async (db) => {
+        await db.execAsync(SCHEMA);
+        await migrate(db);
+        await backfill(db);
+        return db;
+      })
+      .catch((err) => {
+        dbPromise = null;
+        throw err;
+      });
   }
   return dbPromise;
 }
@@ -195,10 +218,24 @@ export async function saveNote(extraction, transcript) {
   return noteId;
 }
 
+// Returns a diff of what happened to each existing (open) action item's
+// calendar/notification reminders across the edit, so the caller can cancel
+// or reschedule them — db.js itself never touches expo-calendar/expo-notifications:
+//   removed: rows deleted outright (no match in the incoming list) OR deleted
+//            as part of an edited-title's delete+insert — either way their old
+//            reminder ids must be cancelled, since nothing else in the app has
+//            them anymore once this transaction commits.
+//   changed: matched rows whose due_date/due_time/all_day actually changed —
+//            their existing reminder ids must be cancelled and a new one
+//            scheduled from `item` (the fresh values), if the caller wants to.
+// A matched row with no relevant change is omitted from `changed` entirely so
+// a no-op save doesn't trigger a pointless reschedule.
 export async function updateNote(note) {
   const db = await getDb();
   const now = Date.now();
   const normalizedPeople = normalizeAndDedupeNames(note.people || []);
+  const removed = [];
+  const changed = [];
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `UPDATE notes SET transcript = ?, summary = ?, people_json = ?, topics_json = ?, decisions_json = ?, people_normalized_json = ? WHERE id = ?`,
@@ -216,7 +253,8 @@ export async function updateNote(note) {
     // them, so it can't have "removed" them) and must stay completely untouched
     // by this diff: not matched, not updated, not deleted.
     const existing = await db.getAllAsync(
-      "SELECT id, text FROM action_items WHERE note_id = ? AND status = 'open'",
+      `SELECT id, text, due_date, due_time, all_day, calendar_event_id, notification_id
+       FROM action_items WHERE note_id = ? AND status = 'open'`,
       note.id,
     );
 
@@ -224,7 +262,8 @@ export async function updateNote(note) {
     // row keeps its status/calendar_event_id across the edit; unmatched existing
     // rows are deleted and unmatched incoming items are inserted fresh. An edited
     // title has no match under this rule and is therefore treated as delete+insert
-    // — the item loses its status/calendar link. This is an accepted tradeoff.
+    // — the item loses its status/calendar link, but the caller is handed the old
+    // reminder ids (via `removed`) so it can cancel them before they're orphaned.
     // Duplicate texts within one note are paired first-come-first-served (the Nth
     // existing row with a given text pairs with the Nth incoming item with that
     // text) rather than cross-matched — good enough since duplicate action-item
@@ -247,6 +286,10 @@ export async function updateNote(note) {
 
     for (const row of existing) {
       if (!matchedIds.has(row.id)) {
+        removed.push({
+          calendarEventId: row.calendar_event_id ?? null,
+          notificationId: row.notification_id ?? null,
+        });
         await db.runAsync("DELETE FROM action_items WHERE id = ?", row.id);
       }
     }
@@ -256,6 +299,18 @@ export async function updateNote(note) {
       const dueTime = item.due_time ?? null;
       const allDay = item.all_day === false ? 0 : 1;
       if (match) {
+        const dueChanged =
+          (Number.isFinite(due) ? due : null) !== (match.due_date ?? null) ||
+          dueTime !== (match.due_time ?? null) ||
+          allDay !== (match.all_day ?? 1);
+        if (dueChanged) {
+          changed.push({
+            id: match.id,
+            calendarEventId: match.calendar_event_id ?? null,
+            notificationId: match.notification_id ?? null,
+            item: { ...item, id: match.id },
+          });
+        }
         await db.runAsync(
           `UPDATE action_items SET text = ?, due_date = ?, due_time = ?, all_day = ? WHERE id = ?`,
           item.text ?? "",
@@ -279,11 +334,31 @@ export async function updateNote(note) {
       }
     }
   });
+
+  return { removed, changed };
 }
 
+// Returns the calendar/notification reminder ids of every action item under
+// this note (about to be cascade-deleted via the notes<-action_items FK) so
+// the caller can cancel them — the cascade itself does not, and previously
+// nothing did.
 export async function deleteNote(id) {
   const db = await getDb();
-  await db.runAsync("DELETE FROM notes WHERE id = ?", id);
+  let rows;
+  // SELECT + cascading DELETE must be atomic — otherwise a concurrent write
+  // landing between them could change which action items exist by the time
+  // the cascade fires, and the ids we return would no longer match reality.
+  await db.withTransactionAsync(async () => {
+    rows = await db.getAllAsync(
+      `SELECT calendar_event_id, notification_id FROM action_items WHERE note_id = ?`,
+      id,
+    );
+    await db.runAsync("DELETE FROM notes WHERE id = ?", id);
+  });
+  return rows.map((r) => ({
+    calendarEventId: r.calendar_event_id ?? null,
+    notificationId: r.notification_id ?? null,
+  }));
 }
 
 export async function completeActionItem(id) {
@@ -300,6 +375,15 @@ export async function setActionCalendarEvent(id, calendarEventId) {
   );
 }
 
+export async function setActionNotificationId(id, notificationId) {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE action_items SET notification_id = ? WHERE id = ?`,
+    notificationId,
+    id,
+  );
+}
+
 // --- READ ------------------------------------------------------------------
 
 export async function getNote(id) {
@@ -308,7 +392,7 @@ export async function getNote(id) {
   if (!row) return null;
   const note = hydrateNote(row);
   const items = await db.getAllAsync(
-    `SELECT id, text, due_date, due_time, all_day, status, calendar_event_id
+    `SELECT id, text, due_date, due_time, all_day, status, calendar_event_id, notification_id
      FROM action_items WHERE note_id = ? AND status = 'open' ORDER BY created_at`,
     id,
   );
@@ -322,6 +406,7 @@ export async function getNote(id) {
     all_day: r.all_day !== 0,
     status: r.status,
     calendar_event_id: r.calendar_event_id ?? null,
+    notification_id: r.notification_id ?? null,
   }));
   return note;
 }
@@ -391,7 +476,7 @@ export async function getActionItemsFiltered({
     conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
   const rows = await db.getAllAsync(
     `SELECT a.id, a.text, a.due_date, a.due_time, a.all_day, a.status,
-       a.calendar_event_id, a.created_at, a.note_id,
+       a.calendar_event_id, a.notification_id, a.created_at, a.note_id,
        n.summary AS note_summary, n.people_json
      FROM action_items a
      JOIN notes n ON a.note_id = n.id
@@ -411,9 +496,10 @@ export async function getActionItemsFiltered({
     allDay: r.all_day !== 0,
     status: r.status,
     calendarEventId: r.calendar_event_id ?? null,
+    notificationId: r.notification_id ?? null,
     createdAt: r.created_at,
     noteSummary: r.note_summary ?? "",
-    notePeople: JSON.parse(r.people_json || "[]"),
+    notePeople: safeParseArray(r.people_json, r.note_id, "people_json"),
   }));
 }
 
@@ -424,7 +510,7 @@ export async function getTasksWithDueDates() {
   const db = await getDb();
   const rows = await db.getAllAsync(
     `SELECT a.id, a.text, a.due_date, a.due_time, a.all_day, a.status,
-       a.calendar_event_id, a.created_at, a.note_id,
+       a.calendar_event_id, a.notification_id, a.created_at, a.note_id,
        n.summary AS note_summary, n.people_json
      FROM action_items a
      JOIN notes n ON a.note_id = n.id
@@ -440,9 +526,10 @@ export async function getTasksWithDueDates() {
     allDay: r.all_day !== 0,
     status: r.status,
     calendarEventId: r.calendar_event_id ?? null,
+    notificationId: r.notification_id ?? null,
     createdAt: r.created_at,
     noteSummary: r.note_summary ?? "",
-    notePeople: JSON.parse(r.people_json || "[]"),
+    notePeople: safeParseArray(r.people_json, r.note_id, "people_json"),
   }));
 }
 
@@ -519,16 +606,38 @@ export async function reopenActionItem(id) {
 
 export async function deleteActionItem(id) {
   const db = await getDb();
-  const row = await db.getFirstAsync(
-    `SELECT calendar_event_id FROM action_items WHERE id = ?`,
-    id,
-  );
+  let row;
+  // Same atomicity concern as deleteNote — read-then-delete must not straddle
+  // a concurrent write.
+  await db.withTransactionAsync(async () => {
+    row = await db.getFirstAsync(
+      `SELECT calendar_event_id, notification_id FROM action_items WHERE id = ?`,
+      id,
+    );
+    if (row) {
+      await db.runAsync(`DELETE FROM action_items WHERE id = ?`, id);
+    }
+  });
   if (!row) return null;
-  await db.runAsync(`DELETE FROM action_items WHERE id = ?`, id);
-  return row.calendar_event_id ?? null;
+  return {
+    calendarEventId: row.calendar_event_id ?? null,
+    notificationId: row.notification_id ?? null,
+  };
 }
 
 // --- helpers ---------------------------------------------------------------
+
+// Parses a stored JSON array column, tolerating a malformed value from a
+// single bad row (e.g. corrupted people_json) without failing the whole
+// query for every other row — mirrors backfill()'s per-row resilience.
+function safeParseArray(json, noteId, field) {
+  try {
+    return JSON.parse(json || "[]");
+  } catch (err) {
+    console.error(`[db:hydrateNote] failed to parse ${field} for note ${noteId}, defaulting to []`, err);
+    return [];
+  }
+}
 
 export function hydrateNote(row) {
   return {
@@ -536,9 +645,9 @@ export function hydrateNote(row) {
     timestamp: row.created_at,
     transcript: row.transcript,
     summary: row.summary,
-    people: JSON.parse(row.people_json || "[]"),
-    topics: JSON.parse(row.topics_json || "[]"),
-    decisions: JSON.parse(row.decisions_json || "[]"),
+    people: safeParseArray(row.people_json, row.id, "people_json"),
+    topics: safeParseArray(row.topics_json, row.id, "topics_json"),
+    decisions: safeParseArray(row.decisions_json, row.id, "decisions_json"),
     action_items: [],
     openActionCount: row.open_count ?? 0,
   };

@@ -53,7 +53,10 @@
           "backgroundColor": "#14141B"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font",
+      "expo-asset",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

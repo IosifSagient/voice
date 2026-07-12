@@ -16,6 +16,10 @@ type Props = {
   calendarRePickNeeded: boolean;
   onRequestCalendarPermission: () => void;
   onSelectCalendar: (id: string) => void;
+  notificationLoading: boolean;
+  notificationPermissionGranted: boolean;
+  notificationCanAskAgain: boolean;
+  onRequestNotificationPermission: () => void;
 };
 
 export function SettingsScreen({
@@ -31,6 +35,10 @@ export function SettingsScreen({
   calendarRePickNeeded,
   onRequestCalendarPermission,
   onSelectCalendar,
+  notificationLoading,
+  notificationPermissionGranted,
+  notificationCanAskAgain,
+  onRequestNotificationPermission,
 }: Props) {
   function handleSignOut() {
     Alert.alert('Αποσύνδεση;', undefined, [
@@ -127,6 +135,44 @@ export function SettingsScreen({
               Ρυθμίσεις iOS → Εφαρμογές → Ημερολόγιο → Λογαριασμοί.
             </Text>
           </Pressable>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Ειδοποιήσεις</Text>
+
+        {!notificationLoading && !notificationPermissionGranted && (
+          <>
+            {notificationCanAskAgain ? (
+              <>
+                <Pressable
+                  onPress={onRequestNotificationPermission}
+                  style={({ pressed }) => [styles.row, pressed && styles.btnPressed]}
+                >
+                  <Text style={styles.rowLabel}>Παραχώρηση πρόσβασης</Text>
+                </Pressable>
+                <Text style={styles.rowHint}>
+                  Χρειάζεται για να λαμβάνετε υπενθυμίσεις για τις προθεσμίες σας.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  onPress={() => Linking.openSettings()}
+                  style={({ pressed }) => [styles.row, pressed && styles.btnPressed]}
+                >
+                  <Text style={styles.rowLabel}>Άνοιγμα Ρυθμίσεων</Text>
+                </Pressable>
+                <Text style={styles.rowHint}>
+                  Χρειάζεται πρόσβαση ειδοποιήσεων από τις Ρυθμίσεις της συσκευής.
+                </Text>
+              </>
+            )}
+          </>
+        )}
+
+        {!notificationLoading && notificationPermissionGranted && (
+          <Text style={styles.rowHint}>Οι ειδοποιήσεις είναι ενεργές.</Text>
         )}
       </View>
 

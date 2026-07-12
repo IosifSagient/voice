@@ -14,6 +14,8 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList, MainTabParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
+import { removeReminder } from "../services/calendar";
+import { cancelReminder } from "../services/notifications";
 import { useTodayTasks } from "../hooks/useTodayTasks";
 import { TodaySection } from "../components/TodaySection";
 import { formatDate } from "../lib/dateFormat";
@@ -28,6 +30,7 @@ type Props = CompositeScreenProps<
 export function NotesListScreen({ navigation }: Props) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [query, setQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const {
     overdue,
     today,
@@ -42,8 +45,14 @@ export function NotesListScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const results = await notesRepository.list();
-        setNotes(results);
+        try {
+          const results = await notesRepository.list();
+          setNotes(results);
+          setError(null);
+        } catch (e) {
+          setNotes([]);
+          setError(e instanceof Error ? e.message : String(e));
+        }
       })();
     }, []),
   );
@@ -55,10 +64,16 @@ export function NotesListScreen({ navigation }: Props) {
   );
 
   const search = async (q: string) => {
-    const results = q.trim()
-      ? await notesRepository.search(q.trim())
-      : await notesRepository.list();
-    setNotes(results);
+    try {
+      const results = q.trim()
+        ? await notesRepository.search(q.trim())
+        : await notesRepository.list();
+      setNotes(results);
+      setError(null);
+    } catch (e) {
+      setNotes([]);
+      setError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   return (
@@ -95,7 +110,18 @@ export function NotesListScreen({ navigation }: Props) {
           />
         }
         ListEmptyComponent={
-          query ? (
+          error ? (
+            <View style={styles.errorState}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Pressable
+                testID="notes-list-retry"
+                onPress={() => search(query)}
+                style={({ pressed }) => [styles.retryBtn, pressed && styles.retryBtnPressed]}
+              >
+                <Text style={styles.retryBtnText}>Δοκιμάστε ξανά</Text>
+              </Pressable>
+            </View>
+          ) : query ? (
             <Text style={styles.emptySearch}>Δεν βρέθηκαν σημειώσεις.</Text>
           ) : (
             <View style={styles.emptyState}>
@@ -108,6 +134,7 @@ export function NotesListScreen({ navigation }: Props) {
         }
         renderItem={({ item }) => (
           <Pressable
+            testID="notes-list-row"
             style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
             onPress={() => navigation.navigate("NoteDetail", { id: item.id })}
             onLongPress={() =>
@@ -117,7 +144,11 @@ export function NotesListScreen({ navigation }: Props) {
                   text: "Διαγραφή",
                   style: "destructive",
                   onPress: async () => {
-                    await notesRepository.delete(item.id);
+                    const reminders = await notesRepository.delete(item.id);
+                    for (const r of reminders) {
+                      if (r.calendarEventId) await removeReminder(r.calendarEventId);
+                      if (r.notificationId) await cancelReminder(r.notificationId);
+                    }
                     search(query);
                   },
                 },
@@ -191,6 +222,30 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     lineHeight: 20,
+  },
+  errorState: {
+    alignItems: "center",
+    marginTop: 80,
+    paddingHorizontal: spacing.xxl,
+  },
+  errorText: {
+    ...type.body,
+    color: colors.error,
+    textAlign: "center",
+    marginBottom: spacing.lg,
+  },
+  retryBtn: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  retryBtnPressed: { opacity: 0.72 },
+  retryBtnText: {
+    ...type.buttonSmall,
+    color: colors.textSecondary,
   },
   row: {
     backgroundColor: colors.bgCard,

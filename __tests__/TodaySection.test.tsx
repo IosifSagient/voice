@@ -13,6 +13,7 @@ function mkTask(overrides: Partial<TaskWithDueDate> = {}): TaskWithDueDate {
     allDay: true,
     status: 'open',
     calendarEventId: null,
+    notificationId: null,
     createdAt: 0,
     noteSummary: 'summary',
     notePeople: [],

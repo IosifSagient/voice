@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { notesRepository } from '../services/notesRepository';
 import { removeReminder } from '../services/calendar';
+import { cancelReminder, scheduleReminder } from '../services/notifications';
 import { buildAnchor } from '../lib/dateAnchor';
 import type { TaskFilter, TaskWithContext } from '../types/tasks';
 
@@ -67,9 +68,35 @@ export function useTasks(filter: TaskFilter) {
 
     try {
       if (task.status === 'done') {
+        // Reopening: reschedule if the due date is still in the future —
+        // scheduleReminder itself silently no-ops per R4 if it has passed.
         await notesRepository.reopenActionItem(id);
+        const notificationId = await scheduleReminder({
+          text: task.text,
+          due_date: task.dueDate,
+          due_time: task.dueTime,
+          all_day: task.allDay,
+        });
+        if (notificationId) {
+          try {
+            await notesRepository.setNotificationId(id, notificationId);
+          } catch {
+            // reopenActionItem already committed — a persist failure here must
+            // NOT fall through to the outer catch's rollback below, which would
+            // revert the optimistic status even though the DB status change is
+            // real, creating a UI/DB mismatch. Cancel the now-unrecorded
+            // notification and swallow instead.
+            await cancelReminder(notificationId);
+          }
+        } else {
+          await notesRepository.setNotificationId(id, null);
+        }
       } else {
         await notesRepository.completeActionItem(id);
+        if (task.notificationId) {
+          await cancelReminder(task.notificationId);
+        }
+        await notesRepository.setNotificationId(id, null);
       }
       await load();
     } catch {
@@ -83,9 +110,12 @@ export function useTasks(filter: TaskFilter) {
 
   const remove = async (id: string) => {
     try {
-      const calEventId = await notesRepository.deleteActionItem(id);
-      if (calEventId) {
-        await removeReminder(calEventId);
+      const reminderIds = await notesRepository.deleteActionItem(id);
+      if (reminderIds?.calendarEventId) {
+        await removeReminder(reminderIds.calendarEventId);
+      }
+      if (reminderIds?.notificationId) {
+        await cancelReminder(reminderIds.notificationId);
       }
       await load();
     } catch {

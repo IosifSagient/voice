@@ -6,6 +6,7 @@ export type ActionItem = {
   all_day?: boolean;
   status?: string;
   calendar_event_id?: string | null;
+  notification_id?: string | null;
 };
 
 export type Note = {
@@ -18,6 +19,22 @@ export type Note = {
   action_items: ActionItem[];
   transcript: string;
   openActionCount?: number;
+};
+
+// A single action item's calendar/notification reminder identifiers — returned
+// by db.js write paths that remove or replace rows, so callers (hooks) can
+// cancel the corresponding expo-calendar/expo-notifications entries. db.js
+// itself never imports those services (see the layer dependency rule).
+export type ReminderIds = {
+  calendarEventId: string | null;
+  notificationId: string | null;
+};
+
+// Returned by db.js's updateNote(): what happened to each existing open
+// action item's reminders across an edit-save.
+export type UpdateNoteDiff = {
+  removed: ReminderIds[];
+  changed: Array<ReminderIds & { id: string; item: ActionItem }>;
 };
 
 // Deep-copies a Note so edits to the draft never mutate the displayed note.

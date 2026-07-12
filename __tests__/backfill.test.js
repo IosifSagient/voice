@@ -52,4 +52,34 @@ describe('backfill', () => {
     await backfill(db); // people_normalized_json is now set, so the SELECT should match 0 rows
     expect(JSON.stringify(db.rows.get('1'))).toBe(afterFirstRun);
   });
+
+  it('skips a row with malformed people_json instead of failing the whole backfill', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const db = makeFakeDb([
+      {
+        id: 'bad',
+        people_json: '{not valid json',
+        people_normalized_json: null,
+      },
+      {
+        id: 'good',
+        people_json: JSON.stringify(['δόκτωρ Παπαδόπουλος']),
+        people_normalized_json: null,
+      },
+    ]);
+
+    await expect(backfill(db)).resolves.toBeUndefined();
+
+    // The malformed row is left untouched (still un-backfilled) rather than
+    // crashing the loop.
+    expect(db.rows.get('bad').people_normalized_json).toBeNull();
+    // The other row still gets processed normally.
+    expect(JSON.parse(db.rows.get('good').people_json)).toEqual(['Παπαδόπουλος']);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('bad'),
+      expect.anything(),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
 });

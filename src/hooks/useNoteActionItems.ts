@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { removeReminder } from "../services/calendar";
+import { cancelReminder } from "../services/notifications";
 import { notesRepository } from "../services/notesRepository";
 import type { Note } from "../types/note";
 
@@ -20,14 +21,22 @@ export function useNoteActionItems(
   };
 
   const completeItem = async (id: string): Promise<void> => {
+    const item = note?.action_items.find((it) => it.id === id);
     await notesRepository.completeActionItem(id);
+    if (item?.notification_id) {
+      await cancelReminder(item.notification_id);
+      await notesRepository.setNotificationId(id, null);
+    }
     removeLocally(id);
   };
 
   const deleteItem = async (id: string): Promise<void> => {
-    const calEventId = await notesRepository.deleteActionItem(id);
-    if (calEventId) {
-      await removeReminder(calEventId);
+    const reminderIds = await notesRepository.deleteActionItem(id);
+    if (reminderIds?.calendarEventId) {
+      await removeReminder(reminderIds.calendarEventId);
+    }
+    if (reminderIds?.notificationId) {
+      await cancelReminder(reminderIds.notificationId);
     }
     removeLocally(id);
   };

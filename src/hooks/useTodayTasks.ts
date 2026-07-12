@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { notesRepository } from "../services/notesRepository";
+import { cancelReminder, scheduleReminder } from "../services/notifications";
 import { bucketTasksByDueDate } from "../services/taskBuckets";
 import type { TaskWithDueDate } from "../types/tasks";
 
@@ -42,7 +43,16 @@ export function useTodayTasks() {
     load();
   }, [load]);
 
+  // Only the current (pre-reload) buckets ever hold this item — getTasksWithDueDates
+  // only returns open rows, so once complete() reloads, a just-completed item is
+  // gone from state and can't be looked up here again (see reopen()'s comment).
+  const findTask = (id: string): TaskWithDueDate | undefined =>
+    state.overdue.find((t) => t.id === id) ??
+    state.today.find((t) => t.id === id) ??
+    state.upcoming.find((t) => t.id === id);
+
   const complete = async (id: string) => {
+    const task = findTask(id);
     try {
       await notesRepository.completeActionItem(id);
     } catch (e) {
@@ -50,6 +60,10 @@ export function useTodayTasks() {
       setState((s) => ({ ...s, error: msg }));
       return;
     }
+    if (task?.notificationId) {
+      await cancelReminder(task.notificationId);
+    }
+    await notesRepository.setNotificationId(id, null);
     await load();
   };
 
@@ -60,6 +74,35 @@ export function useTodayTasks() {
       const msg = e instanceof Error ? e.message : String(e);
       setState((s) => ({ ...s, error: msg }));
       return;
+    }
+    // The item was completed (and dropped from state by complete()'s reload)
+    // before this undo fires, so its due_date/text must be re-fetched fresh
+    // rather than read from local bucket state, which no longer has it.
+    const rows = await notesRepository.getTasksWithDueDates();
+    const task = rows.find((t) => t.id === id);
+    if (task) {
+      const notificationId = await scheduleReminder({
+        text: task.text,
+        due_date: task.dueDate,
+        due_time: task.dueTime,
+        all_day: task.allDay,
+      });
+      if (notificationId) {
+        try {
+          await notesRepository.setNotificationId(id, notificationId);
+        } catch {
+          // reopenActionItem already committed, and the load() below always
+          // clears `error` on its own success — setting state.error here would
+          // just be overwritten before the next render, so there's nothing
+          // useful to surface. Cancel the now-unrecorded, otherwise
+          // uncancellable notification and swallow, matching the other
+          // schedule-then-persist call sites (usePipelineRun, applyReminderDiff,
+          // useTasks.toggle).
+          await cancelReminder(notificationId);
+        }
+      } else {
+        await notesRepository.setNotificationId(id, null);
+      }
     }
     await load();
   };

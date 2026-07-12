@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { useTasks } from '../src/hooks/useTasks';
 import { notesRepository } from '../src/services/notesRepository';
 import { removeReminder } from '../src/services/calendar';
+import { cancelReminder, scheduleReminder } from '../src/services/notifications';
 import type { TaskFilter, TaskWithContext } from '../src/types/tasks';
 
 jest.mock('../src/services/notesRepository', () => ({
@@ -11,6 +12,7 @@ jest.mock('../src/services/notesRepository', () => ({
     completeActionItem: jest.fn(),
     reopenActionItem: jest.fn(),
     deleteActionItem: jest.fn(),
+    setNotificationId: jest.fn(),
   },
 }));
 
@@ -18,11 +20,19 @@ jest.mock('../src/services/calendar', () => ({
   removeReminder: jest.fn(),
 }));
 
+jest.mock('../src/services/notifications', () => ({
+  cancelReminder: jest.fn(),
+  scheduleReminder: jest.fn(),
+}));
+
 const mockGetActionItems = notesRepository.getActionItems as jest.Mock;
 const mockComplete = notesRepository.completeActionItem as jest.Mock;
 const mockReopen = notesRepository.reopenActionItem as jest.Mock;
 const mockDelete = notesRepository.deleteActionItem as jest.Mock;
+const mockSetNotificationId = notesRepository.setNotificationId as jest.Mock;
 const mockRemoveReminder = removeReminder as jest.Mock;
+const mockCancelReminder = cancelReminder as jest.Mock;
+const mockScheduleReminder = scheduleReminder as jest.Mock;
 
 function mkTask(overrides: Partial<TaskWithContext> = {}): TaskWithContext {
   return {
@@ -34,6 +44,7 @@ function mkTask(overrides: Partial<TaskWithContext> = {}): TaskWithContext {
     allDay: true,
     status: 'open',
     calendarEventId: null,
+    notificationId: null,
     createdAt: 0,
     noteSummary: 'summary',
     notePeople: [],
@@ -126,6 +137,19 @@ describe('useTasks — toggle', () => {
     expect(mockGetActionItems).toHaveBeenCalledTimes(2);
   });
 
+  it('cancels the notification and clears its id when completing a task that has one', async () => {
+    const task = mkTask({ id: 't1', status: 'open', notificationId: 'notif-1' });
+    mockGetActionItems.mockResolvedValue([task]);
+    const { getResult } = await renderUseTasks('all');
+
+    await act(async () => {
+      await getResult().toggle('t1');
+    });
+
+    expect(mockCancelReminder).toHaveBeenCalledWith('notif-1');
+    expect(mockSetNotificationId).toHaveBeenCalledWith('t1', null);
+  });
+
   it('reopens a done task and refreshes', async () => {
     const task = mkTask({ id: 't1', status: 'done' });
     mockGetActionItems.mockResolvedValue([task]);
@@ -137,6 +161,59 @@ describe('useTasks — toggle', () => {
 
     expect(mockReopen).toHaveBeenCalledWith('t1');
     expect(mockComplete).not.toHaveBeenCalled();
+  });
+
+  it('reschedules a reminder when reopening a done task and persists the new id', async () => {
+    const task = mkTask({
+      id: 't1', status: 'done', text: 'Call the plumber',
+      dueDate: '2099-01-01', dueTime: '10:00', allDay: false,
+    });
+    mockGetActionItems.mockResolvedValue([task]);
+    mockScheduleReminder.mockResolvedValue('notif-new');
+    const { getResult } = await renderUseTasks('all');
+
+    await act(async () => {
+      await getResult().toggle('t1');
+    });
+
+    expect(mockScheduleReminder).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Call the plumber', due_date: '2099-01-01', due_time: '10:00', all_day: false }),
+    );
+    expect(mockSetNotificationId).toHaveBeenCalledWith('t1', 'notif-new');
+  });
+
+  it('persists null when reopening a task whose due date has already passed (R4 no-op)', async () => {
+    const task = mkTask({ id: 't1', status: 'done', dueDate: '2020-01-01' });
+    mockGetActionItems.mockResolvedValue([task]);
+    mockScheduleReminder.mockResolvedValue(null);
+    const { getResult } = await renderUseTasks('all');
+
+    await act(async () => {
+      await getResult().toggle('t1');
+    });
+
+    expect(mockSetNotificationId).toHaveBeenCalledWith('t1', null);
+  });
+
+  it('cancels the orphaned notification without rolling back the (already-committed) reopen when persisting the id fails', async () => {
+    const task = mkTask({ id: 't1', status: 'done' });
+    mockGetActionItems.mockResolvedValue([task]);
+    mockScheduleReminder.mockResolvedValue('notif-new');
+    mockSetNotificationId.mockRejectedValueOnce(new Error('db write failed'));
+    const { getResult } = await renderUseTasks('all');
+
+    await act(async () => {
+      await getResult().toggle('t1');
+    });
+
+    expect(mockCancelReminder).toHaveBeenCalledWith('notif-new');
+    // reopenActionItem already committed server-side — a persist-failure must
+    // be swallowed internally rather than falling through to the outer
+    // catch's rollback, which would revert the optimistic UI status even
+    // though the DB status change is real. Proven here by load() still
+    // running (the outer catch's rollback path skips the `await load()` call
+    // entirely if it fires) — i.e. a second getActionItems call happened.
+    expect(mockGetActionItems).toHaveBeenCalledTimes(2);
   });
 
   it('rolls back the optimistic update when the toggle call fails', async () => {
@@ -168,9 +245,9 @@ describe('useTasks — toggle', () => {
 });
 
 describe('useTasks — remove', () => {
-  it('deletes the task, removes the calendar reminder, and refreshes', async () => {
+  it('deletes the task, removes the calendar reminder, cancels the notification, and refreshes', async () => {
     mockGetActionItems.mockResolvedValue([mkTask({ id: 't1' })]);
-    mockDelete.mockResolvedValue('event-123');
+    mockDelete.mockResolvedValue({ calendarEventId: 'event-123', notificationId: 'notif-123' });
     const { getResult } = await renderUseTasks('all');
 
     await act(async () => {
@@ -179,10 +256,11 @@ describe('useTasks — remove', () => {
 
     expect(mockDelete).toHaveBeenCalledWith('t1');
     expect(mockRemoveReminder).toHaveBeenCalledWith('event-123');
+    expect(mockCancelReminder).toHaveBeenCalledWith('notif-123');
     expect(mockGetActionItems).toHaveBeenCalledTimes(2);
   });
 
-  it('skips removeReminder when there is no calendar event', async () => {
+  it('skips removeReminder/cancelReminder when there is no calendar event or notification', async () => {
     mockGetActionItems.mockResolvedValue([mkTask({ id: 't1' })]);
     mockDelete.mockResolvedValue(null);
     const { getResult } = await renderUseTasks('all');
@@ -192,6 +270,7 @@ describe('useTasks — remove', () => {
     });
 
     expect(mockRemoveReminder).not.toHaveBeenCalled();
+    expect(mockCancelReminder).not.toHaveBeenCalled();
   });
 
   it('swallows errors from deleteActionItem without throwing', async () => {
