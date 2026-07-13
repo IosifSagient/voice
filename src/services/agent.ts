@@ -13,11 +13,15 @@ const TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'search_notes',
-      description: 'Search notes by keyword. Returns compact summaries without full transcripts.',
+      description:
+        'Search notes by keyword. Matching is whole-word, accent- and case-insensitive, over transcript and summary text. Greek word endings are NOT normalized, so a singular query will not match a plural (or other inflected) form. If a search returns no results, retry up to 2 more times with morphological variants of the key terms (singular/plural, different case endings, verb forms) before concluding nothing was found. Returns compact summaries without full transcripts.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Keyword(s) to search for' },
+          query: {
+            type: 'string',
+            description: 'Keyword(s) to search for. Prefer distinctive content words over common words.',
+          },
         },
         required: ['query'],
       },
