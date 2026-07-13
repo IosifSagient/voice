@@ -1,41 +1,5 @@
-// db.js — local-first persistence for notes + action items (expo-sqlite, SDK 54 async API)
-import { parseDueDate, normalizeAndDedupeNames, hydrateNote } from "./db/shared";
-import { migrate, backfill, getDb, initDb } from "./db/connection";
-import {
-  completeActionItem,
-  setActionCalendarEvent,
-  setActionNotificationId,
-  reopenActionItem,
-  deleteActionItem,
-} from "./db/actionItems";
-import { searchNotes } from "./db/fts";
-import { getActionItemsFiltered, getTasksWithDueDates } from "./db/agentQueries";
-import {
-  getNote,
-  getRecentNotes,
-  getNotesByDateRange,
-  getNotesByTag,
-  getRecentNotesByDays,
-} from "./db/notesRead";
-
-export { parseDueDate, normalizeAndDedupeNames, hydrateNote };
-export { migrate, backfill, initDb };
-export {
-  completeActionItem,
-  setActionCalendarEvent,
-  setActionNotificationId,
-  reopenActionItem,
-  deleteActionItem,
-};
-export { searchNotes };
-export { getActionItemsFiltered, getTasksWithDueDates };
-export {
-  getNote,
-  getRecentNotes,
-  getNotesByDateRange,
-  getNotesByTag,
-  getRecentNotesByDays,
-};
+import { getDb } from "./connection";
+import { parseDueDate, normalizeAndDedupeNames } from "./shared";
 
 function uuid() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -44,8 +8,6 @@ function uuid() {
     return v.toString(16);
   });
 }
-
-// --- WRITE -----------------------------------------------------------------
 
 export async function saveNote(extraction, transcript) {
   const db = await getDb();
@@ -300,5 +262,3 @@ export async function deleteNote(id) {
     notificationId: r.notification_id ?? null,
   }));
 }
-
-
