@@ -41,7 +41,7 @@ jest.mock('expo-sqlite', () => {
     }
 
     async function runAsync(sql, ...params) {
-      if (sql.includes('INSERT INTO notes')) {
+      if (sql.includes('INSERT INTO notes (')) {
         const [
           id, created_at, transcript, summary,
           people_json, topics_json, decisions_json, people_normalized_json,

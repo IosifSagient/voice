@@ -12,12 +12,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { colors, spacing, type, radii } from '../config/theme';
 
-type AuthScreenProps = {
-  // TEMP DIAGNOSTIC — remove after TestFlight root-cause is confirmed.
-  authError?: string | null;
-};
-
-export function AuthScreen({ authError }: AuthScreenProps) {
+export function AuthScreen() {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [email, setEmail] = useState('');
@@ -49,11 +44,6 @@ export function AuthScreen({ authError }: AuthScreenProps) {
     >
       <View style={styles.inner}>
         <Text style={styles.appName}>VoiceNote</Text>
-
-        {/* TEMP DIAGNOSTIC — remove after TestFlight root-cause is confirmed. */}
-        {authError != null && (
-          <Text style={styles.debugAuthError}>[debug] auth init: {authError}</Text>
-        )}
 
         <TextInput
           style={styles.input}
@@ -145,18 +135,6 @@ const styles = StyleSheet.create({
     ...type.meta,
     color: colors.error,
     textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  // TEMP DIAGNOSTIC — remove after TestFlight root-cause is confirmed.
-  debugAuthError: {
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontSize: 11,
-    color: colors.textMuted,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.error,
-    borderRadius: radii.sm,
-    padding: spacing.sm,
     marginBottom: spacing.md,
   },
   btn: {

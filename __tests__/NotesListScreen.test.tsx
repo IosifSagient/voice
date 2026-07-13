@@ -86,6 +86,7 @@ function mkNote(overrides: Partial<Note> = {}): Note {
 }
 
 const navigation = { navigate: jest.fn() } as any;
+const route = {} as any;
 
 // FlatList schedules an internal debounced timer; unmounting after each test
 // avoids it firing (and logging an act() warning) once the test has ended.
@@ -101,7 +102,7 @@ afterEach(async () => {
 async function renderScreen() {
   let renderer!: ReactTestRenderer;
   await act(async () => {
-    renderer = create(React.createElement(NotesListScreen, { navigation }));
+    renderer = create(React.createElement(NotesListScreen, { navigation, route }));
   });
   activeRenderers.push(renderer);
   return renderer;

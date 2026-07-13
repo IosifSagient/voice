@@ -147,6 +147,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
           />
           <View style={styles.viewActions}>
             <Pressable
+              testID="note-detail-edit"
               onPress={enterEdit}
               style={({ pressed }) => [styles.editBtn, pressed && styles.pressed]}
             >
@@ -159,6 +160,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
               <Text style={styles.regenLinkText}>Ξαναδημιουργία από το κείμενο</Text>
             </Pressable>
             <Pressable
+              testID="note-detail-delete"
               onPress={handleDelete}
               style={({ pressed }) => [styles.regenLink, pressed && styles.pressed]}
             >
@@ -216,6 +218,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
           </View>
           <View style={styles.editActions}>
             <Pressable
+              testID="note-detail-save"
               onPress={saveEdit}
               style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
             >

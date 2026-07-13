@@ -147,7 +147,7 @@ function MainTabs() {
 }
 
 export default function App() {
-  const { session, loading, authError, signOut } = useAuth();
+  const { session, loading, signOut } = useAuth();
   const { locked, lockAvailable, lockEnabled, unlock, setLockEnabled } =
     useAppLock(!!session);
   const {
@@ -183,7 +183,7 @@ export default function App() {
   }
 
   if (!session) {
-    return <AuthScreen authError={authError} />;
+    return <AuthScreen />;
   }
 
   if (locked) {

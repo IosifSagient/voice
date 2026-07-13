@@ -1,3 +1,5 @@
+import { toKey } from "./lib/textNormalize";
+
 export type NormalizedName = {
   key: string; // accent-free, lowercase, σ-folded — for dedup/matching only
   display: string; // honorific stripped, whitespace collapsed, original casing+accents kept
@@ -34,15 +36,6 @@ const HONORIFICS = new Set([
   "mrs",
   "prof",
 ]);
-
-function stripDiacritics(s: string): string {
-  return s.normalize("NFD").replace(/\p{Mn}/gu, "");
-}
-
-// The canonical match key: diacritic-free, lowercase, final-sigma folded.
-function toKey(s: string): string {
-  return stripDiacritics(s).toLowerCase().replace(/ς/g, "σ");
-}
 
 // Strip a leading honorific token (with optional trailing dot) from an already-trimmed,
 // whitespace-collapsed string. Returns the original if stripping would leave nothing.

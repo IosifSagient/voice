@@ -1,6 +1,7 @@
 // db.js — local-first persistence for notes + action items (expo-sqlite, SDK 54 async API)
 import * as SQLite from "expo-sqlite";
 import { normalizePersonName } from "./normalizeName";
+import { toKey } from "./lib/textNormalize";
 
 const SCHEMA = `
   PRAGMA journal_mode = WAL;
@@ -32,7 +33,7 @@ const SCHEMA = `
 `;
 
 // Adds columns introduced after the initial schema without breaking existing DBs.
-async function migrate(db) {
+export async function migrate(db) {
   const migrations = [
     "ALTER TABLE notes ADD COLUMN companies_json TEXT",
     "ALTER TABLE action_items ADD COLUMN due_time TEXT",
@@ -46,6 +47,22 @@ async function migrate(db) {
     } catch {
       /* column already exists — safe to ignore */
     }
+  }
+
+  // External-content FTS5 index over transcript/summary. Unlike the ALTER TABLE
+  // list above, failures here are logged rather than silently swallowed — a
+  // hypothetical FTS5-disabled build should still start (search just won't
+  // find notes_fts later), but that should be visible in logs, not silent.
+  try {
+    await db.execAsync(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+        transcript, summary,
+        content=notes, content_rowid=rowid,
+        tokenize='unicode61 remove_diacritics 2'
+      );
+    `);
+  } catch (err) {
+    console.error("[db:migrate] failed to create notes_fts (FTS5 may be unavailable)", err);
   }
 
   // One-time repair for the "no honorifics in person tags" policy change: force
@@ -84,6 +101,28 @@ async function migrate(db) {
       /* older SQLite without DROP COLUMN support — column stays, just unused */
     }
     await db.execAsync("PRAGMA user_version = 2");
+  }
+
+  // One-time backfill of the FTS5 index for notes that existed before notes_fts
+  // did — saveNote/updateNote/deleteNote keep it in sync for everything after,
+  // this only catches up pre-existing rows.
+  if (user_version < 3) {
+    const rows = await db.getAllAsync("SELECT rowid, transcript, summary FROM notes");
+    for (const row of rows) {
+      try {
+        await db.runAsync(
+          "INSERT INTO notes_fts (rowid, transcript, summary) VALUES (?, ?, ?)",
+          row.rowid,
+          row.transcript ?? "",
+          row.summary ?? "",
+        );
+      } catch (err) {
+        // A single malformed/duplicate row must not fail the whole migration —
+        // skip it and keep going so every other note still gets indexed.
+        console.error(`[db:migrate] failed to backfill notes_fts for rowid ${row.rowid}, skipping`, err);
+      }
+    }
+    await db.execAsync("PRAGMA user_version = 3");
   }
 }
 
@@ -186,7 +225,7 @@ export async function saveNote(extraction, transcript) {
   const normalizedPeople = normalizeAndDedupeNames(people);
 
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
+    const insertResult = await db.runAsync(
       `INSERT INTO notes (id, created_at, transcript, summary, people_json, topics_json, decisions_json, people_normalized_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       noteId,
@@ -198,6 +237,19 @@ export async function saveNote(extraction, transcript) {
       JSON.stringify([]),
       JSON.stringify(normalizedPeople),
     );
+
+    // Search sync must never fail the user-facing save — a broken index entry
+    // just means this note won't turn up in search, not a lost note.
+    try {
+      await db.runAsync(
+        `INSERT INTO notes_fts (rowid, transcript, summary) VALUES (?, ?, ?)`,
+        insertResult.lastInsertRowId,
+        transcript ?? "",
+        summary,
+      );
+    } catch (err) {
+      console.error(`[db:saveNote] failed to sync notes_fts for note ${noteId}, skipping`, err);
+    }
 
     for (const item of action_items) {
       const due = parseDueDate(item?.due_date);
@@ -237,6 +289,15 @@ export async function updateNote(note) {
   const removed = [];
   const changed = [];
   await db.withTransactionAsync(async () => {
+    // Fetched before the UPDATE so the FTS sync below can issue the
+    // external-content 'delete' command with the OLD transcript/summary —
+    // FTS5 needs the old column values, not just the rowid, to remove a row
+    // from the index cleanly.
+    const oldNote = await db.getFirstAsync(
+      `SELECT rowid, transcript, summary FROM notes WHERE id = ?`,
+      note.id,
+    );
+
     await db.runAsync(
       `UPDATE notes SET transcript = ?, summary = ?, people_json = ?, topics_json = ?, decisions_json = ?, people_normalized_json = ? WHERE id = ?`,
       note.transcript ?? "",
@@ -247,6 +308,32 @@ export async function updateNote(note) {
       JSON.stringify(normalizedPeople),
       note.id,
     );
+
+    // Search sync must never fail the user-facing save (same stance as
+    // saveNote) — each statement is its own try/catch so a failed 'delete'
+    // doesn't stop the fresh insert from being attempted.
+    if (oldNote) {
+      try {
+        await db.runAsync(
+          `INSERT INTO notes_fts (notes_fts, rowid, transcript, summary) VALUES ('delete', ?, ?, ?)`,
+          oldNote.rowid,
+          oldNote.transcript ?? "",
+          oldNote.summary ?? "",
+        );
+      } catch (err) {
+        console.error(`[db:updateNote] failed to remove stale notes_fts entry for note ${note.id}, skipping`, err);
+      }
+      try {
+        await db.runAsync(
+          `INSERT INTO notes_fts (rowid, transcript, summary) VALUES (?, ?, ?)`,
+          oldNote.rowid,
+          note.transcript ?? "",
+          note.summary ?? "",
+        );
+      } catch (err) {
+        console.error(`[db:updateNote] failed to sync notes_fts for note ${note.id}, skipping`, err);
+      }
+    }
 
     // Scoped to status='open' to mirror getNote(), which only ever returns open
     // action items — done items are outside the editor's contract (it never saw
@@ -353,6 +440,24 @@ export async function deleteNote(id) {
       `SELECT calendar_event_id, notification_id FROM action_items WHERE note_id = ?`,
       id,
     );
+
+    const oldNote = await db.getFirstAsync(
+      `SELECT rowid, transcript, summary FROM notes WHERE id = ?`,
+      id,
+    );
+    if (oldNote) {
+      try {
+        await db.runAsync(
+          `INSERT INTO notes_fts (notes_fts, rowid, transcript, summary) VALUES ('delete', ?, ?, ?)`,
+          oldNote.rowid,
+          oldNote.transcript ?? "",
+          oldNote.summary ?? "",
+        );
+      } catch (err) {
+        console.error(`[db:deleteNote] failed to remove notes_fts entry for note ${id}, skipping`, err);
+      }
+    }
+
     await db.runAsync("DELETE FROM notes WHERE id = ?", id);
   });
   return rows.map((r) => ({
@@ -423,22 +528,47 @@ export async function getRecentNotes(limit = 20) {
   return rows.map(hydrateNote);
 }
 
+// Normalizes and quote-wraps each whitespace-separated term of a search query
+// into an FTS5 MATCH expression (space-separated quoted phrases = implicit AND).
+// Quoting each term neutralizes FTS5 query-syntax operators (-, *, OR, NEAR, …)
+// that a spoken-language query might otherwise contain by accident; embedded
+// double quotes are stripped since they'd otherwise break out of the phrase.
+// Returns null if nothing usable remains (e.g. a query of only quote marks).
+function buildFtsQuery(trimmedQuery) {
+  const terms = toKey(trimmedQuery)
+    .split(/\s+/)
+    .map((t) => t.replace(/"/g, ""))
+    .filter((t) => t.length > 0);
+  if (terms.length === 0) return null;
+  return terms.map((t) => `"${t}"`).join(" ");
+}
+
 export async function searchNotes(query, limit = 10) {
+  const trimmed = (query ?? "").trim();
+  if (!trimmed) return [];
+  const ftsQuery = buildFtsQuery(trimmed);
+  if (!ftsQuery) return [];
+
   const db = await getDb();
-  const like = `%${query}%`;
-  const rows = await db.getAllAsync(
-    `SELECT notes.*,
-       (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
-     FROM notes
-     WHERE notes.transcript LIKE ? OR notes.summary LIKE ? OR notes.people_json LIKE ? OR notes.topics_json LIKE ?
-     ORDER BY notes.created_at DESC LIMIT ?`,
-    like,
-    like,
-    like,
-    like,
-    limit,
-  );
-  return rows.map(hydrateNote);
+  try {
+    const rows = await db.getAllAsync(
+      `SELECT notes.*,
+         (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
+       FROM notes_fts
+       JOIN notes ON notes.rowid = notes_fts.rowid
+       WHERE notes_fts MATCH ?
+       ORDER BY notes_fts.rank
+       LIMIT ?`,
+      ftsQuery,
+      limit,
+    );
+    return rows.map(hydrateNote);
+  } catch (err) {
+    // FTS5 unavailable, corrupt index, malformed MATCH expression, etc. — the
+    // agent's search_notes tool must degrade to "no results", not crash the loop.
+    console.error(`[db:searchNotes] FTS5 query failed for "${query}", returning no results`, err);
+    return [];
+  }
 }
 
 // --- agent query helpers ---------------------------------------------------
