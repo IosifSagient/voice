@@ -1,6 +1,7 @@
 import { normalizePersonName } from "../normalizeName";
+import { toKey } from "../lib/textNormalize";
 import { getDb } from "./connection";
-import { parseDueDate, hydrateNote } from "./shared";
+import { parseDueDate, hydrateNote, safeParseArray } from "./shared";
 
 export async function getNote(id) {
   const db = await getDb();
@@ -74,21 +75,28 @@ export async function getNotesByTag(tagType, value) {
     return rows.map(hydrateNote);
   }
 
-  const columnMap = {
-    topic: "topics_json",
-  };
-  const column = columnMap[tagType];
-  if (!column) return [];
-  const like = `%${value}%`;
+  if (tagType !== "topic") return [];
+
+  // topics_json has no normalized-key counterpart (unlike people_normalized_json),
+  // so raw SQL LIKE can't accent/case-fold — fetch candidates and match in JS via
+  // toKey (accent-strip + lowercase + final-sigma fold), same normalization the
+  // person branch gets from normalizePersonName. This does NOT bridge different
+  // Greek inflections (e.g. genitive vs accusative) — only accent/case variants
+  // of the same word form.
   const rows = await db.getAllAsync(
     `SELECT notes.*,
        (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
      FROM notes
-     WHERE notes.${column} LIKE ?
-     ORDER BY notes.created_at DESC LIMIT 20`,
-    like,
+     WHERE notes.topics_json IS NOT NULL
+     ORDER BY notes.created_at DESC`,
   );
-  return rows.map(hydrateNote);
+  const needle = toKey(value);
+  const matches = rows.filter((row) =>
+    safeParseArray(row.topics_json, row.id, "topics_json").some((topic) =>
+      toKey(topic).includes(needle),
+    ),
+  );
+  return matches.slice(0, 20).map(hydrateNote);
 }
 
 export async function getRecentNotesByDays(days = 7) {

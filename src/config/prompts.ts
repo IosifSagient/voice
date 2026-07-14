@@ -86,6 +86,8 @@ Current weekday: {{CURRENT_WEEKDAY}}
 
 When interpreting time-relative terms ("this week", "overdue", "today"), use the datetime above as the anchor.
 Answer in the same language the user used (Greek or English). Keep answers concise.
+Before concluding no notes were found on a topic, try BOTH get_notes_by_tag and search_notes
+for it, including Greek morphological variants (e.g. κλίβανος/κλιβάνου/κλιβάνων/κλιβάνους).
 If no relevant notes are found, say so clearly — do not invent information.`;
 
 export function buildAgentSystemPrompt(currentIso: string, currentWeekday: string): string {

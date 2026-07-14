@@ -24,17 +24,6 @@ export function useRecorder(): RecorderState {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    (async () => {
-      const status = await AudioModule.requestRecordingPermissionsAsync();
-      if (!status.granted) {
-        Alert.alert("Απαιτείται άδεια", "Δεν επιτράπηκε η πρόσβαση στο μικρόφωνο.");
-        return;
-      }
-      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
-    })();
-  }, []);
-
-  useEffect(() => {
     if (!recorderState.isRecording) {
       setElapsed(0);
       return;
@@ -44,6 +33,12 @@ export function useRecorder(): RecorderState {
   }, [recorderState.isRecording]);
 
   const start = async () => {
+    const status = await AudioModule.requestRecordingPermissionsAsync();
+    if (!status.granted) {
+      Alert.alert("Απαιτείται άδεια", "Δεν επιτράπηκε η πρόσβαση στο μικρόφωνο.");
+      return;
+    }
+    await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
     await recorder.prepareToRecordAsync();
     recorder.record();
   };

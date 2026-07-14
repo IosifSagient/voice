@@ -3,6 +3,7 @@
     "name": "heylisa",
     "slug": "heylisa",
     "version": "1.0.0",
+    "scheme": "heylisa",
     "orientation": "portrait",
     "icon": "./assets/branding/icon.png",
     "userInterfaceStyle": "light",

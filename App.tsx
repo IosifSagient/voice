@@ -6,7 +6,7 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, type LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -51,6 +51,24 @@ const sharedHeaderOptions = {
   headerTintColor: colors.textPrimary,
   headerTitleStyle: { fontWeight: "600" as const, color: colors.textPrimary },
   headerShadowVisible: false,
+};
+
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: ["heylisa://"],
+  config: {
+    screens: {
+      Record: "record",
+      Main: {
+        screens: {
+          NotesList: "notes",
+          Tasks: "tasks",
+          Chat: "chat",
+        },
+      },
+      NoteDetail: "note/:id",
+      Settings: "settings",
+    },
+  },
 };
 
 function MainTabs() {
@@ -191,8 +209,11 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={sharedHeaderOptions}>
+    <NavigationContainer linking={linking}>
+      <Stack.Navigator
+        screenOptions={sharedHeaderOptions}
+        initialRouteName="Record"
+      >
         <Stack.Screen
           name="Main"
           options={{ headerShown: false }}
@@ -202,7 +223,38 @@ export default function App() {
         <Stack.Screen
           name="Record"
           component={RecordScreen}
-          options={{ title: "Νέα σημείωση" }}
+          options={({ navigation }) => ({
+            title: "",
+            headerLeft: () => (
+              <Pressable
+                onPress={() => navigation.navigate("Main")}
+                accessibilityRole="button"
+                accessibilityLabel="Προβολή σημειώσεων"
+                hitSlop={{
+                  top: spacing.sm,
+                  bottom: spacing.sm,
+                  left: spacing.sm,
+                  right: spacing.sm,
+                }}
+                style={({ pressed }) => [
+                  styles.notesBtn,
+                  pressed && styles.fabPressed,
+                ]}
+              >
+                <Ionicons
+                  name="document-text-outline"
+                  size={18}
+                  color={colors.textPrimary}
+                />
+                <Text
+                  style={styles.notesBtnText}
+                  numberOfLines={1}
+                >
+                  Σημειώσεις
+                </Text>
+              </Pressable>
+            ),
+          })}
         />
         <Stack.Screen
           name="NoteDetail"
@@ -261,5 +313,23 @@ const styles = StyleSheet.create({
   signOutBtn: {
     marginLeft: spacing.base,
     padding: spacing.xs,
+  },
+  notesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    height: spacing.xxl,
+    marginLeft: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  notesBtnText: {
+    ...type.buttonSmall,
+    color: colors.textPrimary,
   },
 });
