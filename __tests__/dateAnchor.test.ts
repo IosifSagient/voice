@@ -51,4 +51,13 @@ describe('buildAnchor', () => {
   it('defaults to now without throwing', () => {
     expect(() => buildAnchor()).not.toThrow();
   });
+
+  it('iso.slice(0, 10) follows the Athens calendar day, not UTC, near midnight', () => {
+    // 2026-07-08T22:30:00Z is already 2026-07-09 01:30 in Athens (EEST, UTC+3
+    // in July). agent.ts derives its "today" for overdue resolution from this
+    // same iso.slice(0, 10) — if it silently fell back to the UTC date here,
+    // overdue would be off by a day for ~3 hours around midnight.
+    const { iso } = buildAnchor(new Date('2026-07-08T22:30:00.000Z'));
+    expect(iso.slice(0, 10)).toBe('2026-07-09');
+  });
 });

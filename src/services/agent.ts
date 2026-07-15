@@ -34,6 +34,29 @@ const TOOL_DEFINITIONS = [
   {
     type: 'function',
     function: {
+      name: 'search_notes_in_range',
+      description:
+        "Canonical tool for a date-scoped question that ALSO filters by a topic/keyword (e.g. 'πόσες συναντήσεις είχα αυτή την εβδομάδα' — a topic word AND a period in one ask). Combines keyword search with a date-range filter in one query so the returned rows already match both — count them directly, do not call get_notes_by_date_range and judge topic matches yourself. Scopes on created_at (when the note was recorded), same as get_notes_by_date_range. Same Greek word-ending tolerance and term rules as search_notes.",
+      parameters: {
+        type: 'object',
+        properties: {
+          terms: {
+            type: 'array',
+            items: { type: 'string' },
+            minItems: 1,
+            maxItems: 4,
+            description: "Key content word(s), 1-4 entries, OR'd together — same rules as search_notes's terms.",
+          },
+          from: { type: 'string', description: 'Start date YYYY-MM-DD (inclusive)' },
+          to: { type: 'string', description: 'End date YYYY-MM-DD (inclusive)' },
+        },
+        required: ['terms', 'from', 'to'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_note',
       description: 'Retrieve full details of a specific note, including all action items and the original transcript.',
       parameters: {
@@ -65,6 +88,11 @@ const TOOL_DEFINITIONS = [
           due_after: {
             type: 'string',
             description: 'ISO date YYYY-MM-DD. Return items due after this date.',
+          },
+          overdue: {
+            type: 'boolean',
+            description:
+              "Set true for 'overdue' / 'εκπρόθεσμο' questions — open items whose due date is strictly before today (Europe/Athens), computed by the app, not the model. When true, status/due_before/due_after are ignored.",
           },
         },
       },
@@ -135,10 +163,15 @@ function toCompactNotes(notes: Note[]): CompactNote[] {
 // Maps each tool name to a repository call. Errors are caught by the caller
 // and returned to the model as an error string so the loop can continue.
 
-async function dispatch(name: string, args: Record<string, unknown>): Promise<unknown> {
+async function dispatch(name: string, args: Record<string, unknown>, todayAthens: string): Promise<unknown> {
   switch (name) {
     case 'search_notes':
       return toCompactNotes(await notesRepository.search(args.terms as string[]));
+
+    case 'search_notes_in_range':
+      return toCompactNotes(
+        await notesRepository.searchInRange(args.terms as string[], args.from as string, args.to as string)
+      );
 
     case 'get_note':
       return await notesRepository.get(args.id as string);
@@ -148,6 +181,8 @@ async function dispatch(name: string, args: Record<string, unknown>): Promise<un
         status: args.status as string | undefined,
         dueBefore: args.due_before as string | undefined,
         dueAfter: args.due_after as string | undefined,
+        overdue: args.overdue as boolean | undefined,
+        todayAthens,
       });
 
     case 'get_notes_by_tag':
@@ -187,8 +222,11 @@ export async function runAgent(
   question: string,
   history: VisibleMessage[] = [],
 ): Promise<AgentResponse> {
-  const { iso, weekday } = buildAnchor();
-  const systemPrompt = buildAgentSystemPrompt(iso, weekday);
+  const { iso, weekday, calendarBlock } = buildAnchor();
+  const systemPrompt = buildAgentSystemPrompt(iso, weekday, calendarBlock);
+  // Athens calendar day, from the same anchor as the prompt — the "today" used
+  // to resolve get_action_items({ overdue: true }) in code, not by the model.
+  const todayAthens = iso.slice(0, 10);
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
@@ -222,9 +260,17 @@ export async function runAgent(
 
       let result: string;
       try {
-        result = JSON.stringify(await dispatch(tc.function.name, args));
+        const toolResult = await dispatch(tc.function.name, args, todayAthens);
+        result = JSON.stringify(toolResult);
+        if (__DEV__) {
+          const rowCount = Array.isArray(toolResult) ? toolResult.length : toolResult == null ? 0 : 1;
+          console.log('[agent:tool]', tc.function.name, args, `rows=${rowCount}`);
+        }
       } catch (e) {
         result = `error: ${e instanceof Error ? e.message : String(e)}`;
+        if (__DEV__) {
+          console.log('[agent:tool]', tc.function.name, args, 'error:', result);
+        }
       }
 
       messages.push({ role: 'tool', content: result, tool_call_id: tc.id });

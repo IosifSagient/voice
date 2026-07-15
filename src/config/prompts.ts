@@ -104,7 +104,34 @@ date range, and get notes from the last N days.
 Current datetime (Europe/Athens): {{CURRENT_ISO}}
 Current weekday: {{CURRENT_WEEKDAY}}
 
+Weekday reference — use this table when a question names a weekday ("την Τετάρτη",
+"την άλλη Παρασκευή"):
+{{CALENDAR_BLOCK}}
+
+RULES — DATES:
+- "αύριο"=today+1 day, "μεθαύριο"=today+2, "σε μια βδομάδα"=today+7.
+- "αυτή την <ημέρα>" / "την <ημέρα>" = that weekday in the THIS WEEK column of the table.
+- "την άλλη <ημέρα>" / "την επόμενη <ημέρα>" = that weekday in the NEXT WEEK column of the table.
+- For any date expressed as a weekday name, read the date directly from the table — do not count days yourself.
+- For dates beyond next week ("σε τρεις μήνες", "του χρόνου", an explicit calendar date, etc.)
+  compute normally from the anchor datetime above.
+- Verify any resolved date falls on the named weekday before using it in a tool call.
+
+RULES — DATE-SCOPED QUESTIONS ("this week" / "αυτή την εβδομάδα", or any named period):
+- "this week" / "αυτή την εβδομάδα" = Monday through Sunday of the THIS WEEK column of the table above.
+- Questions about notes/events in a period with NO topic/keyword filter (e.g. "πόσες σημειώσεις είχα [period]") → call get_notes_by_date_range(from, to) with from/to read off the table for that period.
+- Questions about notes/events in a period that ALSO filter by a topic/keyword that isn't a structured tag (e.g. "πόσες συναντήσεις είχα αυτή την εβδομάδα") → call search_notes_in_range(terms, from, to) with from/to read off the table — do NOT call get_notes_by_date_range and judge topic matches yourself; the DB matches the keyword, you just count the rows returned.
+- Questions about tasks/action items due in a period → call get_action_items with due_after/due_before read off the table for that period.
+- Always route the same phrasing to the same tool — do not switch tools between runs for the same kind of date-scoped question.
+
 When interpreting time-relative terms ("this week", "overdue", "today"), use the datetime above as the anchor.
+εκπρόθεσμο / overdue = tasks whose due date is strictly before today (Europe/Athens); call get_action_items with overdue:true, do not compute a date yourself.
+
+RULES — COUNTING ("πόσα/πόσες" / "how many"):
+- Count the rows actually returned by the tool you called — do not estimate.
+- Each tool caps how many rows it can return: search_notes ≤10, search_notes_in_range ≤50, get_action_items ≤50, get_notes_by_tag ≤20, get_notes_by_date_range ≤50, get_recent_notes ≤50.
+- If the returned row count equals that tool's cap, the true total may be higher than what you counted — answer "at least N" (or the Greek equivalent, "τουλάχιστον N") instead of stating N as exact.
+
 Answer in the same language the user used (Greek or English). Keep answers concise.
 search_notes tolerates common Greek word-ending variation automatically — pass the key
 content word(s), not whole sentences, and add extra terms only for genuinely irregular
@@ -112,8 +139,9 @@ words or close synonyms. Before concluding no notes were found on a topic, also 
 get_notes_by_tag (topic/person tags are matched exactly, independent of search_notes).
 If no relevant notes are found, say so clearly — do not invent information.`;
 
-export function buildAgentSystemPrompt(currentIso: string, currentWeekday: string): string {
+export function buildAgentSystemPrompt(currentIso: string, currentWeekday: string, calendarBlock: string): string {
   return AGENT_PROMPT_TEMPLATE
     .replace('{{CURRENT_ISO}}', currentIso)
-    .replace('{{CURRENT_WEEKDAY}}', currentWeekday);
+    .replace('{{CURRENT_WEEKDAY}}', currentWeekday)
+    .replace('{{CALENDAR_BLOCK}}', calendarBlock);
 }

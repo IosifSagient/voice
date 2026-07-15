@@ -3,6 +3,7 @@ import {
   saveNote,
   getRecentNotes,
   searchNotes,
+  searchNotesInRange,
   getNote,
   deleteNote,
   updateNote,
@@ -26,6 +27,8 @@ export const notesRepository = {
     saveNote(extraction, transcript),
   list: (): Promise<Note[]> => getRecentNotes(),
   search: (terms: string | string[]): Promise<Note[]> => searchNotes(terms),
+  searchInRange: (terms: string | string[], from: string, to: string): Promise<Note[]> =>
+    searchNotesInRange(terms, from, to),
   get: (id: string): Promise<Note | null> => getNote(id),
   delete: (id: string): Promise<ReminderIds[]> => deleteNote(id),
   save: (note: Note): Promise<UpdateNoteDiff> => updateNote(note),
@@ -41,6 +44,8 @@ export const notesRepository = {
     status?: string;
     dueBefore?: string;
     dueAfter?: string;
+    overdue?: boolean;
+    todayAthens?: string;
   }) => getActionItemsFiltered(filter),
   getNotesByDateRange: (from: string, to: string): Promise<Note[]> =>
     getNotesByDateRange(from, to),

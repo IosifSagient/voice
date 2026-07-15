@@ -5,28 +5,45 @@ export async function getActionItemsFiltered({
   status,
   dueBefore,
   dueAfter,
+  overdue,
+  todayAthens,
 } = {}) {
   const db = await getDb();
   const conditions = [];
   const params = [];
 
-  if (status) {
-    conditions.push("a.status = ?");
-    params.push(status);
-  }
-  if (dueBefore) {
-    const ts = parseDueDate(dueBefore);
-    if (ts != null) {
-      // inclusive: end of that day
-      conditions.push("a.due_date IS NOT NULL AND a.due_date <= ?");
-      params.push(ts + 86400000 - 1);
+  if (overdue) {
+    // Strict day-boundary against the SAME Athens "today" the agent's date
+    // reasoning uses (agent.ts), computed here in code rather than by the
+    // LLM. Mirrors taskBuckets.ts's open+dated+due<today definition — see
+    // __tests__/getActionItemsFiltered.test.js for the parity check.
+    // due_before/due_after are ignored: "overdue" isn't a range query.
+    const todayTs = parseDueDate(todayAthens);
+    if (todayTs != null) {
+      conditions.push(
+        "a.status = 'open' AND a.due_date IS NOT NULL AND a.due_date < ?",
+      );
+      params.push(todayTs);
     }
-  }
-  if (dueAfter) {
-    const ts = parseDueDate(dueAfter);
-    if (ts != null) {
-      conditions.push("(a.due_date IS NULL OR a.due_date > ?)");
-      params.push(ts + 86400000 - 1);
+  } else {
+    if (status) {
+      conditions.push("a.status = ?");
+      params.push(status);
+    }
+    if (dueBefore) {
+      const ts = parseDueDate(dueBefore);
+      if (ts != null) {
+        // inclusive: end of that day
+        conditions.push("a.due_date IS NOT NULL AND a.due_date <= ?");
+        params.push(ts + 86400000 - 1);
+      }
+    }
+    if (dueAfter) {
+      const ts = parseDueDate(dueAfter);
+      if (ts != null) {
+        conditions.push("(a.due_date IS NULL OR a.due_date > ?)");
+        params.push(ts + 86400000 - 1);
+      }
     }
   }
 

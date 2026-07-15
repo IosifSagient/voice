@@ -1,7 +1,7 @@
 import { toKey } from "../lib/textNormalize";
 import { stemGreekTerm } from "../lib/greekStem";
 import { getDb } from "./connection";
-import { hydrateNote } from "./shared";
+import { hydrateNote, parseDueDate } from "./shared";
 
 // Greek stopwords — articles, common prepositions/conjunctions/pronouns/verb-forms —
 // written in toKey'd form (lowercase, accent-stripped, σ not ς) since this filter
@@ -91,6 +91,42 @@ export async function searchNotes(query, limit = 10) {
     // FTS5 unavailable, corrupt index, malformed MATCH expression, etc. — the
     // agent's search_notes tool must degrade to "no results", not crash the loop.
     console.error(`[db:searchNotes] FTS5 query failed for ${JSON.stringify(query)}, returning no results`, err);
+    return [];
+  }
+}
+
+// Intersection of searchNotes's FTS MATCH and getNotesByDateRange's created_at
+// window, in one joined query — for a date-scoped question that ALSO filters
+// by a topic/keyword (e.g. "πόσες συναντήσεις είχα αυτή την εβδομάδα"), so the
+// DB does the keyword+date filtering instead of the model eyeballing a plain
+// date-range result. Scopes on notes.created_at, same as getNotesByDateRange
+// (a note has no separate event date — see notesRead.js).
+export async function searchNotesInRange(query, from, to, limit = 50) {
+  const ftsQuery = buildFtsQuery(query);
+  if (!ftsQuery) return [];
+  const fromTs = parseDueDate(from);
+  const toTs = parseDueDate(to);
+  if (fromTs == null || toTs == null) return [];
+
+  const db = await getDb();
+  try {
+    const rows = await db.getAllAsync(
+      `SELECT notes.*,
+         (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
+       FROM notes_fts
+       JOIN notes ON notes.rowid = notes_fts.rowid
+       WHERE notes_fts MATCH ?
+         AND notes.created_at >= ? AND notes.created_at < ?
+       ORDER BY notes_fts.rank
+       LIMIT ?`,
+      ftsQuery,
+      fromTs,
+      toTs + 86400000,
+      limit,
+    );
+    return rows.map(hydrateNote);
+  } catch (err) {
+    console.error(`[db:searchNotesInRange] FTS5 query failed for ${JSON.stringify(query)}, returning no results`, err);
     return [];
   }
 }
