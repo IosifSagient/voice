@@ -177,7 +177,14 @@ describe('useTasks — toggle', () => {
     });
 
     expect(mockScheduleReminder).toHaveBeenCalledWith(
-      expect.objectContaining({ text: 'Call the plumber', due_date: '2099-01-01', due_time: '10:00', all_day: false }),
+      expect.objectContaining({
+        text: 'Call the plumber',
+        due_date: '2099-01-01',
+        due_time: '10:00',
+        all_day: false,
+        note_id: 'n1',
+        task_id: 't1',
+      }),
     );
     expect(mockSetNotificationId).toHaveBeenCalledWith('t1', 'notif-new');
   });

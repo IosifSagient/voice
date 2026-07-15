@@ -29,19 +29,11 @@ import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
 import { useCalendarSettings } from "./src/hooks/useCalendarSettings";
 import { useNotificationSettings } from "./src/hooks/useNotificationSettings";
+import { navigationRef } from "./src/lib/navigationRef";
+import { handleInitialNotification } from "./src/services/notifications";
+import type { RootStackParamList, MainTabParamList } from "./src/types/navigation";
 
-export type RootStackParamList = {
-  Main: undefined;
-  Record: undefined;
-  NoteDetail: { id: string };
-  Settings: undefined;
-};
-
-export type MainTabParamList = {
-  NotesList: undefined;
-  Tasks: undefined;
-  Chat: undefined;
-};
+export type { RootStackParamList, MainTabParamList };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -209,7 +201,13 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      onReady={() => {
+        handleInitialNotification();
+      }}
+    >
       <Stack.Navigator
         screenOptions={sharedHeaderOptions}
         initialRouteName="Record"

@@ -62,7 +62,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const saveEdit = async () => {
     if (!draft) return;
     const diff = await notesRepository.save(draft);
-    await applyReminderDiff(diff);
+    await applyReminderDiff(diff, draft.id);
     setNote(draft);
     setDraft(null);
     setMode("view");

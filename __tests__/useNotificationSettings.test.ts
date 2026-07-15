@@ -94,7 +94,12 @@ describe('useNotificationSettings — no permission', () => {
 
     expect(getResult().permissionGranted).toBe(true);
     expect(mockScheduleReminder).toHaveBeenCalledWith(
-      expect.objectContaining({ text: 'Call the plumber', due_date: '2099-01-01' }),
+      expect.objectContaining({
+        text: 'Call the plumber',
+        due_date: '2099-01-01',
+        note_id: 'n1',
+        task_id: 't1',
+      }),
     );
     expect(mockSetNotificationId).toHaveBeenCalledWith('t1', 'notif-1');
   });
@@ -154,7 +159,7 @@ describe('rescheduleMissingNotifications', () => {
 
     expect(mockScheduleReminder).toHaveBeenCalledTimes(1);
     expect(mockScheduleReminder).toHaveBeenCalledWith(
-      expect.objectContaining({ due_date: '2099-01-01' }),
+      expect.objectContaining({ due_date: '2099-01-01', note_id: 'n1', task_id: 't1' }),
     );
     expect(mockSetNotificationId).toHaveBeenCalledWith('t1', 'notif-new');
   });

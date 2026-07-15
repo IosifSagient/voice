@@ -11,7 +11,7 @@ import type { Note, UpdateNoteDiff } from "../types/note";
 // diff reports changed. Exported and shared by regenerate() below and
 // NoteDetailScreen's save handler — both call notesRepository.save() and
 // must react identically to its diff, so this lives in one place.
-export async function applyReminderDiff(diff: UpdateNoteDiff): Promise<void> {
+export async function applyReminderDiff(diff: UpdateNoteDiff, noteId: string): Promise<void> {
   for (const r of diff.removed) {
     if (r.calendarEventId) await removeReminder(r.calendarEventId);
     if (r.notificationId) await cancelReminder(r.notificationId);
@@ -21,7 +21,11 @@ export async function applyReminderDiff(diff: UpdateNoteDiff): Promise<void> {
     // calendar_event_id survives due_date edits by existing (accepted)
     // design; only the notification, which is new, gets cancelled+rescheduled.
     if (c.notificationId) await cancelReminder(c.notificationId);
-    const newNotificationId = await scheduleReminder(c.item);
+    const newNotificationId = await scheduleReminder({
+      ...c.item,
+      note_id: noteId,
+      task_id: c.id,
+    });
     if (newNotificationId) {
       try {
         await notesRepository.setNotificationId(c.id, newNotificationId);
@@ -51,7 +55,7 @@ export function useRegenerateNote(
       const extracted = await extractNote(transcript);
       const updated: Note = { ...note, transcript, ...extracted };
       const diff = await notesRepository.save(updated);
-      await applyReminderDiff(diff);
+      await applyReminderDiff(diff, updated.id);
       setNote(updated);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

@@ -16,6 +16,8 @@ jest.mock("expo-notifications", () => ({
   requestPermissionsAsync: jest.fn(),
   scheduleNotificationAsync: jest.fn(),
   cancelScheduledNotificationAsync: jest.fn(),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(),
 }));
 
 import { computeFireTime } from "../src/services/notifications";

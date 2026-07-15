@@ -230,7 +230,13 @@ describe('useTodayTasks — reopen', () => {
     });
 
     expect(mockScheduleReminder).toHaveBeenCalledWith(
-      expect.objectContaining({ text: 'Call the plumber', due_date: '2099-01-01', all_day: true }),
+      expect.objectContaining({
+        text: 'Call the plumber',
+        due_date: '2099-01-01',
+        all_day: true,
+        note_id: 'n1',
+        task_id: 't1',
+      }),
     );
     expect(mockSetNotificationId).toHaveBeenCalledWith('t1', 'notif-new');
   });

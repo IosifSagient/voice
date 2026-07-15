@@ -92,7 +92,12 @@ describe('usePipelineRun — automatic notification scheduling on save', () => {
 
     expect(mockScheduleReminder).toHaveBeenCalledTimes(1);
     expect(mockScheduleReminder).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'a1', due_date: '2099-06-15' }),
+      expect.objectContaining({
+        id: 'a1',
+        due_date: '2099-06-15',
+        note_id: 'n1',
+        task_id: 'a1',
+      }),
     );
     expect(mockSetNotificationId).toHaveBeenCalledWith('a1', 'notif-1');
     expect(getResult().note?.action_items.find((i) => i.id === 'a1')?.notification_id).toBe('notif-1');

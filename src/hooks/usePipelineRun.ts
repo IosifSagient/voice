@@ -55,7 +55,11 @@ export function usePipelineRun(): PipelineRunState {
         }
         for (const item of dueDatedItems) {
           if (!item.id) continue;
-          const notificationId = await scheduleReminder(item);
+          const notificationId = await scheduleReminder({
+            ...item,
+            note_id: noteId,
+            task_id: item.id,
+          });
           if (notificationId) {
             try {
               await notesRepository.setNotificationId(item.id, notificationId);

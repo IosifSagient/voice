@@ -192,7 +192,12 @@ describe('NoteDetailScreen — saveEdit applies the reminder diff', () => {
 
     expect(mockCancelReminder).toHaveBeenCalledWith('notif-old');
     expect(mockScheduleReminder).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'a1', due_date: '2099-01-01' }),
+      expect.objectContaining({
+        id: 'a1',
+        due_date: '2099-01-01',
+        note_id: 'n1',
+        task_id: 'a1',
+      }),
     );
     expect(mockRemoveReminder).not.toHaveBeenCalled();
   });

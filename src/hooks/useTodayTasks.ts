@@ -86,6 +86,8 @@ export function useTodayTasks() {
         due_date: task.dueDate,
         due_time: task.dueTime,
         all_day: task.allDay,
+        note_id: task.noteId,
+        task_id: task.id,
       });
       if (notificationId) {
         try {

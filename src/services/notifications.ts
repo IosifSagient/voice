@@ -3,6 +3,7 @@ import {
   REMINDER_OFFSET_MINUTES,
   DATE_ONLY_REMINDER_HOUR,
 } from "../config/notifications";
+import { navigationRef } from "../lib/navigationRef";
 
 // Must run before any notification could arrive, including a cold start —
 // so it's a module-scope call, not something invoked from a hook/effect.
@@ -15,6 +16,35 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+// Single navigate() call site shared by both tap-routing paths below — a
+// missing/malformed noteId (older notifications scheduled before this
+// payload existed) or a not-yet-mounted navigator is a silent no-op, same
+// as scheduleReminder's own no-throw contract: never block/crash on a tap,
+// just leave the app on whatever it already landed on (Record, the initial
+// route).
+function routeNotificationResponse(
+  response: Notifications.NotificationResponse | null,
+): void {
+  const noteId = response?.notification.request.content.data?.noteId;
+  if (typeof noteId !== "string") return;
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate("NoteDetail", { id: noteId });
+}
+
+// Tap while the app is already running (foreground/background) — same
+// cold-start timing rule as setNotificationHandler above, so this is also a
+// module-scope call registered once via the App.tsx import.
+Notifications.addNotificationResponseReceivedListener(routeNotificationResponse);
+
+// The tap that launched the app from killed never fires the listener above
+// — expo-notifications only surfaces it via getLastNotificationResponseAsync.
+// Call this once from NavigationContainer's onReady (not a plain useEffect)
+// so navigationRef.isReady() above is guaranteed true by the time this runs.
+export async function handleInitialNotification(): Promise<void> {
+  const response = await Notifications.getLastNotificationResponseAsync();
+  routeNotificationResponse(response);
+}
 
 export type CalendarPermissionState = {
   granted: boolean;
@@ -86,7 +116,14 @@ function relativeBody(item: ReminderItem, now: Date = new Date()): string {
 // Never throws — a denied/undetermined permission or an unschedulable item
 // (R3/R4) silently no-ops and returns null, so callers never need to guard
 // task creation against notification failures.
-export async function scheduleReminder(item: ReminderItem): Promise<string | null> {
+//
+// note_id/task_id are required here (not on the base ReminderItem, which
+// computeFireTime/relativeBody also use and don't need them) — they're
+// carried in the OS notification's `data` payload so a tap can route back
+// to NoteDetail (see the response listener registered below in this file).
+export async function scheduleReminder(
+  item: ReminderItem & { note_id: string; task_id: string },
+): Promise<string | null> {
   const fireTime = computeFireTime(item);
   if (!fireTime) return null;
 
@@ -94,7 +131,11 @@ export async function scheduleReminder(item: ReminderItem): Promise<string | nul
   if (!granted) return null;
 
   return Notifications.scheduleNotificationAsync({
-    content: { title: item.text, body: relativeBody(item) },
+    content: {
+      title: item.text,
+      body: relativeBody(item),
+      data: { noteId: item.note_id, taskId: item.task_id },
+    },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: fireTime,

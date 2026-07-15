@@ -6,7 +6,9 @@ import {
   ensurePermission,
   scheduleReminder,
   cancelReminder,
+  handleInitialNotification,
 } from "../src/services/notifications";
+import { navigationRef } from "../src/lib/navigationRef";
 
 jest.mock("expo-notifications", () => ({
   SchedulableTriggerInputTypes: { DATE: "date", TIME_INTERVAL: "timeInterval" },
@@ -15,12 +17,37 @@ jest.mock("expo-notifications", () => ({
   requestPermissionsAsync: jest.fn(),
   scheduleNotificationAsync: jest.fn(),
   cancelScheduledNotificationAsync: jest.fn(),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(),
+}));
+
+jest.mock("../src/lib/navigationRef", () => ({
+  navigationRef: {
+    isReady: jest.fn(),
+    navigate: jest.fn(),
+  },
 }));
 
 const mockGetPermissions = Notifications.getPermissionsAsync as jest.Mock;
 const mockRequestPermissions = Notifications.requestPermissionsAsync as jest.Mock;
 const mockSchedule = Notifications.scheduleNotificationAsync as jest.Mock;
 const mockCancel = Notifications.cancelScheduledNotificationAsync as jest.Mock;
+const mockGetLastResponse = Notifications.getLastNotificationResponseAsync as jest.Mock;
+const mockIsReady = navigationRef.isReady as jest.Mock;
+const mockNavigate = navigationRef.navigate as jest.Mock;
+
+// The module registers this exactly once, at import time, before any
+// beforeEach's jest.resetAllMocks() below clears the mock's call history —
+// capture the real handler reference here, at module-eval time, so the live-
+// tap test further down can invoke the same function the app actually wires up.
+const mockAddResponseListener = Notifications.addNotificationResponseReceivedListener as jest.Mock;
+const registeredResponseHandler = mockAddResponseListener.mock.calls[0][0] as (
+  response: Notifications.NotificationResponse | null,
+) => void;
+
+function mkResponse(data: unknown) {
+  return { notification: { request: { content: { data } } } } as Notifications.NotificationResponse;
+}
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -53,14 +80,14 @@ test("ensurePermission returns false when the user denies", async () => {
 
 describe("scheduleReminder — never throws, no-ops per R3/R4/denied-permission", () => {
   it("returns null and never calls the OS scheduling API when there is no due_date", async () => {
-    const result = await scheduleReminder({ text: "x", due_date: null });
+    const result = await scheduleReminder({ text: "x", due_date: null, note_id: "n1", task_id: "t1" });
     expect(result).toBeNull();
     expect(mockGetPermissions).not.toHaveBeenCalled();
     expect(mockSchedule).not.toHaveBeenCalled();
   });
 
   it("returns null and never calls the OS scheduling API when the due date is in the past", async () => {
-    const result = await scheduleReminder({ text: "x", due_date: "2020-01-01" });
+    const result = await scheduleReminder({ text: "x", due_date: "2020-01-01", note_id: "n1", task_id: "t1" });
     expect(result).toBeNull();
     expect(mockSchedule).not.toHaveBeenCalled();
   });
@@ -68,21 +95,29 @@ describe("scheduleReminder — never throws, no-ops per R3/R4/denied-permission"
   it("returns null without throwing when permission is not granted — task creation must never be blocked", async () => {
     mockGetPermissions.mockResolvedValueOnce({ status: "denied", canAskAgain: false });
     await expect(
-      scheduleReminder({ text: "x", due_date: "2099-06-15" }),
+      scheduleReminder({ text: "x", due_date: "2099-06-15", note_id: "n1", task_id: "t1" }),
     ).resolves.toBeNull();
     expect(mockSchedule).not.toHaveBeenCalled();
   });
 
-  it("schedules with the item's text as title and a DATE trigger when granted and in the future", async () => {
+  it("schedules with the item's text as title, a DATE trigger, and the noteId/taskId data payload when granted and in the future", async () => {
     mockGetPermissions.mockResolvedValueOnce({ status: "granted", canAskAgain: true });
     mockSchedule.mockResolvedValueOnce("notif-1");
 
-    const result = await scheduleReminder({ text: "Πάρε τηλέφωνο τον Γιάννη", due_date: "2099-06-15" });
+    const result = await scheduleReminder({
+      text: "Πάρε τηλέφωνο τον Γιάννη",
+      due_date: "2099-06-15",
+      note_id: "note-42",
+      task_id: "task-7",
+    });
 
     expect(result).toBe("notif-1");
     expect(mockSchedule).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.objectContaining({ title: "Πάρε τηλέφωνο τον Γιάννη" }),
+        content: expect.objectContaining({
+          title: "Πάρε τηλέφωνο τον Γιάννη",
+          data: { noteId: "note-42", taskId: "task-7" },
+        }),
         trigger: expect.objectContaining({ type: "date" }),
       }),
     );
@@ -98,5 +133,78 @@ describe("cancelReminder", () => {
   it("swallows a rejection (already-fired/unknown id) without throwing", async () => {
     mockCancel.mockRejectedValueOnce(new Error("not found"));
     await expect(cancelReminder("gone")).resolves.not.toThrow();
+  });
+});
+
+describe("handleInitialNotification — cold-start tap routing", () => {
+  it("routes to NoteDetail when the launch response carries a string noteId and the navigator is ready", async () => {
+    mockGetLastResponse.mockResolvedValueOnce(mkResponse({ noteId: "n1", taskId: "t1" }));
+    mockIsReady.mockReturnValue(true);
+
+    await handleInitialNotification();
+
+    expect(mockNavigate).toHaveBeenCalledWith("NoteDetail", { id: "n1" });
+  });
+
+  it("no-ops when there was no launch notification this session", async () => {
+    mockGetLastResponse.mockResolvedValueOnce(null);
+    mockIsReady.mockReturnValue(true);
+
+    await handleInitialNotification();
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when noteId is missing from the payload (older notifications scheduled before this payload existed)", async () => {
+    mockGetLastResponse.mockResolvedValueOnce(mkResponse(undefined));
+    mockIsReady.mockReturnValue(true);
+
+    await handleInitialNotification();
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when noteId is present but not a string", async () => {
+    mockGetLastResponse.mockResolvedValueOnce(mkResponse({ noteId: 42 }));
+    mockIsReady.mockReturnValue(true);
+
+    await handleInitialNotification();
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when the navigator isn't ready yet, even with a valid payload", async () => {
+    mockGetLastResponse.mockResolvedValueOnce(mkResponse({ noteId: "n1" }));
+    mockIsReady.mockReturnValue(false);
+
+    await handleInitialNotification();
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("addNotificationResponseReceivedListener — live tap routing (foreground/background)", () => {
+  it("routes the same way as the cold-start path for a tap while the app is already running", () => {
+    mockIsReady.mockReturnValue(true);
+
+    registeredResponseHandler(mkResponse({ noteId: "n2", taskId: "t2" }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("NoteDetail", { id: "n2" });
+  });
+
+  it("no-ops for a live tap with a missing noteId", () => {
+    mockIsReady.mockReturnValue(true);
+
+    registeredResponseHandler(mkResponse(undefined));
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("no-ops for a live tap when the navigator isn't ready", () => {
+    mockIsReady.mockReturnValue(false);
+
+    registeredResponseHandler(mkResponse({ noteId: "n2" }));
+
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

@@ -22,6 +22,8 @@ export async function rescheduleMissingNotifications(): Promise<void> {
       due_date: item.dueDate,
       due_time: item.dueTime,
       all_day: item.allDay,
+      note_id: item.noteId,
+      task_id: item.id,
     });
     if (notificationId) {
       try {
