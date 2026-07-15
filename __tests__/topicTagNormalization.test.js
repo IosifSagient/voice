@@ -1,12 +1,18 @@
 // Regression coverage for the topic branch of getNotesByTag (src/db/notesRead.js).
 // It used to do a raw SQL LIKE against the unnormalized topics_json column, so an
 // accent or case difference between the query value and the stored tag silently
-// returned zero rows even though the "same" topic existed. It now fetches
-// candidates and matches in JS via toKey (accent-strip + lowercase + final-sigma
-// fold) — mirroring the normalization the person branch already gets.
+// returned zero rows even though the "same" topic existed. It then moved to a
+// substring match over toKey()'d text (accent/case/final-sigma insensitive, but
+// NOT inflection-bridging, and prone to false positives like "λήση" matching
+// inside "πώληση").
 //
-// It intentionally does NOT bridge different Greek inflections (e.g. genitive vs
-// accusative) — case (d) below documents that residual limitation.
+// It now compares by word-boundary SUBSET match on stemKey (db/shared.js, built
+// on the same Greek stemmer search uses — lib/greekStem.ts): every stemmed word
+// of the query must appear in the tag's stemmed word set. stemKey operates
+// word-wise (not on the whole tag string) specifically so a single-word query
+// can still find a multi-word tag by any of its content words — e.g. "φόρος"
+// finds "φόρος εισοδήματος", and "κλίβανος" finds "πώληση κλιβάνων" — while a
+// naive substring like "λήση" no longer spuriously matches "πώληση".
 
 jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: jest.fn(),
@@ -25,7 +31,7 @@ function makeFakeDb(notes) {
   return {
     async execAsync() {},
     async getFirstAsync(sql) {
-      if (sql.includes('PRAGMA user_version')) return { user_version: 3 };
+      if (sql.includes('PRAGMA user_version')) return { user_version: 5 };
       return null;
     },
     async getAllAsync(sql) {
@@ -56,7 +62,7 @@ function note(id, topics) {
   };
 }
 
-describe('getNotesByTag("topic", …) — accent/case normalization', () => {
+describe('getNotesByTag("topic", …) — word-boundary stemKey matching', () => {
   it('(a) matches despite an accent-placement difference between query and stored tag', async () => {
     const { SQLite, db } = freshDbModule();
     SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n1', ['κλίβανους'])]));
@@ -75,21 +81,51 @@ describe('getNotesByTag("topic", …) — accent/case normalization', () => {
     expect(results.map((n) => n.id)).toEqual(['n1']);
   });
 
-  it('(c) matches a partial/substring query against a longer stored topic phrase', async () => {
+  it('(c) word-boundary match replaces substring — "λήση" does NOT match inside "πώληση"', async () => {
     const { SQLite, db } = freshDbModule();
     SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n1', ['πώληση κλιβάνων'])]));
 
-    const results = await db.getNotesByTag('topic', 'πώληση');
+    const results = await db.getNotesByTag('topic', 'λήση');
+
+    expect(results).toEqual([]);
+  });
+
+  it('(d) bridges Greek inflection both directions — the bug this fix exists for', async () => {
+    // getDb() memoizes its connection per module instance, so each direction
+    // needs its own fresh module — reusing one and swapping mockResolvedValue
+    // mid-test would just keep hitting the first (already-cached) fake db.
+    const first = freshDbModule();
+    first.SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n1', ['κλίβανος'])]));
+    expect((await first.db.getNotesByTag('topic', 'κλιβάνους')).map((n) => n.id)).toEqual(['n1']);
+
+    const second = freshDbModule();
+    second.SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n2', ['κλιβάνους'])]));
+    expect((await second.db.getNotesByTag('topic', 'κλίβανος')).map((n) => n.id)).toEqual(['n2']);
+  });
+
+  it('(e) finds a multi-word tag by its head content word (word-boundary subset match)', async () => {
+    const { SQLite, db } = freshDbModule();
+    SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n1', ['πώληση κλιβάνων'])]));
+
+    const results = await db.getNotesByTag('topic', 'κλίβανος');
 
     expect(results.map((n) => n.id)).toEqual(['n1']);
   });
 
-  it('(d) does NOT bridge different Greek inflections (accusative vs genitive) — known limitation', async () => {
+  it('(f) finds a multi-word tag by its first word — "φόρος" finds "φόρος εισοδήματος"', async () => {
     const { SQLite, db } = freshDbModule();
-    SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n1', ['πώληση κλιβάνων'])]));
+    SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n1', ['φόρος εισοδήματος'])]));
 
-    const results = await db.getNotesByTag('topic', 'κλίβανους');
+    const results = await db.getNotesByTag('topic', 'φόρος');
 
-    expect(results).toEqual([]);
+    expect(results.map((n) => n.id)).toEqual(['n1']);
+  });
+
+  it('falls back to exact toKey equality for a short topic word that cannot be safely stemmed', async () => {
+    const { SQLite, db } = freshDbModule();
+    SQLite.openDatabaseAsync.mockResolvedValue(makeFakeDb([note('n1', ['νερό'])]));
+
+    expect((await db.getNotesByTag('topic', 'ΝΕΡΌ')).map((n) => n.id)).toEqual(['n1']);
+    expect(await db.getNotesByTag('topic', 'νερά')).toEqual([]); // different word, not bridged (below the stemming floor)
   });
 });

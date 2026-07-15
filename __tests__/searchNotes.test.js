@@ -7,6 +7,18 @@
 // The mock pattern-matches SQL strings rather than running real SQLite, so
 // these tests verify the SQL/params searchNotes EMITS, not FTS5's actual
 // token-matching behavior — that's reserved for on-device verification.
+//
+// ON-DEVICE VERIFICATION (after the notes_fts normalization migration in
+// connection.js runs — user_version 4): confirm content and query now use
+// the same folded token by running, against a note whose transcript contains
+// "κλιβάνους":
+//   SELECT rowid, transcript FROM notes_fts WHERE notes_fts MATCH '"κλιβανουσ"'; -- folded query token (buildFtsQuery) — should now match
+//   SELECT rowid, transcript FROM notes_fts WHERE notes_fts MATCH '"κλιβανους"'; -- unfolded (final-sigma) token — should NOT match post-migration,
+//                                                                                --   since notes_fts no longer stores unfolded content
+// See ftsMigration.test.js / ftsSync.test.js for the mocked-level equivalent
+// of this check (they can't exercise real FTS5 tokenization).
+
+const { toKey } = require('../src/lib/textNormalize');
 
 jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: jest.fn(),
@@ -54,14 +66,18 @@ function makeFakeDb({ throwOnMatch = false, matchRows = [] } = {}) {
 }
 
 describe('searchNotes — FTS5 MATCH', () => {
-  it('normalizes an accented query into an unaccented, quoted MATCH string', async () => {
+  it('normalizes an accented query into an unaccented, stemmed prefix token', async () => {
     const { SQLite, db } = freshDbModule();
     const fakeDb = makeFakeDb();
     SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
 
     await db.searchNotes('Παπαδόπουλος');
 
-    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: '"παπαδοπουλοσ"', limit: 10 }]);
+    // Long enough (12 chars) and ends in "οσ" — now stems to a prefix token
+    // so a genitive ("Παπαδοπούλου") also matches. See the "Greek
+    // stem-prefix matching" describe block below for the stemming-specific
+    // coverage; this test now only pins the toKey() normalization step.
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: 'παπαδοπουλ*', limit: 10 }]);
   });
 
   it('quote-wraps every term so a hyphen or OR cannot act as raw FTS5 syntax', async () => {
@@ -155,5 +171,146 @@ describe('searchNotes — FTS5 MATCH', () => {
       expect.anything(),
     );
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('searchNotes — Greek stem-prefix matching', () => {
+  it('stems "κλιβάνων" to an unquoted prefix that is a true prefix of the indexed form of "κλιβάνους" (the blocker case)', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('κλιβάνων');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: 'κλιβαν*', limit: 10 }]);
+    // notes_fts stores toKey()'d content (see connection.js) — confirm the
+    // stem is actually a prefix of what "κλιβάνους" normalizes to.
+    expect(toKey('κλιβάνους').startsWith('κλιβαν')).toBe(true);
+  });
+
+  it('"κλιβάνους" stems to the same prefix, so it still matches itself', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('κλιβάνους');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: 'κλιβαν*', limit: 10 }]);
+  });
+
+  it('does not stem a short word below the floor — exact match only', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('νερό');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: '"νερο"', limit: 10 }]);
+  });
+
+  it('stems each word of a multi-word phrase independently, still AND\'d', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('κλιβάνων φούρνου');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: 'κλιβαν* φουρν*', limit: 10 }]);
+  });
+
+  it('array input ORs multiple search phrases together', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes(['κλιβάνων', 'φούρνου']);
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: '(κλιβαν*) OR (φουρν*)', limit: 10 }]);
+  });
+
+  it('never wraps a prefix token in quotes (the * would become literal)', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('κλιβάνων');
+
+    const { ftsQuery } = fakeDb.matchCalls[0];
+    expect(ftsQuery).toBe('κλιβαν*');
+    expect(ftsQuery.startsWith('"')).toBe(false);
+  });
+
+  it('does not turn a hyphenated Greek-ish term into an unquoted prefix (injection guard)', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    // Long enough to otherwise qualify for stemming, but contains a hyphen —
+    // must stay on the quoted-exact path like any other non-letters-only term.
+    await db.searchNotes('καλα-ουσ');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: '"καλα-ουσ"', limit: 10 }]);
+  });
+});
+
+describe('searchNotes — Greek stopword filtering', () => {
+  it('drops the article "τους" so it no longer AND-poisons the query (the repro case)', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('τους κλιβάνους');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: 'κλιβαν*', limit: 10 }]);
+  });
+
+  it('drops the article "των" — converges to the identical query as the "τους" case', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('των κλιβάνων');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: 'κλιβαν*', limit: 10 }]);
+  });
+
+  it('drops the article "το", leaving the short content word as an exact token', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('το νερό');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: '"νερο"', limit: 10 }]);
+  });
+
+  it('falls back to the unfiltered word when the query is a single stopword', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('το');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: '"το"', limit: 10 }]);
+  });
+
+  it('falls back to the unfiltered words when the query is entirely stopwords', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('τι είναι');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: '"τι" "ειναι"', limit: 10 }]);
+  });
+
+  it('drops multiple stopwords from a mixed phrase, stemming/exact-matching the remaining content words', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.searchNotes('σημειώσεις για τους κλιβάνους');
+
+    expect(fakeDb.matchCalls).toEqual([{ ftsQuery: 'σημειωσ* κλιβαν*', limit: 10 }]);
   });
 });

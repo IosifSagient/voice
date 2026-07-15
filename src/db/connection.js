@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
-import { normalizeAndDedupeNames } from "./shared";
+import { normalizeAndDedupeNames, canonicalizeTopics } from "./shared";
+import { toKey } from "../lib/textNormalize";
 
 const SCHEMA = `
   PRAGMA journal_mode = WAL;
@@ -30,6 +31,22 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_action_status ON action_items(status, due_date);
 `;
 
+// External-content FTS5 index over transcript/summary. The columns here store
+// toKey()-normalized text (accent-stripped, lowercase, final-sigma folded),
+// NOT the raw notes.transcript/summary — every write path (saveNote/updateNote/
+// deleteNote in notesWrite.js, and the migration below) must pass values
+// through toKey() before they reach notes_fts, so indexed tokens match what
+// db/fts.js's buildFtsQuery produces for a search query. remove_diacritics is
+// intentionally omitted: toKey() already NFD-strips before anything reaches
+// the tokenizer, so there are no diacritics left for it to remove.
+const FTS_TABLE_SQL = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+    transcript, summary,
+    content=notes, content_rowid=rowid,
+    tokenize='unicode61'
+  );
+`;
+
 // Adds columns introduced after the initial schema without breaking existing DBs.
 export async function migrate(db) {
   const migrations = [
@@ -47,18 +64,12 @@ export async function migrate(db) {
     }
   }
 
-  // External-content FTS5 index over transcript/summary. Unlike the ALTER TABLE
-  // list above, failures here are logged rather than silently swallowed — a
-  // hypothetical FTS5-disabled build should still start (search just won't
-  // find notes_fts later), but that should be visible in logs, not silent.
+  // Unlike the ALTER TABLE list above, failures here are logged rather than
+  // silently swallowed — a hypothetical FTS5-disabled build should still start
+  // (search just won't find notes_fts later), but that should be visible in
+  // logs, not silent.
   try {
-    await db.execAsync(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
-        transcript, summary,
-        content=notes, content_rowid=rowid,
-        tokenize='unicode61 remove_diacritics 2'
-      );
-    `);
+    await db.execAsync(FTS_TABLE_SQL);
   } catch (err) {
     console.error("[db:migrate] failed to create notes_fts (FTS5 may be unavailable)", err);
   }
@@ -121,6 +132,63 @@ export async function migrate(db) {
       }
     }
     await db.execAsync("PRAGMA user_version = 3");
+  }
+
+  // One-time repair: notes_fts previously indexed transcript/summary verbatim,
+  // tokenized only by unicode61's Latin-only diacritic stripping — Greek
+  // accents and the final-sigma form (ς vs σ) were never normalized to match
+  // toKey(), which IS applied to every search query (db/fts.js). That
+  // asymmetry could make even an exact-word search miss. Drop and recreate
+  // notes_fts (also picks up the tokenizer no longer specifying
+  // remove_diacritics, now redundant) and reinsert every row through toKey()
+  // so the index side and the query side use identical normalization.
+  if (user_version < 4) {
+    try {
+      await db.execAsync("DROP TABLE IF EXISTS notes_fts");
+      await db.execAsync(FTS_TABLE_SQL);
+      const rows = await db.getAllAsync("SELECT rowid, transcript, summary FROM notes");
+      for (const row of rows) {
+        try {
+          await db.runAsync(
+            "INSERT INTO notes_fts (rowid, transcript, summary) VALUES (?, ?, ?)",
+            row.rowid,
+            toKey(row.transcript ?? ""),
+            toKey(row.summary ?? ""),
+          );
+        } catch (err) {
+          console.error(`[db:migrate] failed to reindex notes_fts for rowid ${row.rowid}, skipping`, err);
+        }
+      }
+    } catch (err) {
+      console.error("[db:migrate] failed to rebuild notes_fts with normalized content (FTS5 may be unavailable)", err);
+    }
+    await db.execAsync("PRAGMA user_version = 4");
+  }
+
+  // One-time repair: canonicalize each note's topics_json the same way
+  // saveNote/updateNote now do going forward (canonicalizeTopics, shared.js) —
+  // merges same-note spelling/inflection duplicates (e.g. "κλίβανος" +
+  // "κλιβάνους" said in one note) into a single canonical tag. Cross-note
+  // matching (different notes, different spelling of the same topic) doesn't
+  // need stored data rewritten — getNotesByTag's stemKey-based word-boundary
+  // match (notesRead.js) already bridges that at read time.
+  if (user_version < 5) {
+    const rows = await db.getAllAsync(
+      "SELECT id, topics_json FROM notes WHERE topics_json IS NOT NULL",
+    );
+    for (const row of rows) {
+      try {
+        const raw = JSON.parse(row.topics_json || "[]");
+        await db.runAsync(
+          "UPDATE notes SET topics_json = ? WHERE id = ?",
+          JSON.stringify(canonicalizeTopics(raw)),
+          row.id,
+        );
+      } catch (err) {
+        console.error(`[db:migrate] failed to canonicalize topics for note ${row.id}, skipping`, err);
+      }
+    }
+    await db.execAsync("PRAGMA user_version = 5");
   }
 }
 

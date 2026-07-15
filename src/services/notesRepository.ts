@@ -25,7 +25,7 @@ export const notesRepository = {
   create: (extraction: ExtractedNote, transcript: string): Promise<string> =>
     saveNote(extraction, transcript),
   list: (): Promise<Note[]> => getRecentNotes(),
-  search: (query: string): Promise<Note[]> => searchNotes(query),
+  search: (terms: string | string[]): Promise<Note[]> => searchNotes(terms),
   get: (id: string): Promise<Note | null> => getNote(id),
   delete: (id: string): Promise<ReminderIds[]> => deleteNote(id),
   save: (note: Note): Promise<UpdateNoteDiff> => updateNote(note),

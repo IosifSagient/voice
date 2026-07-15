@@ -1,5 +1,5 @@
 // db/index.js — local-first persistence for notes + action items (expo-sqlite, SDK 54 async API)
-import { parseDueDate, normalizeAndDedupeNames, hydrateNote } from "./shared";
+import { parseDueDate, normalizeAndDedupeNames, hydrateNote, stemKey, canonicalizeTopics } from "./shared";
 import { migrate, backfill, initDb } from "./connection";
 import { saveNote, updateNote, deleteNote } from "./notesWrite";
 import {
@@ -19,7 +19,7 @@ import {
   getRecentNotesByDays,
 } from "./notesRead";
 
-export { parseDueDate, normalizeAndDedupeNames, hydrateNote };
+export { parseDueDate, normalizeAndDedupeNames, hydrateNote, stemKey, canonicalizeTopics };
 export { migrate, backfill, initDb };
 export { saveNote, updateNote, deleteNote };
 export {

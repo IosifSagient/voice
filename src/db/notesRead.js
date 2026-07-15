@@ -1,7 +1,6 @@
 import { normalizePersonName } from "../normalizeName";
-import { toKey } from "../lib/textNormalize";
 import { getDb } from "./connection";
-import { parseDueDate, hydrateNote, safeParseArray } from "./shared";
+import { parseDueDate, hydrateNote, safeParseArray, stemKey } from "./shared";
 
 export async function getNote(id) {
   const db = await getDb();
@@ -78,11 +77,15 @@ export async function getNotesByTag(tagType, value) {
   if (tagType !== "topic") return [];
 
   // topics_json has no normalized-key counterpart (unlike people_normalized_json),
-  // so raw SQL LIKE can't accent/case-fold — fetch candidates and match in JS via
-  // toKey (accent-strip + lowercase + final-sigma fold), same normalization the
-  // person branch gets from normalizePersonName. This does NOT bridge different
-  // Greek inflections (e.g. genitive vs accusative) — only accent/case variants
-  // of the same word form.
+  // so raw SQL LIKE can't accent/case/inflection-fold — fetch candidates and match
+  // in JS via stemKey (same Greek stemmer search uses, see lib/greekStem.ts via
+  // db/shared.js), comparing by word-boundary SUBSET match: every stemmed word of
+  // the query must appear in the tag's stemmed word set. A topic tag is a short
+  // atomic label, not free text, so "does this tag contain this word" is the
+  // right question — not "is this word a raw substring" (that let "λήση" match
+  // "πώληση", a false positive) and not "are these two tags exactly equal" (that
+  // would make a single-word query like "φόρος" unable to find a multi-word tag
+  // like "φόρος εισοδήματος").
   const rows = await db.getAllAsync(
     `SELECT notes.*,
        (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
@@ -90,11 +93,12 @@ export async function getNotesByTag(tagType, value) {
      WHERE notes.topics_json IS NOT NULL
      ORDER BY notes.created_at DESC`,
   );
-  const needle = toKey(value);
+  const needleWords = stemKey(value);
   const matches = rows.filter((row) =>
-    safeParseArray(row.topics_json, row.id, "topics_json").some((topic) =>
-      toKey(topic).includes(needle),
-    ),
+    safeParseArray(row.topics_json, row.id, "topics_json").some((topic) => {
+      const topicWords = new Set(stemKey(topic));
+      return needleWords.every((w) => topicWords.has(w));
+    }),
   );
   return matches.slice(0, 20).map(hydrateNote);
 }

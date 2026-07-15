@@ -6,7 +6,10 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
-import { NavigationContainer, type LinkingOptions } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  type LinkingOptions,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -31,7 +34,10 @@ import { useCalendarSettings } from "./src/hooks/useCalendarSettings";
 import { useNotificationSettings } from "./src/hooks/useNotificationSettings";
 import { navigationRef } from "./src/lib/navigationRef";
 import { handleInitialNotification } from "./src/services/notifications";
-import type { RootStackParamList, MainTabParamList } from "./src/types/navigation";
+import type {
+  RootStackParamList,
+  MainTabParamList,
+} from "./src/types/navigation";
 
 export type { RootStackParamList, MainTabParamList };
 
@@ -80,7 +86,7 @@ function MainTabs() {
         name="NotesList"
         component={NotesListScreen}
         options={({ navigation }) => ({
-          title: "VoiceNote",
+          title: "Hey Lisa",
           tabBarLabel: "Σημειώσεις",
           tabBarIcon: ({ color, size }) => (
             <Ionicons

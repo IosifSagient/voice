@@ -59,7 +59,19 @@ RULES — TAGS:
   faithful to what was actually said — if the speaker used a title ("δόκτωρ",
   "καθηγητής", "κύριος"...), keep it in the summary text. Never alter meaning to
   satisfy the tag rule.
-- topics: subjects, things, or organizations mentioned (e.g. "διαβατήριο", "φόρος εισοδήματος", "Four Seasons") — general-purpose, not tied to any one domain.
+- topics: subjects, things, or organizations mentioned — general-purpose, not tied
+  to any one domain. Use the CANONICAL lemma form: nominative singular, no
+  articles (e.g. "κλίβανος", never "τους κλιβάνους" or "κλιβάνων"). Fixed
+  multi-word phrases (compound nouns, org/brand names) stay as-is — this rule is
+  about not tagging an inflected/article-bearing form of a single concept, not
+  about rewriting legitimate phrases (e.g. "φόρος εισοδήματος" is already
+  canonical; don't lemmatize "εισοδήματος" out of it).
+- Use one consistent, canonical spelling for the same topic across the note (the
+  lemma form, not whatever case/number was spoken) so repeat mentions converge to
+  one tag.
+- CRITICAL: this rule applies to the "topics" tag ONLY. The "summary" must stay
+  100% faithful to what was actually said — keep whatever case/article/inflection
+  was spoken in the summary text. Never alter meaning to satisfy the tag rule.
 
 EXAMPLES — people tag vs. summary:
 - Spoken: "Ο δόκτωρ Παπαδόπουλος μου έδωσε ραντεβού για την επόμενη Τρίτη."
@@ -67,7 +79,15 @@ EXAMPLES — people tag vs. summary:
 - Spoken: "Μίλησα με την καθηγήτρια Νικολάου για την εργασία."
   → people: ["Νικολάου"], summary: "Μίλησα με την καθηγήτρια Νικολάου για την εργασία."
 - Spoken: "Ο κύριος Ιωάννου θα έρθει στις 5 το απόγευμα."
-  → people: ["Ιωάννου"], summary: "Ο κύριος Ιωάννου θα έρθει στις 5 το απόγευμα."`;
+  → people: ["Ιωάννου"], summary: "Ο κύριος Ιωάννου θα έρθει στις 5 το απόγευμα."
+
+EXAMPLES — topics tag vs. summary:
+- Spoken: "Πρέπει να καθαρίσω τους κλιβάνους του εργαστηρίου."
+  → topics: ["κλίβανος"], summary: "Πρέπει να καθαρίσω τους κλιβάνους του εργαστηρίου."
+- Spoken: "Πήγα και ανανέωσα το διαβατήριό μου."
+  → topics: ["διαβατήριο"], summary: "Πήγα και ανανέωσα το διαβατήριό μου."
+- Spoken: "Πλήρωσα τον φόρο εισοδήματος σήμερα το πρωί."
+  → topics: ["φόρος εισοδήματος"], summary: "Πλήρωσα τον φόρο εισοδήματος σήμερα το πρωί."`;
 
 export function buildSystemPrompt(currentIso: string, currentWeekday: string, calendarBlock: string): string {
   return PROMPT_TEMPLATE
@@ -86,8 +106,10 @@ Current weekday: {{CURRENT_WEEKDAY}}
 
 When interpreting time-relative terms ("this week", "overdue", "today"), use the datetime above as the anchor.
 Answer in the same language the user used (Greek or English). Keep answers concise.
-Before concluding no notes were found on a topic, try BOTH get_notes_by_tag and search_notes
-for it, including Greek morphological variants (e.g. κλίβανος/κλιβάνου/κλιβάνων/κλιβάνους).
+search_notes tolerates common Greek word-ending variation automatically — pass the key
+content word(s), not whole sentences, and add extra terms only for genuinely irregular
+words or close synonyms. Before concluding no notes were found on a topic, also try
+get_notes_by_tag (topic/person tags are matched exactly, independent of search_notes).
 If no relevant notes are found, say so clearly — do not invent information.`;
 
 export function buildAgentSystemPrompt(currentIso: string, currentWeekday: string): string {

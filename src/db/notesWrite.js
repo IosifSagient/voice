@@ -1,5 +1,6 @@
 import { getDb } from "./connection";
-import { parseDueDate, normalizeAndDedupeNames } from "./shared";
+import { parseDueDate, normalizeAndDedupeNames, canonicalizeTopics } from "./shared";
+import { toKey } from "../lib/textNormalize";
 
 function uuid() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -20,6 +21,7 @@ export async function saveNote(extraction, transcript) {
     action_items = [],
   } = extraction || {};
   const normalizedPeople = normalizeAndDedupeNames(people);
+  const canonicalTopics = canonicalizeTopics(topics);
 
   await db.withTransactionAsync(async () => {
     const insertResult = await db.runAsync(
@@ -30,19 +32,20 @@ export async function saveNote(extraction, transcript) {
       transcript ?? "",
       summary,
       JSON.stringify(normalizedPeople.map((n) => n.display)),
-      JSON.stringify(topics),
+      JSON.stringify(canonicalTopics),
       JSON.stringify([]),
       JSON.stringify(normalizedPeople),
     );
 
     // Search sync must never fail the user-facing save — a broken index entry
     // just means this note won't turn up in search, not a lost note.
+    // notes_fts stores toKey()-normalized text, not raw — see connection.js.
     try {
       await db.runAsync(
         `INSERT INTO notes_fts (rowid, transcript, summary) VALUES (?, ?, ?)`,
         insertResult.lastInsertRowId,
-        transcript ?? "",
-        summary,
+        toKey(transcript ?? ""),
+        toKey(summary),
       );
     } catch (err) {
       console.error(`[db:saveNote] failed to sync notes_fts for note ${noteId}, skipping`, err);
@@ -83,6 +86,7 @@ export async function updateNote(note) {
   const db = await getDb();
   const now = Date.now();
   const normalizedPeople = normalizeAndDedupeNames(note.people || []);
+  const canonicalTopics = canonicalizeTopics(note.topics || []);
   const removed = [];
   const changed = [];
   await db.withTransactionAsync(async () => {
@@ -100,7 +104,7 @@ export async function updateNote(note) {
       note.transcript ?? "",
       note.summary ?? "",
       JSON.stringify(normalizedPeople.map((n) => n.display)),
-      JSON.stringify(note.topics || []),
+      JSON.stringify(canonicalTopics),
       JSON.stringify(note.decisions || []),
       JSON.stringify(normalizedPeople),
       note.id,
@@ -108,14 +112,18 @@ export async function updateNote(note) {
 
     // Search sync must never fail the user-facing save (same stance as
     // saveNote) — each statement is its own try/catch so a failed 'delete'
-    // doesn't stop the fresh insert from being attempted.
+    // doesn't stop the fresh insert from being attempted. Both the 'delete'
+    // command and the fresh insert use toKey()-normalized text, matching what
+    // was actually indexed (see connection.js) — the 'delete' command needs
+    // the SAME normalized values that were originally inserted for oldNote,
+    // not its raw column values, to remove the right terms from the index.
     if (oldNote) {
       try {
         await db.runAsync(
           `INSERT INTO notes_fts (notes_fts, rowid, transcript, summary) VALUES ('delete', ?, ?, ?)`,
           oldNote.rowid,
-          oldNote.transcript ?? "",
-          oldNote.summary ?? "",
+          toKey(oldNote.transcript ?? ""),
+          toKey(oldNote.summary ?? ""),
         );
       } catch (err) {
         console.error(`[db:updateNote] failed to remove stale notes_fts entry for note ${note.id}, skipping`, err);
@@ -124,8 +132,8 @@ export async function updateNote(note) {
         await db.runAsync(
           `INSERT INTO notes_fts (rowid, transcript, summary) VALUES (?, ?, ?)`,
           oldNote.rowid,
-          note.transcript ?? "",
-          note.summary ?? "",
+          toKey(note.transcript ?? ""),
+          toKey(note.summary ?? ""),
         );
       } catch (err) {
         console.error(`[db:updateNote] failed to sync notes_fts for note ${note.id}, skipping`, err);
@@ -247,8 +255,8 @@ export async function deleteNote(id) {
         await db.runAsync(
           `INSERT INTO notes_fts (notes_fts, rowid, transcript, summary) VALUES ('delete', ?, ?, ?)`,
           oldNote.rowid,
-          oldNote.transcript ?? "",
-          oldNote.summary ?? "",
+          toKey(oldNote.transcript ?? ""),
+          toKey(oldNote.summary ?? ""),
         );
       } catch (err) {
         console.error(`[db:deleteNote] failed to remove notes_fts entry for note ${id}, skipping`, err);

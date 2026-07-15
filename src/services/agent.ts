@@ -14,16 +14,20 @@ const TOOL_DEFINITIONS = [
     function: {
       name: 'search_notes',
       description:
-        'Search notes by keyword. Matching is whole-word, accent- and case-insensitive, over transcript and summary text. Greek word endings are NOT normalized, so a singular query will not match a plural (or other inflected) form. If a search returns no results, retry up to 2 more times with morphological variants of the key terms (singular/plural, different case endings, verb forms) before concluding nothing was found. Returns compact summaries without full transcripts.',
+        "Search notes by keyword over transcript and summary text. Matching is accent-, case-, and Greek-final-sigma-insensitive, and tolerates common Greek noun/verb endings (a query for one grammatical form also matches other forms of the same word — singular/plural, different cases). Pass ONLY key content word(s), never whole sentences. Returns compact summaries without full transcripts.",
       parameters: {
         type: 'object',
         properties: {
-          query: {
-            type: 'string',
-            description: 'Keyword(s) to search for. Prefer distinctive content words over common words.',
+          terms: {
+            type: 'array',
+            items: { type: 'string' },
+            minItems: 1,
+            maxItems: 4,
+            description:
+              "Key content word(s), 1-4 entries, OR'd together. Each entry must be a BARE content word — one noun or name — NOT an article (ο/η/το/τους/των/...), preposition, or whole phrase; articles/prepositions add no signal and are filtered automatically if included. Use more than one entry only for genuinely irregular words or close synonyms — not as a retry mechanism, endings are already handled automatically.",
           },
         },
-        required: ['query'],
+        required: ['terms'],
       },
     },
   },
@@ -134,7 +138,7 @@ function toCompactNotes(notes: Note[]): CompactNote[] {
 async function dispatch(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case 'search_notes':
-      return toCompactNotes(await notesRepository.search(args.query as string));
+      return toCompactNotes(await notesRepository.search(args.terms as string[]));
 
     case 'get_note':
       return await notesRepository.get(args.id as string);

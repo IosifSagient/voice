@@ -1,4 +1,6 @@
 import { normalizePersonName } from "../normalizeName";
+import { toKey } from "../lib/textNormalize";
+import { stemGreekTerm } from "../lib/greekStem";
 
 // Always convert a YYYY-MM-DD (or YYYY-MM-DDTHH:MM:SS...) string to UTC midnight.
 // Using Date.UTC avoids local-timezone shifts that cause off-by-one day bugs.
@@ -36,6 +38,56 @@ function safeParseArray(json, noteId, field) {
     console.error(`[db:hydrateNote] failed to parse ${field} for note ${noteId}, defaulting to []`, err);
     return [];
   }
+}
+
+// Word-wise Greek-inflection-tolerant key for a tag/phrase: each whitespace-
+// separated word is reduced independently to (stemGreekTerm ?? its own
+// toKey()'d form), returned as an ordered array of per-word keys.
+//
+// Operating word-wise (not on the whole string) matters for multi-word
+// tags/phrases: stemming a whole phrase as a single unit only ever strips
+// from its LAST word, mangling every earlier word and making head-word
+// lookups impossible (e.g. a naive whole-string stem of "φόρος εισοδήματος"
+// could never be reached by searching "φόρος" alone). See getNotesByTag's
+// topic branch (notesRead.js) for the word-boundary subset match this
+// enables, and canonicalizeTopics below for how it's joined into one
+// grouping key.
+export function stemKey(text) {
+  return toKey(text)
+    .split(/\s+/)
+    .filter((w) => w.length > 0)
+    .map((w) => stemGreekTerm(w) ?? w);
+}
+
+// Groups a note's raw topic tags by stemKey (joined into a single string —
+// order-preserving, so "φόρος εισοδήματος" and "εισοδήματος φόρος" are
+// treated as different tags, which is correct: word order carries meaning in
+// a compound noun phrase), merging near-duplicate spelling/inflection
+// variants (e.g. "κλίβανος" + "κλιβάνους" said in the same note) into one
+// canonical entry. Display-form choice is a cheap deterministic heuristic,
+// not an LLM call: the shortest raw variant wins (a reasonable proxy for the
+// nominative/base form), ties broken by first-seen order for determinism
+// (mirrors normalizeAndDedupeNames' first-occurrence-wins rule).
+//
+// This only merges duplicates WITHIN one note's own topic list — it does not
+// touch cross-note matching, which getNotesByTag's stemKey-based comparison
+// already handles at read time without needing the stored data rewritten.
+export function canonicalizeTopics(rawTopics) {
+  const canonicalByKey = new Map();
+  const order = [];
+  for (const raw of rawTopics) {
+    if (typeof raw !== "string" || !raw.trim()) continue;
+    const trimmed = raw.trim().replace(/\s+/g, " ");
+    const key = stemKey(trimmed).join(" ");
+    const existing = canonicalByKey.get(key);
+    if (existing === undefined) {
+      canonicalByKey.set(key, trimmed);
+      order.push(key);
+    } else if (trimmed.length < existing.length) {
+      canonicalByKey.set(key, trimmed);
+    }
+  }
+  return order.map((key) => canonicalByKey.get(key));
 }
 
 export function hydrateNote(row) {

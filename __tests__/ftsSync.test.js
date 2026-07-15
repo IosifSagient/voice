@@ -4,6 +4,8 @@
 // do so must never fail the caller's write — same graceful-degradation stance
 // as the notes_fts migration itself (see ftsMigration.test.js).
 
+const { toKey } = require('../src/lib/textNormalize');
+
 jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: jest.fn(),
 }));
@@ -105,8 +107,43 @@ describe('FTS5 sync on note writes', () => {
     );
 
     expect(fakeDb.ftsCalls).toEqual([
-      { type: 'insert', rowid: expect.any(Number), transcript: 'transcript text', summary: 'Θα πάρω τηλέφωνο' },
+      {
+        type: 'insert',
+        rowid: expect.any(Number),
+        transcript: toKey('transcript text'),
+        summary: toKey('Θα πάρω τηλέφωνο'),
+      },
     ]);
+  });
+
+  it('saveNote folds final sigma (ς→σ) into the indexed transcript, matching the search-query token', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.saveNote(
+      { summary: '', people: [], topics: [], action_items: [] },
+      'Πήγα να δω τους κλιβάνους',
+    );
+
+    // "κλιβάνους" indexed with a folded regular sigma (κλιβανουσ), not the
+    // final-sigma form (κλιβανους) — buildFtsQuery folds the query the same
+    // way, so these must agree or the MATCH never fires. See searchNotes.test.js
+    // for the query-side equivalent of this assertion.
+    expect(fakeDb.ftsCalls[0].transcript).toBe('πηγα να δω τουσ κλιβανουσ');
+  });
+
+  it('saveNote strips Greek tonos accents from the indexed transcript', async () => {
+    const { SQLite, db } = freshDbModule();
+    const fakeDb = makeFakeDb();
+    SQLite.openDatabaseAsync.mockResolvedValue(fakeDb);
+
+    await db.saveNote(
+      { summary: '', people: [], topics: [], action_items: [] },
+      'Ο Παπαδόπουλος ήρθε',
+    );
+
+    expect(fakeDb.ftsCalls[0].transcript).toBe('ο παπαδοπουλοσ ηρθε');
   });
 
   it('updateNote issues the delete command with the OLD values, then the insert with the NEW values', async () => {
