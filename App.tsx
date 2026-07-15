@@ -208,10 +208,7 @@ export default function App() {
         handleInitialNotification();
       }}
     >
-      <Stack.Navigator
-        screenOptions={sharedHeaderOptions}
-        initialRouteName="Record"
-      >
+      <Stack.Navigator screenOptions={sharedHeaderOptions}>
         <Stack.Screen
           name="Main"
           options={{ headerShown: false }}
@@ -221,38 +218,7 @@ export default function App() {
         <Stack.Screen
           name="Record"
           component={RecordScreen}
-          options={({ navigation }) => ({
-            title: "",
-            headerLeft: () => (
-              <Pressable
-                onPress={() => navigation.navigate("Main")}
-                accessibilityRole="button"
-                accessibilityLabel="Προβολή σημειώσεων"
-                hitSlop={{
-                  top: spacing.sm,
-                  bottom: spacing.sm,
-                  left: spacing.sm,
-                  right: spacing.sm,
-                }}
-                style={({ pressed }) => [
-                  styles.notesBtn,
-                  pressed && styles.fabPressed,
-                ]}
-              >
-                <Ionicons
-                  name="document-text-outline"
-                  size={18}
-                  color={colors.textPrimary}
-                />
-                <Text
-                  style={styles.notesBtnText}
-                  numberOfLines={1}
-                >
-                  Σημειώσεις
-                </Text>
-              </Pressable>
-            ),
-          })}
+          options={{ title: "Νέα σημείωση" }}
         />
         <Stack.Screen
           name="NoteDetail"
@@ -311,23 +277,5 @@ const styles = StyleSheet.create({
   signOutBtn: {
     marginLeft: spacing.base,
     padding: spacing.xs,
-  },
-  notesBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    height: spacing.xxl,
-    marginLeft: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  notesBtnText: {
-    ...type.buttonSmall,
-    color: colors.textPrimary,
   },
 });

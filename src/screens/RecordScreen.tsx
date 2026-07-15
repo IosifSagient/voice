@@ -65,8 +65,6 @@ export function RecordScreen({ navigation }: Props) {
           contentContainerStyle={styles.voiceContainer}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.heroSpacerTop} />
-
           {/* Status line */}
           <View style={styles.statusBox}>
             {isRecording ? (
@@ -112,8 +110,6 @@ export function RecordScreen({ navigation }: Props) {
               <Text style={styles.textToggleText}>ή γράψε τη σημείωση</Text>
             </Pressable>
           )}
-
-          <View style={styles.heroSpacerBottom} />
 
           {error && (
             <Text style={styles.errorText}>{error}</Text>
@@ -181,15 +177,11 @@ const styles = StyleSheet.create({
   // ── Voice mode ──────────────────────────────────────────────────
   screen: { flex: 1 },
   voiceContainer: {
-    flexGrow: 1,
     alignItems: "center",
+    paddingTop: spacing.xxxl,
     paddingHorizontal: spacing.base,
     paddingBottom: 60,
   },
-  // Asymmetric spacers push the hero group's center to ~60-68% of the
-  // screen — the lower third, reachable one-handed — instead of centering it.
-  heroSpacerTop: { flex: 3 },
-  heroSpacerBottom: { flex: 1 },
   statusBox: {
     flexDirection: "row",
     alignItems: "center",
