@@ -4,7 +4,14 @@ import { AGENT_MODEL } from '../config/models';
 import { buildAgentSystemPrompt } from '../config/prompts';
 import { buildAnchor } from '../lib/dateAnchor';
 import type { Note } from '../types/note';
-import type { ChatMessage, ToolCall, AgentResponse, CompactNote, VisibleMessage } from '../types/agent';
+import type {
+  ChatMessage,
+  ToolCall,
+  AgentResponse,
+  CompactNote,
+  VisibleMessage,
+  LiteralSearchResult,
+} from '../types/agent';
 
 // ── Tool definitions ────────────────────────────────────────────────────────
 
@@ -208,8 +215,27 @@ async function dispatch(name: string, args: Record<string, unknown>, todayAthens
 
 // ── Main loop ────────────────────────────────────────────────────────────────
 
-const MAX_ITERATIONS = 5;
+const MAX_ITERATIONS = 8;
 const FALLBACK_ANSWER = 'Δεν μπόρεσα να βρω απάντηση.';
+// Distinct from FALLBACK_ANSWER: reached only when MAX_ITERATIONS is exhausted
+// without any assistant message ever carrying content — i.e. the loop ran out
+// of steps mid-reasoning, not "searched and genuinely found nothing." Keeping
+// these separate matters both for the user (different phrasing) and for
+// debugging (a real "not found" vs. exhaustion look identical otherwise).
+const EXHAUSTED_ANSWER =
+  'Η ερώτηση χρειάστηκε πολλά βήματα και δεν ολοκληρώθηκε — δοκίμασε να τη διατυπώσεις πιο συγκεκριμένα.';
+
+// The did-you-mean question is templated here, not phrased by the model.
+// Three rounds of prompt engineering couldn't make the model reliably
+// execute search_notes(empty) → search_notes_literal → ask_clarification via
+// instructions alone — it degraded as conversation history grew. The loop
+// now runs the literal fallback unconditionally on every empty search_notes
+// result (see the search_notes branch in runAgent below), so there is no
+// model decision left to phrase around either; a deterministic template
+// removes the dependency instead of adding another model call on top of it.
+function buildClarificationQuestion(terms: string[]): string {
+  return `Δεν βρήκα ακριβές αποτέλεσμα για «${terms.join(', ')}» — μήπως εννοείς κάποια από αυτές;`;
+}
 
 type ApiResponse = {
   choices: Array<{
@@ -251,7 +277,7 @@ export async function runAgent(
     messages.push(msg);
 
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
-      return { answer: msg.content ?? FALLBACK_ANSWER, toolCallLog };
+      return { kind: 'answer', answer: msg.content ?? FALLBACK_ANSWER, toolCallLog };
     }
 
     for (const tc of msg.tool_calls) {
@@ -261,6 +287,49 @@ export async function runAgent(
       let result: string;
       try {
         const toolResult = await dispatch(tc.function.name, args, todayAthens);
+
+        // Loop-driven did-you-mean fallback: runs unconditionally whenever
+        // search_notes comes back empty, regardless of anything the model
+        // does or doesn't decide — see buildClarificationQuestion above.
+        if (tc.function.name === 'search_notes' && Array.isArray(toolResult) && toolResult.length === 0) {
+          const terms = (args.terms as string[]) ?? [];
+          let literalResult: LiteralSearchResult = { lowConfidence: true, query: terms, candidates: [] };
+          try {
+            literalResult = await notesRepository.searchLiteral(terms);
+          } catch (literalErr) {
+            // Degrade gracefully to "no candidates" — same stance as
+            // searchNotes/searchNotesInRange's own FTS5-failure handling in
+            // db/fts.js: a broken fallback must not break the whole turn.
+            console.error('[agent:runAgent] search_notes_literal(auto) failed, treating as no candidates', literalErr);
+          }
+          // Marked distinguishably in the log — this call was never made by
+          // the model, so on-device traces must be able to tell it apart
+          // from a real model-initiated tool call.
+          toolCallLog.push({ name: 'search_notes_literal(auto)', args: { terms } });
+          if (__DEV__) {
+            console.log(
+              '[agent:tool]',
+              'search_notes_literal(auto)',
+              { terms },
+              `candidates=${literalResult.candidates.length}`,
+            );
+          }
+
+          if (literalResult.candidates.length > 0) {
+            return {
+              kind: 'clarification',
+              question: buildClarificationQuestion(terms),
+              candidates: literalResult.candidates,
+              toolCallLog,
+            };
+          }
+          // Both search_notes and the literal fallback came back empty —
+          // toolResult is still the original plain [], sent to the model
+          // below exactly like any other empty tool result. No envelope, no
+          // special shape: the model's already-reliable "say not found"
+          // behavior handles this unchanged.
+        }
+
         result = JSON.stringify(toolResult);
         if (__DEV__) {
           const rowCount = Array.isArray(toolResult) ? toolResult.length : toolResult == null ? 0 : 1;
@@ -277,9 +346,11 @@ export async function runAgent(
     }
   }
 
-  // Cap reached — return the last assistant text, if any
+  // Cap reached — return the last assistant text, if any. If none exists
+  // (every iteration was a tool call), this is genuine iteration exhaustion,
+  // not "searched and found nothing" — say so distinctly (see EXHAUSTED_ANSWER).
   const lastText = [...messages]
     .reverse()
     .find((m): m is Extract<ChatMessage, { role: 'assistant' }> => m.role === 'assistant' && !!m.content);
-  return { answer: lastText?.content ?? FALLBACK_ANSWER, toolCallLog };
+  return { kind: 'answer', answer: lastText?.content ?? EXHAUSTED_ANSWER, toolCallLog };
 }

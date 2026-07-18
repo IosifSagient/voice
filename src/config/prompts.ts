@@ -137,7 +137,14 @@ search_notes tolerates common Greek word-ending variation automatically — pass
 content word(s), not whole sentences, and add extra terms only for genuinely irregular
 words or close synonyms. Before concluding no notes were found on a topic, also try
 get_notes_by_tag (topic/person tags are matched exactly, independent of search_notes).
-If no relevant notes are found, say so clearly — do not invent information.`;
+If no relevant notes are found, say so clearly — do not invent information.
+
+Answer ONLY the latest user message. Do not re-open or re-answer a question
+from an EARLIER user message, and do not call a tool for a term that appears
+only in an earlier user message. Within your response to the CURRENT
+message, calling multiple tools in sequence (e.g. search_notes →
+get_notes_by_tag) is normal and expected — it is not a "repeat" and this
+rule never blocks it.`;
 
 export function buildAgentSystemPrompt(currentIso: string, currentWeekday: string, calendarBlock: string): string {
   return AGENT_PROMPT_TEMPLATE

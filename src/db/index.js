@@ -9,7 +9,7 @@ import {
   reopenActionItem,
   deleteActionItem,
 } from "./actionItems";
-import { searchNotes, searchNotesInRange } from "./fts";
+import { searchNotes, searchNotesInRange, searchNotesLiteral } from "./fts";
 import { getActionItemsFiltered, getTasksWithDueDates } from "./agentQueries";
 import {
   getNote,
@@ -29,7 +29,7 @@ export {
   reopenActionItem,
   deleteActionItem,
 };
-export { searchNotes, searchNotesInRange };
+export { searchNotes, searchNotesInRange, searchNotesLiteral };
 export { getActionItemsFiltered, getTasksWithDueDates };
 export {
   getNote,

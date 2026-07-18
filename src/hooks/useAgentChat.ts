@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { runAgent } from "../services/agent";
+import { HISTORY_WINDOW } from "../config/models";
 import type { VisibleMessage } from "../types/agent";
 
 type State = {
@@ -21,7 +22,9 @@ export function useAgentChat() {
 
     // Capture history BEFORE appending the new user turn.
     // runAgent receives prior turns and appends 'question' itself.
-    const historySnapshot = state.messages;
+    // Windowed to the most recent HISTORY_WINDOW turns — state.messages
+    // itself stays full for UI display; only what's sent to the model is capped.
+    const historySnapshot = state.messages.slice(-HISTORY_WINDOW);
 
     setState((s) => ({
       ...s,
@@ -32,9 +35,13 @@ export function useAgentChat() {
 
     try {
       const res = await runAgent(trimmed, historySnapshot);
+      const assistantMessage =
+        res.kind === "clarification"
+          ? { role: "assistant" as const, content: res.question, clarification: { candidates: res.candidates } }
+          : { role: "assistant" as const, content: res.answer };
       setState((s) => ({
         ...s,
-        messages: [...s.messages, { role: "assistant", content: res.answer }],
+        messages: [...s.messages, assistantMessage],
         isThinking: false,
       }));
     } catch (e) {

@@ -4,6 +4,7 @@ import {
   getRecentNotes,
   searchNotes,
   searchNotesInRange,
+  searchNotesLiteral,
   getNote,
   deleteNote,
   updateNote,
@@ -21,6 +22,7 @@ import {
 import type { Note, ReminderIds, UpdateNoteDiff } from "../types/note";
 import type { ExtractedNote } from "./extraction";
 import type { TaskWithDueDate } from "../types/tasks";
+import type { LiteralSearchResult } from "../types/agent";
 
 export const notesRepository = {
   create: (extraction: ExtractedNote, transcript: string): Promise<string> =>
@@ -29,6 +31,8 @@ export const notesRepository = {
   search: (terms: string | string[]): Promise<Note[]> => searchNotes(terms),
   searchInRange: (terms: string | string[], from: string, to: string): Promise<Note[]> =>
     searchNotesInRange(terms, from, to),
+  searchLiteral: (term: string | string[], limit?: number): Promise<LiteralSearchResult> =>
+    searchNotesLiteral(term, limit) as Promise<LiteralSearchResult>,
   get: (id: string): Promise<Note | null> => getNote(id),
   delete: (id: string): Promise<ReminderIds[]> => deleteNote(id),
   save: (note: Note): Promise<UpdateNoteDiff> => updateNote(note),

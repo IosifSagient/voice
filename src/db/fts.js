@@ -101,6 +101,144 @@ export async function searchNotes(query, limit = 10) {
 // DB does the keyword+date filtering instead of the model eyeballing a plain
 // date-range result. Scopes on notes.created_at, same as getNotesByDateRange
 // (a note has no separate event date — see notesRead.js).
+// Boundary-based confidence for one match at [idx, idx+len) within an
+// already-toKey()'d haystack: whole_word (non-letter or edge-of-string on
+// both sides) > word_prefix (needle starts a longer word) > mid_word (needle
+// is buried inside a word — the same false-positive shape greekStem.ts's own
+// MIN_STEM_LENGTH floor guards against, e.g. "λήση" inside "πώληση").
+function classifyBoundary(haystackKey, idx, len) {
+  const isLetter = (ch) => ch != null && /\p{L}/u.test(ch);
+  const before = idx > 0 ? haystackKey[idx - 1] : null;
+  const after = idx + len < haystackKey.length ? haystackKey[idx + len] : null;
+  if (!isLetter(before) && !isLetter(after)) return "whole_word";
+  if (!isLetter(before) && isLetter(after)) return "word_prefix";
+  return "mid_word";
+}
+
+// Best (lowest-rank) occurrence of needleKey in haystackKey, short-circuiting
+// once a whole_word hit is found since nothing can outrank it.
+const CONFIDENCE_RANK = { whole_word: 0, word_prefix: 1, mid_word: 2 };
+
+function findBestMatch(haystackKey, needleKey) {
+  let best = null;
+  let from = 0;
+  while (true) {
+    const idx = haystackKey.indexOf(needleKey, from);
+    if (idx === -1) break;
+    const confidence = classifyBoundary(haystackKey, idx, needleKey.length);
+    if (!best || CONFIDENCE_RANK[confidence] < CONFIDENCE_RANK[best.confidence]) {
+      best = { idx, confidence };
+      if (confidence === "whole_word") break;
+    }
+    from = idx + 1;
+  }
+  return best;
+}
+
+const SNIPPET_WINDOW = 40;
+
+// Fallback substring search for the "did you mean?" flow — runs only after
+// search_notes (FTS5 MATCH, word-token based) returns nothing, to catch
+// mid-word/typo-adjacent hits that FTS5 tokenization can never find.
+//
+// notes_fts is an external-content FTS5 table (content=notes — see
+// connection.js): plain reads of its columns proxy straight through to the
+// RAW notes.transcript/notes.summary values, not the toKey()'d text that was
+// fed to INSERT INTO notes_fts (notesWrite.js). There is no queryable
+// normalized column anywhere in the schema, so — mirroring getNotesByTag's
+// topic branch (notesRead.js), which hit the identical problem for
+// topics_json — this fetches candidate rows and matches in JS instead of SQL.
+//
+// Offsets are computed against needle/haystack both passed through
+// .normalize('NFC') before toKey(): toKey()'s NFD-decompose-then-strip-mark
+// step is index-preserving only relative to an NFC-form input (each
+// precomposed accented char round-trips to exactly one codepoint). Skipping
+// this would drift every offset after the first character stored in
+// decomposed (base + combining mark) form.
+//
+// `term` accepts a single string or an array — mirrors buildFtsQuery's own
+// input normalization (Array.isArray ? input : [input], capped at 4) so a
+// multi-term search_notes call (OR'd terms) can be retried against literal
+// matching without losing any of the OR'd terms. Each term is tested
+// independently per row/field; the existing dedup-by-noteId-keep-best-
+// confidence pipeline below already collapses same-note hits from different
+// sources (previously only different fields, now also different terms) —
+// it needed no changes to extend correctly to the multi-term case.
+export async function searchNotesLiteral(term, limit = 3) {
+  const rawTerms = (Array.isArray(term) ? term : [term]).slice(0, 4);
+  const needleKeys = rawTerms
+    .map((t) => toKey((t ?? "").trim().normalize("NFC")))
+    .filter((k) => k.length > 0);
+  if (needleKeys.length === 0) return { lowConfidence: true, query: term, candidates: [] };
+
+  const db = await getDb();
+  const rows = await db.getAllAsync(
+    "SELECT id, created_at, transcript, summary FROM notes ORDER BY created_at DESC",
+  );
+
+  const found = [];
+  for (const row of rows) {
+    for (const field of ["transcript", "summary"]) {
+      const originalNFC = (row[field] ?? "").normalize("NFC");
+      if (!originalNFC) continue;
+      const haystackKey = toKey(originalNFC);
+      for (const needleKey of needleKeys) {
+        const match = findBestMatch(haystackKey, needleKey);
+        if (!match) continue;
+        found.push({
+          noteId: row.id,
+          date: new Date(row.created_at).toISOString().slice(0, 10),
+          summary: row.summary ?? "",
+          field,
+          originalNFC,
+          idx: match.idx,
+          matchLength: needleKey.length,
+          confidence: match.confidence,
+        });
+      }
+    }
+  }
+
+  // A note whose transcript AND summary both match — or that matches more
+  // than one of several OR'd terms — produces multiple `found` entries with
+  // the same noteId. Collapse to the single best-confidence one before
+  // ranking, or a note could surface as two identical-noteId candidates
+  // (React key collision in ClarificationChips). Map preserves insertion
+  // order, so a tie (equal confidence) keeps the first-seen entry —
+  // transcript before summary, and earlier terms before later ones, since
+  // that's the loop order above — without needing an explicit secondary
+  // comparison.
+  const bestByNoteId = new Map();
+  for (const entry of found) {
+    const existing = bestByNoteId.get(entry.noteId);
+    if (!existing || CONFIDENCE_RANK[entry.confidence] < CONFIDENCE_RANK[existing.confidence]) {
+      bestByNoteId.set(entry.noteId, entry);
+    }
+  }
+  const deduped = [...bestByNoteId.values()];
+
+  // Array.prototype.sort is spec-stable (ES2019+): ties keep the created_at
+  // DESC scan order, so recency acts as the tiebreaker without a secondary key.
+  deduped.sort((a, b) => CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence]);
+
+  const candidates = deduped.slice(0, limit).map((f) => {
+    const start = Math.max(0, f.idx - SNIPPET_WINDOW);
+    const end = Math.min(f.originalNFC.length, f.idx + f.matchLength + SNIPPET_WINDOW);
+    return {
+      noteId: f.noteId,
+      date: f.date,
+      summary: f.summary,
+      field: f.field,
+      snippet: f.originalNFC.slice(start, end),
+      matchOffset: f.idx - start,
+      matchLength: f.matchLength,
+      confidence: f.confidence,
+    };
+  });
+
+  return { lowConfidence: true, query: term, candidates };
+}
+
 export async function searchNotesInRange(query, from, to, limit = 50) {
   const ftsQuery = buildFtsQuery(query);
   if (!ftsQuery) return [];

@@ -12,14 +12,26 @@ import {
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useAgentChat } from "../hooks/useAgentChat";
+import { ClarificationChips } from "../components/ClarificationChips";
 import { colors, spacing, type, radii } from "../config/theme";
-import type { VisibleMessage } from "../types/agent";
+import type { VisibleMessage, LiteralMatchCandidate } from "../types/agent";
 
 export function ChatScreen() {
   const { messages, isThinking, send, clear } = useAgentChat();
   const [input, setInput] = useState("");
   const listRef = useRef<FlatList<VisibleMessage>>(null);
+  const inputRef = useRef<TextInput>(null);
   const headerHeight = useHeaderHeight();
+
+  const handleSelectCandidate = (candidate: LiteralMatchCandidate) => {
+    send(`Εννοώ αυτή τη σημείωση: «${candidate.summary}» (${candidate.date})`);
+  };
+  const handleNoneOfThese = () => {
+    send("Καμία από αυτές.");
+  };
+  const handleRetryDifferently = () => {
+    inputRef.current?.focus();
+  };
 
   const handleSend = () => {
     const text = input.trim();
@@ -59,20 +71,30 @@ export function ChatScreen() {
           <View
             style={item.role === "user" ? styles.rowUser : styles.rowAssistant}
           >
-            <View
-              style={
-                item.role === "user"
-                  ? styles.bubbleUser
-                  : styles.bubbleAssistant
-              }
-            >
-              <Text
+            <View style={styles.turnColumn}>
+              <View
                 style={
-                  item.role === "user" ? styles.textUser : styles.textAssistant
+                  item.role === "user"
+                    ? styles.bubbleUser
+                    : styles.bubbleAssistant
                 }
               >
-                {item.content}
-              </Text>
+                <Text
+                  style={
+                    item.role === "user" ? styles.textUser : styles.textAssistant
+                  }
+                >
+                  {item.content}
+                </Text>
+              </View>
+              {item.role === "assistant" && item.clarification && (
+                <ClarificationChips
+                  candidates={item.clarification.candidates}
+                  onSelect={handleSelectCandidate}
+                  onNone={handleNoneOfThese}
+                  onRetry={handleRetryDifferently}
+                />
+              )}
             </View>
           </View>
         )}
@@ -90,6 +112,7 @@ export function ChatScreen() {
 
       <View style={styles.inputRow}>
         <TextInput
+          ref={inputRef}
           style={styles.input}
           value={input}
           onChangeText={setInput}
@@ -147,6 +170,9 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     marginBottom: spacing.sm,
   },
+  turnColumn: {
+    maxWidth: "80%",
+  },
 
   bubbleUser: {
     backgroundColor: colors.accent,
@@ -154,7 +180,6 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: radii.sm,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
-    maxWidth: "80%",
   },
   bubbleAssistant: {
     backgroundColor: colors.bgCard,
@@ -162,7 +187,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radii.sm,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
-    maxWidth: "80%",
     borderWidth: 1,
     borderColor: colors.borderFaint,
   },
