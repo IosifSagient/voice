@@ -78,6 +78,14 @@ type ReminderItem = {
 // uses Date.UTC for an unrelated reason (mapping to the right day in the
 // device's native calendar provider) — do not copy that pattern here, it
 // would fire at 09:00 UTC instead of 09:00 local.
+//
+// R1 clamp: the due-time-minus-offset instant can itself land in the past
+// when a timed task is due sooner than REMINDER_OFFSET_MINUTES from now
+// (e.g. due in 8 min, offset 10 min). Rather than let that trip R4 and
+// silently drop a reminder for a task that hasn't happened yet, clamp the
+// fire time to the due instant itself. R4's actual intent — never notify
+// about something already past — is preserved: if the due instant itself
+// is <= now, this still falls through to the skip below.
 export function computeFireTime(
   item: ReminderItem,
   now: Date = new Date(),
@@ -90,8 +98,11 @@ export function computeFireTime(
   let fireTime: Date;
   if (isTimed) {
     const [hh, mm] = item.due_time!.split(":").map(Number);
-    fireTime = new Date(y, m - 1, d, hh, mm, 0, 0);
-    fireTime = new Date(fireTime.getTime() - REMINDER_OFFSET_MINUTES * 60000);
+    const dueInstant = new Date(y, m - 1, d, hh, mm, 0, 0);
+    fireTime = new Date(dueInstant.getTime() - REMINDER_OFFSET_MINUTES * 60000);
+    if (fireTime.getTime() <= now.getTime() && dueInstant.getTime() > now.getTime()) {
+      fireTime = dueInstant;
+    }
   } else {
     fireTime = new Date(y, m - 1, d, DATE_ONLY_REMINDER_HOUR, 0, 0, 0);
   }

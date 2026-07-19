@@ -7,8 +7,13 @@ import {
   scheduleReminder,
   cancelReminder,
   handleInitialNotification,
+  computeFireTime,
 } from "../src/services/notifications";
 import { navigationRef } from "../src/lib/navigationRef";
+import {
+  REMINDER_OFFSET_MINUTES,
+  DATE_ONLY_REMINDER_HOUR,
+} from "../src/config/notifications";
 
 jest.mock("expo-notifications", () => ({
   SchedulableTriggerInputTypes: { DATE: "date", TIME_INTERVAL: "timeInterval" },
@@ -121,6 +126,60 @@ describe("scheduleReminder — never throws, no-ops per R3/R4/denied-permission"
         trigger: expect.objectContaining({ type: "date" }),
       }),
     );
+  });
+});
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+function toDueDate(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function toDueTime(d: Date): string {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+describe("computeFireTime — R1 clamp for near-future timed reminders", () => {
+  const now = new Date(2099, 5, 15, 10, 0, 0, 0);
+
+  it("clamps to the due instant when due < offset (10min) away — 8 minutes out", () => {
+    const due = new Date(now.getTime() + 8 * 60000);
+    const fireTime = computeFireTime(
+      { text: "x", due_date: toDueDate(due), due_time: toDueTime(due) },
+      now,
+    );
+    expect(fireTime).not.toBeNull();
+    expect(fireTime!.getTime()).toBe(due.getTime());
+  });
+
+  it("uses the normal offset when due >= offset away — 15 minutes out", () => {
+    const due = new Date(now.getTime() + 15 * 60000);
+    const fireTime = computeFireTime(
+      { text: "x", due_date: toDueDate(due), due_time: toDueTime(due) },
+      now,
+    );
+    expect(fireTime).not.toBeNull();
+    expect(fireTime!.getTime()).toBe(due.getTime() - REMINDER_OFFSET_MINUTES * 60000);
+  });
+
+  it("still skips (null) when the due instant itself is already past — 2 minutes ago", () => {
+    const due = new Date(now.getTime() - 2 * 60000);
+    const fireTime = computeFireTime(
+      { text: "x", due_date: toDueDate(due), due_time: toDueTime(due) },
+      now,
+    );
+    expect(fireTime).toBeNull();
+  });
+
+  it("leaves the date-only 09:00 rule unchanged for a future all-day task", () => {
+    const due = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const fireTime = computeFireTime(
+      { text: "x", due_date: toDueDate(due), due_time: null, all_day: true },
+      now,
+    );
+    expect(fireTime).not.toBeNull();
+    expect(fireTime!.getHours()).toBe(DATE_ONLY_REMINDER_HOUR);
+    expect(fireTime!.getMinutes()).toBe(0);
   });
 });
 

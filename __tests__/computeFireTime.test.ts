@@ -79,9 +79,24 @@ describe("computeFireTime — R4 (never schedule into the past)", () => {
     expect(result).not.toBeNull();
   });
 
-  it("skips a timed task whose offset-adjusted fire time has already passed", () => {
-    // due_time 14:00, offset -10min => fires at 13:50. `now` is 13:55 — already past.
+  it("clamps to the due instant when the offset-adjusted fire time has passed but the due instant itself hasn't (R1 clamp)", () => {
+    // due_time 14:00, offset -10min => 13:50, which is already past `now` (13:55).
+    // The due instant (14:00) is still 5 minutes out, so this must clamp to
+    // 14:00 rather than skip — R4 only skips once the due instant itself passes.
     const now = new Date(2026, 5, 15, 13, 55, 0);
+    const result = computeFireTime(
+      { text: "x", due_date: "2026-06-15", due_time: "14:00", all_day: false },
+      now,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.getHours()).toBe(14);
+    expect(result!.getMinutes()).toBe(0);
+  });
+
+  it("skips a timed task once the due instant itself has passed, clamp notwithstanding", () => {
+    // due_time 14:00, `now` is 14:05 — the due instant is already behind us, so
+    // there's nothing left to clamp to; this must still return null.
+    const now = new Date(2026, 5, 15, 14, 5, 0);
     const result = computeFireTime(
       { text: "x", due_date: "2026-06-15", due_time: "14:00", all_day: false },
       now,
