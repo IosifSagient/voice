@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import {
   Pressable,
-  Text,
   StyleSheet,
   View,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 // Registers the foreground notification handler at module scope (R5) —
 // importing this once, here, before anything else runs is enough.
 import "./src/services/notifications";
@@ -26,7 +26,7 @@ import { TasksScreen } from "./src/screens/TasksScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { LockScreen } from "./src/screens/LockScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
-import { colors, radii, type, spacing } from "./src/config/theme";
+import { colors, radii, shadows, spacing } from "./src/config/theme";
 import { initDb } from "./src/db";
 import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
@@ -45,9 +45,16 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const sharedHeaderOptions = {
-  headerStyle: { backgroundColor: colors.bgBase },
-  headerTintColor: colors.textPrimary,
-  headerTitleStyle: { fontWeight: "600" as const, color: colors.textPrimary },
+  headerBackground: () => (
+    <LinearGradient
+      colors={colors.light.gradientHeader}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+  ),
+  headerTintColor: colors.light.textOnDark,
+  headerTitleStyle: { fontWeight: "600" as const, color: colors.light.textOnDark },
   headerShadowVisible: false,
 };
 
@@ -75,11 +82,11 @@ function MainTabs() {
       screenOptions={{
         ...sharedHeaderOptions,
         tabBarStyle: {
-          backgroundColor: colors.bgBase,
-          borderTopColor: colors.border,
+          backgroundColor: colors.light.bgCard,
+          borderTopColor: colors.light.border,
         },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: colors.light.accent,
+        tabBarInactiveTintColor: colors.light.textMuted,
       }}
     >
       <Tab.Screen
@@ -102,12 +109,12 @@ function MainTabs() {
                   .getParent<NativeStackNavigationProp<RootStackParamList>>()
                   ?.navigate("Settings")
               }
-              style={styles.signOutBtn}
+              style={styles.avatarBtn}
             >
               <Ionicons
                 name="person-outline"
-                size={20}
-                color={colors.textMuted}
+                size={18}
+                color={colors.light.textOnDark}
               />
             </Pressable>
           ),
@@ -123,7 +130,18 @@ function MainTabs() {
                 pressed && styles.fabPressed,
               ]}
             >
-              <Text style={styles.fabText}>+ Εγγραφή</Text>
+              <LinearGradient
+                colors={colors.light.gradientButton}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.fabGradient}
+              >
+                <Ionicons
+                  name="mic-outline"
+                  size={18}
+                  color={colors.light.textOnDark}
+                />
+              </LinearGradient>
             </Pressable>
           ),
         })}
@@ -269,19 +287,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   fab: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-    marginRight: 4,
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    marginRight: spacing.sm,
+    ...shadows.light.button,
   },
   fabPressed: { opacity: 0.72 },
-  fabText: {
-    ...type.buttonSmall,
-    color: colors.bgBase,
+  fabGradient: {
+    flex: 1,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
-  signOutBtn: {
+  avatarBtn: {
     marginLeft: spacing.base,
-    padding: spacing.xs,
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.light.glassLight,
+    borderWidth: 1,
+    borderColor: colors.light.borderGlass,
   },
 });

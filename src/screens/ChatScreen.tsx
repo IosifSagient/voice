@@ -11,9 +11,10 @@ import {
   StyleSheet,
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAgentChat } from "../hooks/useAgentChat";
 import { ClarificationChips } from "../components/ClarificationChips";
-import { colors, spacing, type, radii } from "../config/theme";
+import { colors, spacing, type, radii, shadows } from "../config/theme";
 import type { VisibleMessage, LiteralMatchCandidate } from "../types/agent";
 
 export function ChatScreen() {
@@ -72,21 +73,20 @@ export function ChatScreen() {
             style={item.role === "user" ? styles.rowUser : styles.rowAssistant}
           >
             <View style={styles.turnColumn}>
-              <View
-                style={
-                  item.role === "user"
-                    ? styles.bubbleUser
-                    : styles.bubbleAssistant
-                }
-              >
-                <Text
-                  style={
-                    item.role === "user" ? styles.textUser : styles.textAssistant
-                  }
+              {item.role === "user" ? (
+                <LinearGradient
+                  colors={colors.light.gradientUserBubble}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.bubbleUser}
                 >
-                  {item.content}
-                </Text>
-              </View>
+                  <Text style={styles.textUser}>{item.content}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.bubbleAssistant}>
+                  <Text style={styles.textAssistant}>{item.content}</Text>
+                </View>
+              )}
               {item.role === "assistant" && item.clarification && (
                 <ClarificationChips
                   candidates={item.clarification.candidates}
@@ -104,7 +104,7 @@ export function ChatScreen() {
         <View style={styles.thinkingRow}>
           <ActivityIndicator
             size="small"
-            color={colors.accent}
+            color={colors.light.accent}
           />
           <Text style={styles.thinkingText}>Σκέφτεται…</Text>
         </View>
@@ -117,7 +117,7 @@ export function ChatScreen() {
           value={input}
           onChangeText={setInput}
           placeholder="Ρώτησε κάτι…"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.light.textMuted}
           multiline
           maxLength={500}
           returnKeyType="send"
@@ -134,7 +134,14 @@ export function ChatScreen() {
             pressed && styles.sendBtnPressed,
           ]}
         >
-          <Text style={styles.sendBtnText}>↑</Text>
+          <LinearGradient
+            colors={colors.light.gradientButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sendBtnGradient}
+          >
+            <Text style={styles.sendBtnText}>↑</Text>
+          </LinearGradient>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -142,7 +149,7 @@ export function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  kav: { flex: 1, backgroundColor: colors.bgBase },
+  kav: { flex: 1, backgroundColor: colors.light.bg },
 
   list: {
     paddingHorizontal: spacing.base,
@@ -154,7 +161,7 @@ const styles = StyleSheet.create({
 
   emptyHint: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
     textAlign: "center",
     paddingHorizontal: spacing.xxl,
     marginTop: 60,
@@ -175,29 +182,28 @@ const styles = StyleSheet.create({
   },
 
   bubbleUser: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.lg,
-    borderBottomRightRadius: radii.sm,
+    borderRadius: radii.bubble,
+    borderBottomRightRadius: radii.bubbleTail,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
+    ...shadows.light.bubbleUser,
   },
   bubbleAssistant: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.lg,
-    borderBottomLeftRadius: radii.sm,
+    backgroundColor: colors.light.bgCard,
+    borderRadius: radii.bubble,
+    borderBottomLeftRadius: radii.bubbleTail,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.borderFaint,
+    ...shadows.light.card,
   },
 
   textUser: {
     ...type.body,
-    color: colors.bgBase,
+    color: colors.light.textOnDark,
   },
   textAssistant: {
     ...type.body,
-    color: colors.textPrimary,
+    color: colors.light.text,
   },
 
   thinkingRow: {
@@ -209,7 +215,7 @@ const styles = StyleSheet.create({
   },
   thinkingText: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
   },
 
   inputRow: {
@@ -219,17 +225,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.bgBase,
+    borderTopColor: colors.light.border,
+    backgroundColor: colors.light.bgCard,
   },
   input: {
     flex: 1,
     ...type.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    color: colors.light.text,
+    backgroundColor: colors.light.bg,
+    borderRadius: radii.inputPill,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
     maxHeight: 120,
@@ -238,17 +242,22 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.full,
-    backgroundColor: colors.accent,
+    marginBottom: 1,
+    ...shadows.light.button,
+  },
+  sendBtnGradient: {
+    flex: 1,
+    borderRadius: radii.full,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 1,
+    overflow: "hidden",
   },
   sendBtnDisabled: { opacity: 0.35 },
   sendBtnPressed: { opacity: 0.72 },
   sendBtnText: {
     fontSize: 18,
     fontWeight: "700",
-    color: colors.bgBase,
+    color: colors.light.textOnDark,
     lineHeight: 22,
   },
   topBar: {
@@ -262,7 +271,7 @@ const styles = StyleSheet.create({
 
   clearText: {
     ...type.meta,
-    color: colors.accent,
+    color: colors.light.accentMint,
     fontWeight: "600",
   },
 });

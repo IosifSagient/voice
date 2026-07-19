@@ -59,17 +59,17 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: radii.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
   },
   cardPrimary: {
-    backgroundColor: colors.bgCard,
-    borderColor: colors.accent,
+    backgroundColor: colors.light.bgCard,
+    borderColor: colors.light.accent,
   },
   cardDimmed: {
-    backgroundColor: colors.bgCard,
-    borderColor: colors.borderFaint,
+    backgroundColor: colors.light.bgCard,
+    borderColor: colors.light.border,
     opacity: 0.6,
   },
   cardPressed: {
@@ -77,19 +77,19 @@ const styles = StyleSheet.create({
   },
   snippetPrimary: {
     ...type.body,
-    color: colors.textPrimary,
+    color: colors.light.text,
   },
   snippetDimmed: {
     ...type.body,
-    color: colors.textSecondary,
+    color: colors.light.textMuted,
   },
   highlight: {
-    color: colors.accent,
+    color: colors.light.accent,
     fontWeight: "700",
   },
   meta: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
     marginTop: spacing.xs,
   },
   actionsRow: {
@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   actionText: {
-    ...type.meta,
-    color: colors.accent,
+    ...type.metaLarge,
+    color: colors.light.accent,
     fontWeight: "600",
   },
 });

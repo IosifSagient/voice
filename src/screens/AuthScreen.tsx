@@ -9,8 +9,9 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks/useAuth';
-import { colors, spacing, type, radii } from '../config/theme';
+import { colors, spacing, type, radii, gradients, shadows } from '../config/theme';
 
 export function AuthScreen() {
   const { signIn, signUp } = useAuth();
@@ -38,74 +39,101 @@ export function AuthScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.kav}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <LinearGradient
+      colors={gradients.auth.colors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0.35, y: 1 }}
+      style={styles.root}
     >
-      <View style={styles.inner}>
-        <Text style={styles.appName}>VoiceNote</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={colors.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-          returnKeyType="next"
-          editable={!submitting}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Κωδικός"
-          placeholderTextColor={colors.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'}
-          returnKeyType="done"
-          onSubmitEditing={handleSubmit}
-          editable={!submitting}
-        />
-
-        {error != null && <Text style={styles.error}>{error}</Text>}
-
-        <Pressable
-          onPress={handleSubmit}
-          disabled={submitting || !email.trim() || !password}
-          style={({ pressed }) => [
-            styles.btn,
-            (submitting || !email.trim() || !password) && styles.btnDisabled,
-            pressed && styles.btnPressed,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator color={colors.bgBase} />
-          ) : (
-            <Text style={styles.btnText}>
-              {mode === 'signIn' ? 'Σύνδεση' : 'Εγγραφή'}
-            </Text>
-          )}
-        </Pressable>
-
-        <Pressable onPress={toggleMode} style={styles.toggleBtn}>
-          <Text style={styles.toggleText}>
+      <KeyboardAvoidingView
+        style={styles.kav}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.inner}>
+          <Text style={styles.appName}>VoiceNote</Text>
+          <Text style={styles.subtitle}>
             {mode === 'signIn'
-              ? 'Δεν έχετε λογαριασμό; Εγγραφή'
-              : 'Έχετε ήδη λογαριασμό; Σύνδεση'}
+              ? 'Οι σημειώσεις σου, πάντα κοντά σου'
+              : 'Δημιούργησε τον λογαριασμό σου'}
           </Text>
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
+
+          <View style={styles.card}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={colors.dark.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              returnKeyType="next"
+              editable={!submitting}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Κωδικός"
+              placeholderTextColor={colors.dark.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'}
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
+              editable={!submitting}
+            />
+
+            {error != null && <Text style={styles.error}>{error}</Text>}
+
+            <Pressable
+              onPress={handleSubmit}
+              disabled={submitting || !email.trim() || !password}
+              style={({ pressed }) => [
+                styles.btn,
+                (submitting || !email.trim() || !password) && styles.btnDisabled,
+                pressed && styles.btnPressed,
+              ]}
+            >
+              <View style={styles.btnFillClip}>
+                <LinearGradient
+                  colors={gradients.authButton.colors}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.btnFillGradient}
+                />
+              </View>
+              {submitting ? (
+                <ActivityIndicator color={colors.dark.text} />
+              ) : (
+                <Text style={styles.btnText}>
+                  {mode === 'signIn' ? 'Σύνδεση' : 'Εγγραφή'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
+          <Pressable onPress={toggleMode} style={styles.toggleBtn}>
+            <Text style={styles.toggleText}>
+              {mode === 'signIn'
+                ? 'Δεν έχετε λογαριασμό; '
+                : 'Έχετε ήδη λογαριασμό; '}
+              <Text style={styles.toggleTextAccent}>
+                {mode === 'signIn' ? 'Εγγραφή' : 'Σύνδεση'}
+              </Text>
+            </Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   kav: {
     flex: 1,
-    backgroundColor: colors.bgBase,
   },
   inner: {
     flex: 1,
@@ -114,42 +142,66 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 28,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 0.5,
-    color: colors.accent,
+    color: colors.dark.accent,
     textAlign: 'center',
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: colors.dark.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.xxl,
+  },
+  card: {
+    backgroundColor: colors.dark.glass,
+    borderWidth: 1,
+    borderColor: colors.dark.borderGlass,
+    borderRadius: radii.cardLg,
+    padding: spacing.lg,
   },
   input: {
-    backgroundColor: colors.bgElevated,
-    color: colors.textPrimary,
+    backgroundColor: colors.dark.glass,
+    color: colors.dark.text,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 13,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.dark.borderGlass,
     marginBottom: spacing.md,
   },
   error: {
     ...type.meta,
-    color: colors.error,
+    color: colors.dark.destructive,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
   btn: {
-    backgroundColor: colors.accent,
     borderRadius: radii.lg,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.sm,
+    ...shadows.light.button,
   },
   btnDisabled: { opacity: 0.45 },
   btnPressed: { opacity: 0.72 },
+  btnFillClip: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+  },
+  btnFillGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
   btnText: {
-    ...type.buttonHero,
-    color: colors.bgBase,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.dark.text,
+    textAlign: 'center',
   },
   toggleBtn: {
     marginTop: spacing.xl,
@@ -157,6 +209,11 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.dark.textMuted,
+    textAlign: 'center',
+  },
+  toggleTextAccent: {
+    color: colors.dark.accent,
+    fontWeight: '700',
   },
 });

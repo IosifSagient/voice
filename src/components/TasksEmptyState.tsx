@@ -43,13 +43,13 @@ const styles = StyleSheet.create({
   },
   title: {
     ...type.bodyLarge,
-    color: colors.textSecondary,
+    color: colors.light.textSecondary,
     marginBottom: spacing.sm,
     textAlign: "center",
   },
   hint: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
     textAlign: "center",
     lineHeight: 20,
   },

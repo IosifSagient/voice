@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import type { Note } from "../types/note";
 import { FollowUpRow } from "./FollowUpRow";
 import { Tag } from "./Tag";
-import { colors, spacing, type, radii } from "../config/theme";
+import { colors, spacing, type, radii, shadows } from "../config/theme";
 
 type Props = {
   note: Note;
@@ -91,12 +91,14 @@ export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDelet
 const styles = StyleSheet.create({
   card: {
     width: "100%",
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.card,
+    backgroundColor: colors.light.bgCard,
+    borderRadius: radii.cardSm,
     padding: spacing.lg,
+    ...shadows.light.card,
   },
   summary: {
     ...type.headline,
+    color: colors.light.text,
     marginBottom: spacing.xs,
   },
   section: {
@@ -104,11 +106,12 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     ...type.label,
+    color: colors.light.textMuted,
     marginBottom: spacing.md,
   },
   decisionText: {
     ...type.body,
-    color: colors.textSecondary,
+    color: colors.light.textSecondary,
     marginBottom: spacing.sm,
   },
   tagsRow: {
@@ -119,7 +122,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.light.border,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
@@ -131,11 +134,11 @@ const styles = StyleSheet.create({
   },
   transcriptToggleText: {
     ...type.metaLarge,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
   },
   transcriptText: {
     ...type.body,
-    color: colors.textSecondary,
+    color: colors.light.textSecondary,
     marginTop: spacing.md,
   },
 });

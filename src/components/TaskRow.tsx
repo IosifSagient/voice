@@ -1,6 +1,6 @@
 import { View, Text, Pressable, Alert, StyleSheet } from "react-native";
 import type { TaskWithContext } from "../types/tasks";
-import { colors, spacing, type, radii } from "../config/theme";
+import { colors, spacing, type, radii, shadows } from "../config/theme";
 import { formatDate } from "../lib/dateFormat";
 
 type Props = {
@@ -72,20 +72,20 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.card,
+    backgroundColor: colors.light.bgCard,
+    borderRadius: radii.cardSm,
     padding: spacing.base,
     marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.borderFaint,
+    ...shadows.light.card,
   },
   rowPressed: { opacity: 0.65 },
   checkbox: {
-    width: 22,
-    height: 22,
+    width: 24,
+    height: 24,
     borderRadius: radii.full,
     borderWidth: 2,
-    borderColor: colors.accent,
+    borderColor: colors.light.accent,
+    backgroundColor: colors.light.accentFaint,
     marginRight: spacing.md,
     marginTop: 1,
     flexShrink: 0,
@@ -93,40 +93,41 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxDone: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.light.accent,
   },
   checkmark: {
     fontSize: 12,
     fontWeight: "700" as const,
-    color: colors.bgBase,
+    color: colors.light.textOnDark,
     lineHeight: 15,
   },
   textCol: { flex: 1 },
   taskText: {
-    ...type.body,
+    fontSize: 14,
+    fontWeight: "500" as const,
+    color: colors.light.text,
   },
   taskTextDone: {
     textDecorationLine: "line-through",
-    color: colors.textMuted,
+    color: colors.light.textMuted,
   },
   context: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
     marginTop: spacing.xs,
   },
   due: {
     ...type.meta,
-    color: colors.dueText,
+    color: colors.light.textMuted,
     marginTop: spacing.xs,
     alignSelf: "flex-start",
-    backgroundColor: colors.dueBg,
+    backgroundColor: colors.light.borderLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
     overflow: "hidden",
   },
   dueOverdue: {
-    color: colors.error,
-    backgroundColor: colors.recordingMuted,
+    color: colors.light.destructive,
   },
 });

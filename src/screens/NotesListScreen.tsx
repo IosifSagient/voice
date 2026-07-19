@@ -20,7 +20,7 @@ import { useTodayTasks } from "../hooks/useTodayTasks";
 import { TodaySection } from "../components/TodaySection";
 import { formatDate } from "../lib/dateFormat";
 import type { Note } from "../types/note";
-import { colors, spacing, type, radii } from "../config/theme";
+import { colors, spacing, type, radii, shadows } from "../config/theme";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, "NotesList">,
@@ -78,11 +78,11 @@ export function NotesListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.searchWrapper}>
+      <View style={styles.searchBand}>
         <TextInput
           style={styles.search}
           placeholder="Αναζήτηση…"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.light.textMuted}
           value={query}
           onChangeText={(t) => {
             setQuery(t);
@@ -179,21 +179,25 @@ export function NotesListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bgBase },
-  searchWrapper: {
+  screen: { flex: 1, backgroundColor: colors.light.bg },
+  // Deliberate taste call: fills with the header gradient's darker
+  // top-of-header stop rather than its lighter final stop, accepting a
+  // visible seam at the header/search-band boundary.
+  searchBand: {
+    backgroundColor: colors.light.gradientHeader[0],
     paddingHorizontal: spacing.base,
     paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.base,
   },
   search: {
-    backgroundColor: colors.bgElevated,
-    color: colors.textPrimary,
+    backgroundColor: colors.light.glassLight,
+    color: colors.light.textOnDark,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 11,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.light.borderGlass,
   },
   list: {
     paddingHorizontal: spacing.base,
@@ -202,7 +206,7 @@ const styles = StyleSheet.create({
   },
   emptySearch: {
     ...type.body,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
     textAlign: "center",
     marginTop: 60,
   },
@@ -213,13 +217,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...type.bodyLarge,
-    color: colors.textSecondary,
+    color: colors.light.textSecondary,
     marginBottom: spacing.sm,
     textAlign: "center",
   },
   emptyHint: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
     textAlign: "center",
     lineHeight: 20,
   },
@@ -230,49 +234,57 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...type.body,
-    color: colors.error,
+    color: colors.light.destructive,
     textAlign: "center",
     marginBottom: spacing.lg,
   },
   retryBtn: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.light.bgCard,
     borderRadius: radii.pill,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.light.border,
   },
   retryBtnPressed: { opacity: 0.72 },
   retryBtnText: {
     ...type.buttonSmall,
-    color: colors.textSecondary,
+    color: colors.light.textSecondary,
   },
   row: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.card,
+    backgroundColor: colors.light.bgCard,
+    borderRadius: radii.cardSm,
     padding: spacing.base,
     marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.borderFaint,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.light.accent,
+    ...shadows.light.card,
   },
   rowPressed: { opacity: 0.65 },
   rowDate: {
-    ...type.label,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: colors.light.accent,
     marginBottom: spacing.sm,
   },
   rowSummary: {
-    ...type.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.light.text,
   },
   badge: {
     alignSelf: "flex-start",
     marginTop: spacing.md,
-    backgroundColor: colors.accentMuted,
-    borderRadius: radii.pill,
+    backgroundColor: colors.light.accentLight,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
   badgeText: {
     ...type.meta,
-    color: colors.accent,
+    fontWeight: "600",
+    color: colors.light.accent,
   },
 });

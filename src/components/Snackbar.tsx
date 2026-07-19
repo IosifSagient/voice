@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { colors, spacing, type, radii } from "../config/theme";
+import { colors, spacing, type, radii, shadows } from "../config/theme";
 
 type Props = {
   visible: boolean;
@@ -49,17 +49,19 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.light.bgCard,
     borderRadius: radii.lg,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.base,
     marginHorizontal: spacing.base,
     marginBottom: spacing.base,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.light.border,
+    ...shadows.light.card,
   },
   message: {
     ...type.body,
+    color: colors.light.text,
     flex: 1,
   },
   actionBtn: {
@@ -67,6 +69,6 @@ const styles = StyleSheet.create({
   },
   actionText: {
     ...type.buttonSmall,
-    color: colors.accent,
+    color: colors.light.accent,
   },
 });

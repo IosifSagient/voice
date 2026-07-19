@@ -37,6 +37,72 @@ export const colors = {
   error: "#FCA5A5",
 
   white: "#FFFFFF",
+
+  // Light-theme palette (spec DESIGN_SPEC.md) — scoped to screens restyled
+  // so far (Chat). Additive only: never read a flat key above as a
+  // fallback for these, and never let a `colors.dark.*` addition change
+  // these values later — each namespace is self-contained.
+  light: {
+    bg:     "#F0F4F3",
+    bgCard: "#FFFFFF",
+
+    text:          "#0F172A",
+    textOnDark:    "#FFFFFF",
+    textMuted:     "#94A3B8",
+    textSecondary: "#64748B",
+
+    border:      "#E2E8F0",
+    borderLight: "#F1F5F9",
+    borderGlass: "rgba(255,255,255,0.1)",
+
+    accent:      "#10B981",
+    accentMint:  "#34D399",
+    accentLight: "#D1FAE5",
+    accentFaint: "rgba(16,185,129,0.05)",
+
+    destructive: "#EF4444",
+
+    glassLight: "rgba(255,255,255,0.12)",
+
+    gradientHeader:     ["#064E3B", "#134E4A", "#0F766E"],
+    gradientButton:     ["#10B981", "#06B6D4"],
+    gradientUserBubble: ["#10B981", "#0D9488"],
+  },
+
+  // Dark-record palette (spec DESIGN_SPEC.md, RECORD section) — scoped to
+  // RecordScreen, which stays dark by design (not part of the light-theme
+  // migration). Additive only, self-contained like `light` above.
+  dark: {
+    bg:          "#0F172A",
+    text:        "#FFFFFF",
+    textMuted:   "rgba(255,255,255,0.5)",
+    glass:       "rgba(255,255,255,0.08)",
+    borderGlass: "rgba(255,255,255,0.15)",
+    accent:      "#10B981",
+    destructive: "#EF4444",
+  },
+} as const;
+
+// Cross-screen gradient stops (spec DESIGN_SPEC.md) not tied to a single
+// light/dark namespace. Record-only for now.
+export const gradients = {
+  recordScreen: {
+    colors: ["#064E3B", "#0F172A"] as [string, string],
+  },
+  recordButton: {
+    colors: ["#34D399", "#10B981", "#06B6D4"] as [string, string, string],
+  },
+
+  // Auth screen (spec DESIGN_SPEC.md LOGIN/REGISTER) — dark gradient bg and
+  // submit-button gradient. authButton shares stops with
+  // colors.light.gradientButton but is referenced under gradients.* here
+  // for semantic cleanliness on a dark screen.
+  auth: {
+    colors: ["#0F172A", "#134E4A", "#064E3B"] as [string, string, string],
+  },
+  authButton: {
+    colors: ["#10B981", "#06B6D4"] as [string, string],
+  },
 } as const;
 
 // 4pt base spacing scale
@@ -108,6 +174,59 @@ export const radii = {
   lg:   12,
   card: 16,
   full: 9999,
+
+  // Chat-bubble radii (spec DESIGN_SPEC.md) — non-colliding additions,
+  // existing keys above are untouched.
+  bubble:     18, // bubble corner radius
+  bubbleTail: 4,  // sharp "tail" corner on the pointing side
+  inputPill:  22, // chat input field radius
+
+  // Spec-exact note-card radius (DESIGN_SPEC.md) — distinct from the
+  // existing radii.card (16); do not conflate the two.
+  cardSm: 14,
+
+  // Auth screen glass form card (spec DESIGN_SPEC.md) — distinct from
+  // radii.card (16); do not conflate the two.
+  cardLg: 20,
+} as const;
+
+// Colored shadows (spec DESIGN_SPEC.md `shadows`), light-theme only for now.
+export const shadows = {
+  light: {
+    card: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    bubbleUser: {
+      shadowColor: "#10B981",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    button: {
+      shadowColor: "#10B981",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 24,
+      elevation: 6,
+    },
+  },
+
+  // Dark-record palette (spec DESIGN_SPEC.md `shadows.fab`) — scoped to
+  // RecordScreen's button glow.
+  dark: {
+    fab: {
+      shadowColor: "#10B981",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+      elevation: 8,
+    },
+  },
 } as const;
 
 // Record button dimensions — defined once so ring and button stay in sync

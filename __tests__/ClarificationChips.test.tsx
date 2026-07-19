@@ -66,7 +66,7 @@ describe('ClarificationChips — highlight segmentation', () => {
     const card = renderer.root.findByProps({ testID: 'clarification-candidate-n1' });
     const highlightNode = card.findAllByType(Text).find((t: any) => t.props.children === 'HIT')!;
 
-    expect(resolveStyle(highlightNode.props.style).color).toBe(colors.accent);
+    expect(resolveStyle(highlightNode.props.style).color).toBe(colors.light.accent);
   });
 });
 
@@ -83,12 +83,12 @@ describe('ClarificationChips — confidence emphasis', () => {
     const third = resolveStyle(renderer.root.findByProps({ testID: 'clarification-candidate-n3' }).props.style);
 
     expect(first.opacity).toBeUndefined();
-    expect(first.borderColor).toBe(colors.accent);
+    expect(first.borderColor).toBe(colors.light.accent);
 
     expect(second.opacity).toBe(0.6);
-    expect(second.borderColor).toBe(colors.borderFaint);
+    expect(second.borderColor).toBe(colors.light.border);
     expect(third.opacity).toBe(0.6);
-    expect(third.borderColor).toBe(colors.borderFaint);
+    expect(third.borderColor).toBe(colors.light.border);
   });
 });
 

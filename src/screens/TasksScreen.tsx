@@ -32,7 +32,7 @@ export function TasksScreen({ navigation }: Props) {
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             loading ? (
-              <ActivityIndicator style={styles.spinner} color={colors.accent} />
+              <ActivityIndicator style={styles.spinner} color={colors.light.accent} />
             ) : (
               <TasksEmptyState filter={filter} />
             )
@@ -52,7 +52,7 @@ export function TasksScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bgBase },
+  screen: { flex: 1, backgroundColor: colors.light.bg },
   list: {
     paddingHorizontal: spacing.base,
     paddingTop: spacing.sm,
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...type.body,
-    color: colors.error,
+    color: colors.light.destructive,
     textAlign: "center",
     marginTop: 80,
     paddingHorizontal: spacing.xxl,

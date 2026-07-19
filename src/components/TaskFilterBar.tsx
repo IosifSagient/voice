@@ -57,20 +57,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgElevated,
+    borderColor: colors.light.borderLight,
+    backgroundColor: colors.light.bgCard,
   },
   pillActive: {
-    backgroundColor: colors.accentMuted,
-    borderColor: colors.accent,
+    backgroundColor: colors.light.accentFaint,
+    borderColor: colors.light.accent,
   },
   pillPressed: { opacity: 0.7 },
   pillText: {
     ...type.meta,
-    color: colors.textSecondary,
+    color: colors.light.textMuted,
     fontWeight: "600" as const,
   },
   pillTextActive: {
-    color: colors.accent,
+    color: colors.light.accent,
   },
 });

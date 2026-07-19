@@ -1,6 +1,6 @@
 import { View, Text, Pressable, Switch, StyleSheet, Alert, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, type, radii } from '../config/theme';
+import { colors, spacing, type, radii, shadows } from '../config/theme';
 import type { CalendarOption } from '../types/calendar';
 
 type Props = {
@@ -56,8 +56,7 @@ export function SettingsScreen({
             <Switch
               value={lockEnabled}
               onValueChange={onSetLockEnabled}
-              trackColor={{ false: colors.border, true: colors.accentMuted }}
-              thumbColor={lockEnabled ? colors.accent : colors.textMuted}
+              trackColor={{ false: colors.light.border, true: colors.light.accent }}
             />
           </View>
           <Text style={styles.rowHint}>
@@ -121,7 +120,7 @@ export function SettingsScreen({
                   </View>
                 </View>
                 {cal.id === selectedCalendarId && (
-                  <Ionicons name="checkmark" size={20} color={colors.accent} />
+                  <Ionicons name="checkmark" size={20} color={colors.light.accent} />
                 )}
               </Pressable>
             ))}
@@ -172,7 +171,10 @@ export function SettingsScreen({
         )}
 
         {!notificationLoading && notificationPermissionGranted && (
-          <Text style={styles.rowHint}>Οι ειδοποιήσεις είναι ενεργές.</Text>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Ενεργές</Text>
+            <View style={styles.statusDot} />
+          </View>
         )}
       </View>
 
@@ -191,15 +193,16 @@ export function SettingsScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgBase,
+    backgroundColor: colors.light.bg,
     paddingTop: spacing.lg,
   },
   section: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.card,
+    backgroundColor: colors.light.bgCard,
+    borderRadius: radii.cardSm,
     marginHorizontal: spacing.base,
     marginBottom: spacing.base,
     paddingHorizontal: spacing.base,
+    ...shadows.light.card,
   },
   row: {
     flexDirection: 'row',
@@ -208,19 +211,21 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.base,
   },
   rowLabel: {
-    ...type.body,
-    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.light.text,
   },
   rowHint: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
     paddingBottom: spacing.base,
   },
   rowHintWarning: {
-    color: colors.error,
+    color: colors.light.destructive,
   },
   sectionLabel: {
     ...type.label,
+    color: colors.light.textMuted,
     paddingTop: spacing.base,
   },
   calendarRowMain: {
@@ -235,7 +240,18 @@ const styles = StyleSheet.create({
   },
   calendarAccount: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.light.textMuted,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.light.accent,
+    shadowColor: colors.light.accent,
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 2,
   },
   signOutBtn: {
     paddingVertical: spacing.base,
@@ -244,7 +260,7 @@ const styles = StyleSheet.create({
   btnPressed: { opacity: 0.72 },
   signOutText: {
     ...type.body,
-    color: colors.error,
+    color: colors.light.destructive,
     fontWeight: '600',
   },
 });

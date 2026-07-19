@@ -23,11 +23,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   person: {
-    color: colors.personText,
-    backgroundColor: colors.personBg,
+    color: colors.light.accent,
+    backgroundColor: colors.light.accentFaint,
   },
   topic: {
-    color: colors.topicText,
-    backgroundColor: colors.topicBg,
+    color: colors.light.textMuted,
+    backgroundColor: colors.light.borderLight,
   },
 });
