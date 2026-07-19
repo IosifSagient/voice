@@ -1,21 +1,96 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   FlatList,
   TextInput,
   Pressable,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useAgentChat } from "../hooks/useAgentChat";
 import { ClarificationChips } from "../components/ClarificationChips";
+import { ThinkingDots } from "../components/ThinkingDots";
 import { colors, spacing, type, radii, shadows } from "../config/theme";
 import type { VisibleMessage, LiteralMatchCandidate } from "../types/agent";
+
+// Message Appear (ANIMATION_SPEC.md CHAT): slide in from the side the role
+// speaks from, 300ms ease-out. Runs once per mount, driven directly (not via
+// Reanimated's built-in SlideIn presets) so the 40px offset matches spec
+// exactly instead of the presets' full-width default.
+function MessageBubble({ role, children }: { role: VisibleMessage["role"]; children: React.ReactNode }) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) });
+  }, [progress]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateX: (1 - progress.value) * (role === "user" ? 40 : -40) }],
+  }));
+
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
+// Send Button (ANIMATION_SPEC.md CHAT): disabled↔enabled opacity/scale spring,
+// press dip + arrow shoot-up on release.
+function SendButton({ enabled, onPress }: { enabled: boolean; onPress: () => void }) {
+  const enabledProgress = useSharedValue(enabled ? 1 : 0);
+  const pressScale = useSharedValue(1);
+  const arrowY = useSharedValue(0);
+
+  useEffect(() => {
+    enabledProgress.value = withSpring(enabled ? 1 : 0, { damping: 15, stiffness: 180 });
+  }, [enabled, enabledProgress]);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: 0.35 + enabledProgress.value * 0.65,
+    transform: [{ scale: (0.9 + enabledProgress.value * 0.1) * pressScale.value }],
+  }));
+  const arrowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: arrowY.value }],
+  }));
+
+  const handlePressIn = () => {
+    pressScale.value = withTiming(0.85, { duration: 100 });
+  };
+  const handlePressOut = () => {
+    pressScale.value = withSpring(1, { damping: 12 });
+    arrowY.value = withSequence(withTiming(-3, { duration: 80 }), withSpring(0, { damping: 10 }));
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!enabled}
+      onPressIn={enabled ? handlePressIn : undefined}
+      onPressOut={enabled ? handlePressOut : undefined}
+    >
+      <Animated.View style={[styles.sendBtn, containerStyle]}>
+        <LinearGradient
+          colors={colors.light.gradientButton}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.sendBtnGradient}
+        >
+          <Animated.Text style={[styles.sendBtnText, arrowStyle]}>↑</Animated.Text>
+        </LinearGradient>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export function ChatScreen() {
   const { messages, isThinking, send, clear } = useAgentChat();
@@ -73,20 +148,22 @@ export function ChatScreen() {
             style={item.role === "user" ? styles.rowUser : styles.rowAssistant}
           >
             <View style={styles.turnColumn}>
-              {item.role === "user" ? (
-                <LinearGradient
-                  colors={colors.light.gradientUserBubble}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.bubbleUser}
-                >
-                  <Text style={styles.textUser}>{item.content}</Text>
-                </LinearGradient>
-              ) : (
-                <View style={styles.bubbleAssistant}>
-                  <Text style={styles.textAssistant}>{item.content}</Text>
-                </View>
-              )}
+              <MessageBubble role={item.role}>
+                {item.role === "user" ? (
+                  <LinearGradient
+                    colors={colors.light.gradientUserBubble}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.bubbleUser}
+                  >
+                    <Text style={styles.textUser}>{item.content}</Text>
+                  </LinearGradient>
+                ) : (
+                  <View style={styles.bubbleAssistant}>
+                    <Text style={styles.textAssistant}>{item.content}</Text>
+                  </View>
+                )}
+              </MessageBubble>
               {item.role === "assistant" && item.clarification && (
                 <ClarificationChips
                   candidates={item.clarification.candidates}
@@ -102,10 +179,7 @@ export function ChatScreen() {
 
       {isThinking && (
         <View style={styles.thinkingRow}>
-          <ActivityIndicator
-            size="small"
-            color={colors.light.accent}
-          />
+          <ThinkingDots />
           <Text style={styles.thinkingText}>Σκέφτεται…</Text>
         </View>
       )}
@@ -125,24 +199,7 @@ export function ChatScreen() {
           onSubmitEditing={handleSend}
           editable={!isThinking}
         />
-        <Pressable
-          onPress={handleSend}
-          disabled={!input.trim() || isThinking}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            (!input.trim() || isThinking) && styles.sendBtnDisabled,
-            pressed && styles.sendBtnPressed,
-          ]}
-        >
-          <LinearGradient
-            colors={colors.light.gradientButton}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.sendBtnGradient}
-          >
-            <Text style={styles.sendBtnText}>↑</Text>
-          </LinearGradient>
-        </Pressable>
+        <SendButton enabled={!!input.trim() && !isThinking} onPress={handleSend} />
       </View>
     </KeyboardAvoidingView>
   );
@@ -252,8 +309,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  sendBtnDisabled: { opacity: 0.35 },
-  sendBtnPressed: { opacity: 0.72 },
   sendBtnText: {
     fontSize: 18,
     fontWeight: "700",

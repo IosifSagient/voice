@@ -22,7 +22,9 @@ export function TasksScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <TaskFilterBar value={filter} onChange={setFilter} />
+      <View style={styles.headerBand}>
+        <TaskFilterBar value={filter} onChange={setFilter} />
+      </View>
       {error ? (
         <Text style={styles.error}>{error}</Text>
       ) : (
@@ -53,6 +55,17 @@ export function TasksScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.light.bg },
+  // Matches NotesListScreen's searchBand: same gradientHeader token (flat
+  // fill with the darker top-of-gradient stop, not a second LinearGradient
+  // — see that file's comment) and the same paddingTop/paddingBottom.
+  // paddingHorizontal is left to TaskFilterBar's own contentContainerStyle
+  // since this band wraps a horizontally-scrolling pill row, not a
+  // full-width input — matching that padding here would double-inset it.
+  headerBand: {
+    backgroundColor: colors.light.gradientHeader[0],
+    paddingTop: spacing.md,
+    paddingBottom: spacing.base,
+  },
   list: {
     paddingHorizontal: spacing.base,
     paddingTop: spacing.sm,

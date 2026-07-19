@@ -1,10 +1,5 @@
 import { useEffect } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  View,
-  ActivityIndicator,
-} from "react-native";
+import { Pressable, StyleSheet, View, ActivityIndicator } from "react-native";
 import {
   NavigationContainer,
   type LinkingOptions,
@@ -26,7 +21,7 @@ import { TasksScreen } from "./src/screens/TasksScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { LockScreen } from "./src/screens/LockScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
-import { colors, radii, shadows, spacing } from "./src/config/theme";
+import { colors, radii, spacing } from "./src/config/theme";
 import { initDb } from "./src/db";
 import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
@@ -54,7 +49,10 @@ const sharedHeaderOptions = {
     />
   ),
   headerTintColor: colors.light.textOnDark,
-  headerTitleStyle: { fontWeight: "600" as const, color: colors.light.textOnDark },
+  headerTitleStyle: {
+    fontWeight: "600" as const,
+    color: colors.light.textOnDark,
+  },
   headerShadowVisible: false,
 };
 
@@ -116,32 +114,6 @@ function MainTabs() {
                 size={18}
                 color={colors.light.textOnDark}
               />
-            </Pressable>
-          ),
-          headerRight: () => (
-            <Pressable
-              onPress={() =>
-                navigation
-                  .getParent<NativeStackNavigationProp<RootStackParamList>>()
-                  ?.navigate("Record")
-              }
-              style={({ pressed }) => [
-                styles.fab,
-                pressed && styles.fabPressed,
-              ]}
-            >
-              <LinearGradient
-                colors={colors.light.gradientButton}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.fabGradient}
-              >
-                <Ionicons
-                  name="mic-outline"
-                  size={18}
-                  color={colors.light.textOnDark}
-                />
-              </LinearGradient>
             </Pressable>
           ),
         })}
@@ -285,21 +257,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgBase,
     alignItems: "center",
     justifyContent: "center",
-  },
-  fab: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
-    marginRight: spacing.sm,
-    ...shadows.light.button,
-  },
-  fabPressed: { opacity: 0.72 },
-  fabGradient: {
-    flex: 1,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
   },
   avatarBtn: {
     marginLeft: spacing.base,

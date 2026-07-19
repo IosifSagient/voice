@@ -203,11 +203,14 @@ const PulseRing = ({ delay = 0 }) => {
   const opacity = useSharedValue(0.5);
 
   useEffect(() => {
+    // 3rd arg (reverse) must be true — without it withRepeat snaps back to
+    // the starting value at each cycle boundary instead of animating back
+    // through it, so the described smooth pulse only works with reversal.
     scale.value = withDelay(delay,
-      withRepeat(withTiming(1.6, { duration: 3000 }), -1)
+      withRepeat(withTiming(1.6, { duration: 3000 }), -1, true)
     );
     opacity.value = withDelay(delay,
-      withRepeat(withTiming(0, { duration: 3000 }), -1)
+      withRepeat(withTiming(0, { duration: 3000 }), -1, true)
     );
   }, []);
 

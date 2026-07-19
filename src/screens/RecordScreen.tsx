@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,14 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  withSpring,
+} from "react-native-reanimated";
 import { useHeaderHeight } from "@react-navigation/elements";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
@@ -19,7 +27,61 @@ import { useRecorder } from "../hooks/useRecorder";
 import { usePipelineRun } from "../hooks/usePipelineRun";
 import { useCalendarToggle } from "../hooks/useCalendarToggle";
 import { NoteCard } from "../components/NoteCard";
+import { PulseRings, RotatingRing } from "../components/PulseRings";
+import { RecordBackgroundGlow } from "../components/RecordBackgroundGlow";
 import { colors, spacing, type, radii, recordButton, gradients, shadows } from "../config/theme";
+import { duration, spring, recordButtonRadius } from "../config/motion";
+
+// Icon crossfade (ANIMATION_SPEC.md RECORD > Record Button Press / Stop
+// Recording): mic<->stop, 200ms. Stays inline with the button — tightly
+// coupled to isRecording, same reasoning as the morph below.
+function RecordIcon({ isRecording }: { isRecording: boolean }) {
+  const micOpacity = useSharedValue(isRecording ? 0 : 1);
+  const stopOpacity = useSharedValue(isRecording ? 1 : 0);
+
+  useEffect(() => {
+    micOpacity.value = withTiming(isRecording ? 0 : 1, { duration: duration.base });
+    stopOpacity.value = withTiming(isRecording ? 1 : 0, { duration: duration.base });
+  }, [isRecording, micOpacity, stopOpacity]);
+
+  const micStyle = useAnimatedStyle(() => ({ opacity: micOpacity.value }));
+  const stopStyle = useAnimatedStyle(() => ({ opacity: stopOpacity.value }));
+
+  return (
+    <View style={styles.iconStack}>
+      <Animated.View style={[styles.iconLayer, micStyle]}>
+        <Ionicons name="mic" size={56} color={colors.dark.text} />
+      </Animated.View>
+      <Animated.View style={[styles.iconLayer, stopStyle]}>
+        <Ionicons name="stop" size={56} color={colors.dark.text} />
+      </Animated.View>
+    </View>
+  );
+}
+
+// Timer text entry (ANIMATION_SPEC.md RECORD > Recording State): opacity
+// 0->1, translateY -8->0, 200ms — fires once per mount, same manual-shared-
+// value technique ChatScreen's MessageBubble uses (not Reanimated's `entering`
+// presets) so the -8px offset matches the spec exactly.
+function RecordingTimerText({ elapsed }: { elapsed: number }) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(1, { duration: duration.base, easing: Easing.out(Easing.ease) });
+  }, [progress]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * -8 }],
+  }));
+
+  return (
+    <Animated.View style={[styles.recordingRow, style]}>
+      <View style={styles.recordingDot} />
+      <Text style={styles.statusText}>Εγγραφή… {elapsed}s</Text>
+    </Animated.View>
+  );
+}
 
 type Props = NativeStackScreenProps<RootStackParamList, "Record">;
 
@@ -31,14 +93,36 @@ export function RecordScreen({ navigation }: Props) {
   const headerHeight = useHeaderHeight();
   const handleToggleCalendar = useCalendarToggle(note, setNote);
 
+  // Button morph (ANIMATION_SPEC.md RECORD > Record Button Press / Stop
+  // Recording): borderRadius spring between idle (full circle) and
+  // recording (rounded square). Stays inline — tightly coupled to
+  // isRecording, shared by both the button's shadow-casting wrapper and its
+  // fill-clip mask below so the two never animate out of sync.
+  const morphRadius = useSharedValue(
+    isRecording ? recordButtonRadius.recording : recordButtonRadius.idle
+  );
+
+  useEffect(() => {
+    morphRadius.value = withSpring(
+      isRecording ? recordButtonRadius.recording : recordButtonRadius.idle,
+      spring.recordMorph
+    );
+  }, [isRecording, morphRadius]);
+
+  const morphStyle = useAnimatedStyle(() => ({
+    borderRadius: morphRadius.value,
+  }));
+
   const handleStart = async () => {
     reset();
     setShowTextEntry(false);
     setTextEntry("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await start();
   };
 
   const handleStop = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await stop();
     if (!recordingUri) return;
     await runFromUri(recordingUri);
@@ -76,10 +160,7 @@ export function RecordScreen({ navigation }: Props) {
             {/* Status line */}
             <View style={styles.statusBox}>
               {isRecording ? (
-                <>
-                  <View style={styles.recordingDot} />
-                  <Text style={styles.statusText}>Εγγραφή… {elapsed}s</Text>
-                </>
+                <RecordingTimerText elapsed={elapsed} />
               ) : busy ? (
                 <>
                   <ActivityIndicator size="small" color={colors.dark.accent} style={styles.spinner} />
@@ -95,34 +176,45 @@ export function RecordScreen({ navigation }: Props) {
             </View>
 
             {/* Hero record button */}
-            <View style={[styles.buttonRing, isRecording && styles.buttonRingRecording]}>
-              <Pressable
-                onPress={isRecording ? handleStop : handleStart}
-                disabled={busy}
-                style={({ pressed }) => [
-                  styles.button,
-                  isRecording && styles.buttonRecording,
-                  (pressed || busy) && styles.buttonPressed,
+            <View style={styles.buttonStage}>
+              {/* Render order is the stacking order: glow (furthest back),
+                  then the ring layer, then the button — all three share
+                  buttonStage as their positioning parent so top:50%/left:50%
+                  anchors to the button's actual center, not the screen's. */}
+              <RecordBackgroundGlow isRecording={isRecording} />
+              <View style={styles.ringLayer} pointerEvents="none">
+                {isRecording ? <RotatingRing /> : <PulseRings />}
+              </View>
+              <Animated.View
+                style={[
+                  styles.buttonMorph,
+                  isRecording && styles.buttonMorphRecording,
+                  morphStyle,
                 ]}
               >
-                <View style={styles.buttonFillClip}>
-                  {isRecording ? (
-                    <View style={styles.buttonFillRecording} />
-                  ) : (
-                    <LinearGradient
-                      colors={gradients.recordButton.colors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.buttonFillGradient}
-                    />
-                  )}
-                </View>
-                <Ionicons
-                  name={isRecording ? "stop" : "mic"}
-                  size={56}
-                  color={colors.dark.text}
-                />
-              </Pressable>
+                <Pressable
+                  onPress={isRecording ? handleStop : handleStart}
+                  disabled={busy}
+                  style={({ pressed }) => [
+                    styles.buttonInner,
+                    (pressed || busy) && styles.buttonPressed,
+                  ]}
+                >
+                  <Animated.View style={[styles.buttonFillClip, morphStyle]}>
+                    {isRecording ? (
+                      <View style={styles.buttonFillRecording} />
+                    ) : (
+                      <LinearGradient
+                        colors={gradients.recordButton.colors}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.buttonFillGradient}
+                      />
+                    )}
+                  </Animated.View>
+                  <RecordIcon isRecording={isRecording} />
+                </Pressable>
+              </Animated.View>
             </View>
 
             {/* Text entry toggle — only when idle */}
@@ -226,34 +318,38 @@ const styles = StyleSheet.create({
     ...type.metaLarge,
     color: colors.dark.textMuted,
   },
-  buttonRing: {
+  buttonStage: {
     width: recordButton.outerSize,
     height: recordButton.outerSize,
-    borderRadius: recordButton.outerRadius,
-    borderWidth: 1.5,
-    borderColor: colors.dark.accent + "30",
     alignItems: "center",
     justifyContent: "center",
     marginVertical: spacing.lg,
   },
-  buttonRingRecording: {
-    borderColor: colors.dark.destructive + "40",
-  },
-  button: {
-    width: recordButton.innerSize,
-    height: recordButton.innerSize,
-    borderRadius: recordButton.innerRadius,
+  ringLayer: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // Shadow-casting wrapper — borderRadius is animated (morphStyle), so it
+  // carries no static radius of its own. Kept separate from buttonInner
+  // (the Pressable) so overflow:hidden on buttonFillClip below never clips
+  // this view's shadow.
+  buttonMorph: {
+    width: recordButton.innerSize,
+    height: recordButton.innerSize,
     ...shadows.dark.fab,
   },
-  buttonRecording: {
+  buttonMorphRecording: {
     shadowColor: colors.dark.destructive,
+  },
+  buttonInner: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonPressed: { opacity: 0.72 },
   buttonFillClip: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: recordButton.innerRadius,
     overflow: "hidden",
   },
   buttonFillGradient: {
@@ -262,6 +358,19 @@ const styles = StyleSheet.create({
   buttonFillRecording: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.dark.destructive,
+  },
+  iconStack: {
+    width: 56,
+    height: 56,
+  },
+  iconLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recordingRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   textToggle: { paddingVertical: spacing.sm },
   textToggleText: {

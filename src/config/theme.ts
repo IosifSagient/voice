@@ -64,6 +64,13 @@ export const colors = {
 
     glassLight: "rgba(255,255,255,0.12)",
 
+    // ANIMATION_SPEC.md TASKS > Filter Pills, on-dark-header background
+    // crossfade endpoints. Distinct from glassLight/borderGlass above —
+    // those are reused elsewhere at different opacities, these are pinned
+    // to the spec's exact pill values.
+    filterPillBg:       "rgba(255,255,255,0.08)",
+    filterPillBgActive: "rgba(255,255,255,0.2)",
+
     gradientHeader:     ["#064E3B", "#134E4A", "#0F766E"],
     gradientButton:     ["#10B981", "#06B6D4"],
     gradientUserBubble: ["#10B981", "#0D9488"],

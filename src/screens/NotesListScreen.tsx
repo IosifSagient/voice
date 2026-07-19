@@ -1,13 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
-  FlatList,
-  TextInput,
   Pressable,
   Alert,
+  RefreshControl,
   StyleSheet,
 } from "react-native";
+import Animated, { useAnimatedScrollHandler, useSharedValue, withTiming } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import type { CompositeScreenProps } from "@react-navigation/native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
@@ -18,9 +18,18 @@ import { removeReminder } from "../services/calendar";
 import { cancelReminder } from "../services/notifications";
 import { useTodayTasks } from "../hooks/useTodayTasks";
 import { TodaySection } from "../components/TodaySection";
-import { formatDate } from "../lib/dateFormat";
+import { RecordFab } from "../components/RecordFab";
+import { NoteListRow } from "../components/NoteListRow";
+import { AnimatedSearchInput } from "../components/AnimatedSearchInput";
+import { duration } from "../config/motion";
+import { useReducedMotionPreference } from "../lib/useReducedMotionPreference";
 import type { Note } from "../types/note";
-import { colors, spacing, type, radii, shadows } from "../config/theme";
+import { colors, spacing, type, radii } from "../config/theme";
+
+// How many cards, counted from the top, participate in the initial-mount /
+// pull-to-refresh stagger (ANIMATION_SPEC.md NOTES (HOME): "first ~8 visible
+// cards animate with stagger").
+const STAGGERED_CARD_COUNT = 8;
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, "NotesList">,
@@ -31,6 +40,73 @@ export function NotesListScreen({ navigation }: Props) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const reducedMotion = useReducedMotionPreference();
+  const fabVisible = useSharedValue(1);
+  const lastScrollY = useSharedValue(0);
+
+  // Entry-stagger bookkeeping (ANIMATION_SPEC.md NOTES (HOME)). Refs, not
+  // state — recomputed synchronously right before setNotes so the render
+  // that picks them up is the same one the new `notes` array lands in;
+  // turning them into state would just cause a redundant extra render.
+  //
+  // - entryPlanRef: note.id -> stagger delay (ms) for rows that should
+  //   animate in on THIS notes update. A row absent from the map (the
+  //   common case) gets `entryDelay: null` and never animates, no matter
+  //   when FlatList actually mounts it — including a lazy mount triggered
+  //   by scrolling further down an otherwise-unchanged list.
+  // - seenNoteIdsRef: every id ever placed into `notes`, used to tell "a
+  //   genuinely new note" (not in this set) apart from "a note re-fetched
+  //   after search/focus that was already visible before."
+  // - entryTokenRef: bumped on every recompute. Passed to NoteListRow as
+  //   `entryToken` — the numeric replay signal, since `entryDelay` itself
+  //   can legitimately repeat across two separate stagger runs.
+  const entryPlanRef = useRef<Map<string, number>>(new Map());
+  const seenNoteIdsRef = useRef<Set<string>>(new Set());
+  const hasMountedRef = useRef(false);
+  const entryTokenRef = useRef(0);
+
+  const computeEntryPlan = (newNotes: Note[], forceRestagger: boolean) => {
+    const plan = new Map<string, number>();
+    if (forceRestagger || !hasMountedRef.current) {
+      // Initial mount, or an explicit pull-to-refresh: stagger the first
+      // STAGGERED_CARD_COUNT cards regardless of whether their ids were
+      // already seen.
+      newNotes.slice(0, STAGGERED_CARD_COUNT).forEach((n, i) => {
+        plan.set(n.id, i * duration.cardEntryStagger);
+      });
+    } else {
+      // Incremental update (search-as-you-type, focus refetch): only a
+      // note id that has never appeared before gets an entrance, and it
+      // gets one with no stagger — a single new card, not a re-stagger of
+      // the whole list.
+      for (const n of newNotes) {
+        if (!seenNoteIdsRef.current.has(n.id)) plan.set(n.id, 0);
+      }
+    }
+    for (const n of newNotes) seenNoteIdsRef.current.add(n.id);
+    hasMountedRef.current = true;
+    entryPlanRef.current = plan;
+    entryTokenRef.current += 1;
+  };
+
+  // ANIMATION_SPEC.md NOTES > FAB scroll show/hide. Drives a shared value
+  // directly from the UI-thread scroll handler — no React state, so scroll
+  // never triggers a re-render (per working-agreement note A). Reduced
+  // motion: never touch fabVisible, so it stays at its initial 1 (FAB stays
+  // visible, per the C1-established reduced-motion pattern).
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    if (reducedMotion) return;
+    const y = event.contentOffset.y;
+    const delta = y - lastScrollY.value;
+    if (delta > 8 && y > 40) {
+      fabVisible.value = withTiming(0, { duration: duration.fabScrollToggle });
+    } else if (delta < -8 || y <= 40) {
+      fabVisible.value = withTiming(1, { duration: duration.fabScrollToggle });
+    }
+    lastScrollY.value = y;
+  });
+
   const {
     overdue,
     today,
@@ -47,6 +123,7 @@ export function NotesListScreen({ navigation }: Props) {
       (async () => {
         try {
           const results = await notesRepository.list();
+          computeEntryPlan(results, false);
           setNotes(results);
           setError(null);
         } catch (e) {
@@ -54,6 +131,7 @@ export function NotesListScreen({ navigation }: Props) {
           setError(e instanceof Error ? e.message : String(e));
         }
       })();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
 
@@ -68,6 +146,7 @@ export function NotesListScreen({ navigation }: Props) {
       const results = q.trim()
         ? await notesRepository.search(q.trim())
         : await notesRepository.list();
+      computeEntryPlan(results, false);
       setNotes(results);
       setError(null);
     } catch (e) {
@@ -76,27 +155,50 @@ export function NotesListScreen({ navigation }: Props) {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const results = query.trim()
+        ? await notesRepository.search(query.trim())
+        : await notesRepository.list();
+      computeEntryPlan(results, true); // forceRestagger: pull-to-refresh always re-plays the stagger
+      setNotes(results);
+      setError(null);
+      refreshTodayTasks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.screen}>
       <View style={styles.searchBand}>
-        <TextInput
-          style={styles.search}
+        <AnimatedSearchInput
           placeholder="Αναζήτηση…"
-          placeholderTextColor={colors.light.textMuted}
           value={query}
           onChangeText={(t) => {
             setQuery(t);
             search(t);
           }}
-          clearButtonMode="while-editing"
           returnKeyType="search"
         />
       </View>
 
-      <FlatList
+      <Animated.FlatList
+        style={styles.flatlist}
         data={notes}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.light.accent}
+          />
+        }
         ListHeaderComponent={
           <TodaySection
             overdue={overdue}
@@ -133,9 +235,10 @@ export function NotesListScreen({ navigation }: Props) {
           )
         }
         renderItem={({ item }) => (
-          <Pressable
-            testID="notes-list-row"
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          <NoteListRow
+            note={item}
+            entryDelay={entryPlanRef.current.get(item.id) ?? null}
+            entryToken={entryTokenRef.current}
             onPress={() => navigation.navigate("NoteDetail", { id: item.id })}
             onLongPress={() =>
               Alert.alert("Διαγραφή σημείωσης;", undefined, [
@@ -154,25 +257,13 @@ export function NotesListScreen({ navigation }: Props) {
                 },
               ])
             }
-          >
-            <Text style={styles.rowDate}>{formatDate(item.timestamp)}</Text>
-            <Text
-              style={styles.rowSummary}
-              numberOfLines={2}
-            >
-              {item.summary || "—"}
-            </Text>
-            {(item.openActionCount ?? 0) > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {item.openActionCount === 1
-                    ? "1 ενέργεια"
-                    : `${item.openActionCount} ενέργειες`}
-                </Text>
-              </View>
-            )}
-          </Pressable>
+          />
         )}
+      />
+
+      <RecordFab
+        onPress={() => navigation.navigate("Record")}
+        visible={fabVisible}
       />
     </View>
   );
@@ -189,15 +280,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.base,
   },
-  search: {
-    backgroundColor: colors.light.glassLight,
-    color: colors.light.textOnDark,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 11,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: colors.light.borderGlass,
+  flatlist: {
+    flex: 1,
   },
   list: {
     paddingHorizontal: spacing.base,
@@ -250,41 +334,5 @@ const styles = StyleSheet.create({
   retryBtnText: {
     ...type.buttonSmall,
     color: colors.light.textSecondary,
-  },
-  row: {
-    backgroundColor: colors.light.bgCard,
-    borderRadius: radii.cardSm,
-    padding: spacing.base,
-    marginBottom: spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.light.accent,
-    ...shadows.light.card,
-  },
-  rowPressed: { opacity: 0.65 },
-  rowDate: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    color: colors.light.accent,
-    marginBottom: spacing.sm,
-  },
-  rowSummary: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.light.text,
-  },
-  badge: {
-    alignSelf: "flex-start",
-    marginTop: spacing.md,
-    backgroundColor: colors.light.accentLight,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  badgeText: {
-    ...type.meta,
-    fontWeight: "600",
-    color: colors.light.accent,
   },
 });

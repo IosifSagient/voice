@@ -8,10 +8,7 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
-import { useHeaderHeight } from "@react-navigation/elements";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
@@ -35,7 +32,6 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const [mode, setMode] = useState<Mode>("view");
   const [draft, setDraft] = useState<Note | null>(null);
   const [transcriptDraft, setTranscriptDraft] = useState("");
-  const headerHeight = useHeaderHeight();
 
   useEffect(() => {
     (async () => {
@@ -129,12 +125,12 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.kav}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={headerHeight}
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
     >
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
 
       {/* ── VIEW ─────────────────────────────────────────────────── */}
       {mode === "view" && (
@@ -275,12 +271,10 @@ export function NoteDetailScreen({ route, navigation }: Props) {
         </>
       )}
     </ScrollView>
-    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  kav: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.light.bg },
   container: {
     padding: spacing.base,

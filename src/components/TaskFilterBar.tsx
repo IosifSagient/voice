@@ -1,6 +1,15 @@
+import { useEffect } from "react";
 import { ScrollView, Text, Pressable, StyleSheet } from "react-native";
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import type { TaskFilter } from "../types/tasks";
 import { colors, spacing, type, radii } from "../config/theme";
+import { duration } from "../config/motion";
+import { useReducedMotionPreference } from "../lib/useReducedMotionPreference";
 
 const FILTERS: { value: TaskFilter; label: string }[] = [
   { value: "all", label: "Όλα" },
@@ -14,6 +23,49 @@ type Props = {
   onChange: (filter: TaskFilter) => void;
 };
 
+// ANIMATION_SPEC.md TASKS > Filter Pills: background color crossfade only —
+// text stays a constant on-dark color, active state is communicated purely
+// by the background opacity step.
+function FilterPill({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const reducedMotion = useReducedMotionPreference();
+  const progress = useSharedValue(active ? 1 : 0);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      progress.value = active ? 1 : 0;
+      return;
+    }
+    progress.value = withTiming(active ? 1 : 0, { duration: duration.filterPillSwap });
+  }, [active, reducedMotion, progress]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [colors.light.filterPillBg, colors.light.filterPillBgActive]
+    ),
+  }));
+
+  return (
+    <Pressable
+      style={({ pressed }) => [pressed && styles.pillPressed]}
+      onPress={onPress}
+    >
+      <Animated.View style={[styles.pill, pillStyle]}>
+        <Text style={styles.pillText}>{label}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export function TaskFilterBar({ value, onChange }: Props) {
   return (
     <ScrollView
@@ -22,24 +74,14 @@ export function TaskFilterBar({ value, onChange }: Props) {
       contentContainerStyle={styles.container}
       style={styles.bar}
     >
-      {FILTERS.map((f) => {
-        const active = f.value === value;
-        return (
-          <Pressable
-            key={f.value}
-            style={({ pressed }) => [
-              styles.pill,
-              active && styles.pillActive,
-              pressed && styles.pillPressed,
-            ]}
-            onPress={() => onChange(f.value)}
-          >
-            <Text style={[styles.pillText, active && styles.pillTextActive]}>
-              {f.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {FILTERS.map((f) => (
+        <FilterPill
+          key={f.value}
+          label={f.label}
+          active={f.value === value}
+          onPress={() => onChange(f.value)}
+        />
+      ))}
     </ScrollView>
   );
 }
@@ -49,7 +91,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
     gap: spacing.sm,
   },
   pill: {
@@ -57,20 +98,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.light.borderLight,
-    backgroundColor: colors.light.bgCard,
-  },
-  pillActive: {
-    backgroundColor: colors.light.accentFaint,
-    borderColor: colors.light.accent,
+    borderColor: colors.light.borderGlass,
   },
   pillPressed: { opacity: 0.7 },
   pillText: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.light.textOnDark,
     fontWeight: "600" as const,
-  },
-  pillTextActive: {
-    color: colors.light.accent,
   },
 });
