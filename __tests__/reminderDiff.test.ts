@@ -1,18 +1,10 @@
-import * as React from 'react';
-import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { useRegenerateNote, applyReminderDiff } from '../src/hooks/useRegenerateNote';
-import { extractNote } from '../src/services/extraction';
+import { applyReminderDiff } from '../src/hooks/reminderDiff';
 import { notesRepository } from '../src/services/notesRepository';
 import { removeReminder } from '../src/services/calendar';
 import { cancelReminder, scheduleReminder } from '../src/services/notifications';
-import type { Note } from '../src/types/note';
 
-jest.mock('../src/services/extraction', () => ({
-  extractNote: jest.fn(),
-}));
 jest.mock('../src/services/notesRepository', () => ({
   notesRepository: {
-    save: jest.fn(),
     setNotificationId: jest.fn(),
   },
 }));
@@ -24,43 +16,13 @@ jest.mock('../src/services/notifications', () => ({
   scheduleReminder: jest.fn(),
 }));
 
-const mockExtractNote = extractNote as jest.Mock;
-const mockSave = notesRepository.save as jest.Mock;
 const mockSetNotificationId = notesRepository.setNotificationId as jest.Mock;
 const mockRemoveReminder = removeReminder as jest.Mock;
 const mockCancelReminder = cancelReminder as jest.Mock;
 const mockScheduleReminder = scheduleReminder as jest.Mock;
 
-function mkNote(): Note {
-  return {
-    id: 'n1',
-    timestamp: 0,
-    summary: 's',
-    people: [],
-    topics: [],
-    decisions: [],
-    action_items: [],
-    transcript: 't',
-  };
-}
-
-async function renderUseRegenerateNote(initialNote: Note) {
-  let hookResult!: ReturnType<typeof useRegenerateNote>;
-  function TestComponent() {
-    const [note, setNote] = React.useState<Note | null>(initialNote);
-    hookResult = useRegenerateNote(note, setNote);
-    return null;
-  }
-  let renderer!: ReactTestRenderer;
-  await act(async () => {
-    renderer = create(React.createElement(TestComponent));
-  });
-  return { getResult: () => hookResult };
-}
-
 beforeEach(() => {
   jest.clearAllMocks();
-  mockExtractNote.mockResolvedValue({ summary: 's', people: [], topics: [], action_items: [] });
 });
 
 describe('applyReminderDiff', () => {
@@ -143,23 +105,5 @@ describe('applyReminderDiff', () => {
       'note-1',
     );
     expect(mockSetNotificationId).toHaveBeenCalledWith('a1', null);
-  });
-});
-
-describe('useRegenerateNote — applies the reminder diff after saving', () => {
-  it('calls notesRepository.save then reacts to its diff', async () => {
-    mockSave.mockResolvedValue({
-      removed: [{ calendarEventId: 'cal-1', notificationId: 'notif-1' }],
-      changed: [],
-    });
-    const { getResult } = await renderUseRegenerateNote(mkNote());
-
-    await act(async () => {
-      await getResult().regenerate('new transcript');
-    });
-
-    expect(mockSave).toHaveBeenCalled();
-    expect(mockRemoveReminder).toHaveBeenCalledWith('cal-1');
-    expect(mockCancelReminder).toHaveBeenCalledWith('notif-1');
   });
 });

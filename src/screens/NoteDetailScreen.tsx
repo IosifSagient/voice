@@ -15,7 +15,8 @@ import { notesRepository } from "../services/notesRepository";
 import { removeReminder } from "../services/calendar";
 import { cancelReminder } from "../services/notifications";
 import { useCalendarToggle } from "../hooks/useCalendarToggle";
-import { useRegenerateNote, applyReminderDiff } from "../hooks/useRegenerateNote";
+import { applyReminderDiff } from "../hooks/reminderDiff";
+import { useRegenerateSummary } from "../hooks/useRegenerateSummary";
 import { useNoteActionItems } from "../hooks/useNoteActionItems";
 import { NoteCard } from "../components/NoteCard";
 import { NoteEditForm } from "../components/NoteEditForm";
@@ -45,7 +46,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
 
   // Must be called before the early return so the hooks run unconditionally.
   const handleToggleCalendar = useCalendarToggle(note, setNote);
-  const { regenerating, regenerate } = useRegenerateNote(note, setNote);
+  const { regenerating, regenerate } = useRegenerateSummary(note, setNote);
   const { completeItem, deleteItem } = useNoteActionItems(note, setNote);
 
   if (!note) return null;
@@ -103,12 +104,12 @@ export function NoteDetailScreen({ route, navigation }: Props) {
 
   const handleRegenerate = () => {
     Alert.alert(
-      "Ξαναδημιουργία σημείωσης",
-      "Αυτό θα αντικαταστήσει την τρέχουσα σημείωση. Συνέχεια;",
+      "Ενημέρωση περίληψης",
+      "Η περίληψη και οι ετικέτες θα ενημερωθούν από το νέο κείμενο. Οι εργασίες δεν επηρεάζονται. Συνέχεια;",
       [
         { text: "Άκυρο", style: "cancel" },
         {
-          text: "Ξαναδημιουργία",
+          text: "Ενημέρωση",
           style: "destructive",
           onPress: async () => {
             try {
@@ -116,7 +117,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
               setTranscriptDraft("");
               setMode("view");
             } catch {
-              // Alert already shown by useRegenerateNote
+              // Alert already shown by useRegenerateSummary
             }
           },
         },
@@ -150,10 +151,11 @@ export function NoteDetailScreen({ route, navigation }: Props) {
               <Text style={styles.editBtnText}>Επεξεργασία</Text>
             </Pressable>
             <Pressable
+              testID="note-detail-transcript"
               onPress={enterTranscript}
               style={({ pressed }) => [styles.regenLink, pressed && styles.pressed]}
             >
-              <Text style={styles.regenLinkText}>Ξαναδημιουργία από το κείμενο</Text>
+              <Text style={styles.regenLinkText}>Επεξεργασία κειμένου</Text>
             </Pressable>
             <Pressable
               testID="note-detail-delete"
@@ -235,6 +237,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
         <>
           <Text style={styles.transcriptHeading}>Επεξεργασία απομαγνητοφώνησης</Text>
           <TextInput
+            testID="note-detail-transcript-input"
             style={styles.transcriptInput}
             value={transcriptDraft}
             onChangeText={setTranscriptDraft}
@@ -244,7 +247,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
             placeholder="Κείμενο απομαγνητοφώνησης…"
           />
           <Text style={styles.transcriptWarning}>
-            Η επανεκτέλεση θα αντικαταστήσει πλήρως την τρέχουσα σημείωση.
+            Θα ενημερωθούν μόνο η περίληψη και οι ετικέτες. Οι εργασίες παραμένουν όπως είναι.
           </Text>
           {regenerating ? (
             <ActivityIndicator
@@ -255,10 +258,11 @@ export function NoteDetailScreen({ route, navigation }: Props) {
           ) : (
             <View style={styles.editActions}>
               <Pressable
+                testID="note-detail-regenerate"
                 onPress={handleRegenerate}
                 style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
               >
-                <Text style={styles.primaryBtnText}>Ξαναδημιουργία</Text>
+                <Text style={styles.primaryBtnText}>Ενημέρωση περίληψης</Text>
               </Pressable>
               <Pressable
                 onPress={cancelTranscript}

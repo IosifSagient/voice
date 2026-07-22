@@ -114,6 +114,7 @@ export function RecordScreen({ navigation }: Props) {
   }));
 
   const handleStart = async () => {
+    if (busy) return;
     reset();
     setShowTextEntry(false);
     setTextEntry("");
@@ -157,84 +158,115 @@ export function RecordScreen({ navigation }: Props) {
             contentContainerStyle={styles.voiceContainer}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Status line */}
-            <View style={styles.statusBox}>
-              {isRecording ? (
-                <RecordingTimerText elapsed={elapsed} />
-              ) : busy ? (
-                <>
-                  <ActivityIndicator size="small" color={colors.dark.accent} style={styles.spinner} />
+            {/* Centered mic cluster — status label + hero button own the
+                vertically-centered space; centerRegion's flex:1 is what makes
+                that centering real (see bottomRegion below for the other half
+                of the split). alignItems/justifyContent live on this wrapper,
+                never on buttonStage — buttonStage's fixed 176x176 is
+                load-bearing for RecordBackgroundGlow/ringLayer's absolute
+                top:50%/left:50% anchoring inside it. */}
+            <View style={styles.centerRegion}>
+              {/* Status line */}
+              <View style={styles.statusBox}>
+                {isRecording ? (
+                  <RecordingTimerText elapsed={elapsed} />
+                ) : busy ? (
+                  <>
+                    <ActivityIndicator size="small" color={colors.dark.accent} style={styles.spinner} />
+                    <Text style={styles.statusText}>
+                      {phase === "transcribing" ? "Απομαγνητοφώνηση…" : "Δόμηση σημείωσης…"}
+                    </Text>
+                  </>
+                ) : (
                   <Text style={styles.statusText}>
-                    {phase === "transcribing" ? "Απομαγνητοφώνηση…" : "Δόμηση σημείωσης…"}
+                    {phase === "done"
+                      ? "Έτοιμο"
+                      : phase === "error"
+                        ? "Σφάλμα"
+                        : "Πάτησε για ηχογράφηση"}
                   </Text>
-                </>
-              ) : (
-                <Text style={styles.statusText}>
-                  {phase === "done" ? "Έτοιμο" : phase === "error" ? "Σφάλμα" : "Έτοιμος"}
-                </Text>
+                )}
+              </View>
+
+              {/* Hero record button */}
+              <View style={styles.buttonStage}>
+                {/* Render order is the stacking order: glow (furthest back),
+                    then the ring layer, then the button — all three share
+                    buttonStage as their positioning parent so top:50%/left:50%
+                    anchors to the button's actual center, not the screen's. */}
+                <RecordBackgroundGlow isRecording={isRecording} />
+                <View style={styles.ringLayer} pointerEvents="none">
+                  {isRecording ? <RotatingRing /> : <PulseRings />}
+                </View>
+                <Animated.View
+                  style={[
+                    styles.buttonMorph,
+                    isRecording && styles.buttonMorphRecording,
+                    morphStyle,
+                  ]}
+                >
+                  <Pressable
+                    onPress={isRecording ? handleStop : handleStart}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    accessibilityLabel={isRecording ? "Διακοπή ηχογράφησης" : "Έναρξη ηχογράφησης"}
+                    style={({ pressed }) => [
+                      styles.buttonInner,
+                      pressed && styles.buttonPressed,
+                      busy && styles.buttonDisabled,
+                    ]}
+                  >
+                    <Animated.View style={[styles.buttonFillClip, morphStyle]}>
+                      {isRecording ? (
+                        <View style={styles.buttonFillRecording} />
+                      ) : (
+                        <LinearGradient
+                          colors={gradients.recordButton.colors}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.buttonFillGradient}
+                        />
+                      )}
+                    </Animated.View>
+                    <RecordIcon isRecording={isRecording} />
+                  </Pressable>
+                </Animated.View>
+              </View>
+            </View>
+
+            {/* Bottom-anchored region — sibling after centerRegion, not
+                inside it: centerRegion's flex:1 leaves this pinned to the
+                bottom of voiceContainer's flexGrow:1 space. voiceContainer's
+                existing paddingBottom:60 is the bottom gap — do not add
+                another one here, it would stack. */}
+            <View style={styles.bottomRegion}>
+              {/* Text entry toggle — only when idle */}
+              {!isRecording && !busy && phase !== "done" && (
+                <Pressable
+                  onPress={() => setShowTextEntry(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Γράψε σημείωση με πληκτρολόγιο"
+                  hitSlop={{ top: spacing.xs, bottom: spacing.xs }}
+                  style={({ pressed }) => [styles.textToggle, pressed && styles.buttonPressed]}
+                >
+                  <Ionicons name="pencil-outline" size={16} color={colors.dark.text} />
+                  <Text style={styles.textToggleText}>Γράψε σημείωση</Text>
+                </Pressable>
+              )}
+
+              {error && (
+                <Text style={styles.errorText}>{error}</Text>
               )}
             </View>
 
-            {/* Hero record button */}
-            <View style={styles.buttonStage}>
-              {/* Render order is the stacking order: glow (furthest back),
-                  then the ring layer, then the button — all three share
-                  buttonStage as their positioning parent so top:50%/left:50%
-                  anchors to the button's actual center, not the screen's. */}
-              <RecordBackgroundGlow isRecording={isRecording} />
-              <View style={styles.ringLayer} pointerEvents="none">
-                {isRecording ? <RotatingRing /> : <PulseRings />}
-              </View>
-              <Animated.View
-                style={[
-                  styles.buttonMorph,
-                  isRecording && styles.buttonMorphRecording,
-                  morphStyle,
-                ]}
-              >
-                <Pressable
-                  onPress={isRecording ? handleStop : handleStart}
-                  disabled={busy}
-                  style={({ pressed }) => [
-                    styles.buttonInner,
-                    (pressed || busy) && styles.buttonPressed,
-                  ]}
-                >
-                  <Animated.View style={[styles.buttonFillClip, morphStyle]}>
-                    {isRecording ? (
-                      <View style={styles.buttonFillRecording} />
-                    ) : (
-                      <LinearGradient
-                        colors={gradients.recordButton.colors}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.buttonFillGradient}
-                      />
-                    )}
-                  </Animated.View>
-                  <RecordIcon isRecording={isRecording} />
-                </Pressable>
-              </Animated.View>
-            </View>
-
-            {/* Text entry toggle — only when idle */}
-            {!isRecording && !busy && phase !== "done" && (
+            {phase === "done" && note && (
               <Pressable
-                onPress={() => setShowTextEntry(true)}
-                style={({ pressed }) => [styles.textToggle, pressed && styles.buttonPressed]}
+                testID="record-note-card"
+                onPress={() => navigation.navigate("NoteDetail", { id: note.id })}
+                style={({ pressed }) => [styles.cardWrapper, pressed && styles.buttonPressed]}
               >
-                <Text style={styles.textToggleText}>ή γράψε τη σημείωση</Text>
-              </Pressable>
-            )}
-
-            {error && (
-              <Text style={styles.errorText}>{error}</Text>
-            )}
-
-            {note && (
-              <View style={styles.cardWrapper}>
                 <NoteCard note={note} onToggleCalendar={handleToggleCalendar} />
-              </View>
+              </Pressable>
             )}
           </ScrollView>
         )}
@@ -295,10 +327,19 @@ const styles = StyleSheet.create({
   // ── Voice mode ──────────────────────────────────────────────────
   screen: { flex: 1 },
   voiceContainer: {
+    flexGrow: 1,
     alignItems: "center",
     paddingTop: spacing.xxxl,
     paddingHorizontal: spacing.base,
     paddingBottom: 60,
+  },
+  centerRegion: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bottomRegion: {
+    alignItems: "center",
   },
   statusBox: {
     flexDirection: "row",
@@ -348,6 +389,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonPressed: { opacity: 0.72 },
+  buttonDisabled: { opacity: 0.4 },
   buttonFillClip: {
     ...StyleSheet.absoluteFillObject,
     overflow: "hidden",
@@ -372,10 +414,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  textToggle: { paddingVertical: spacing.sm },
+  textToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.dark.glass,
+    borderWidth: 1,
+    borderColor: colors.dark.borderGlass,
+    borderRadius: radii.pill,
+  },
   textToggleText: {
     ...type.meta,
-    color: colors.dark.textMuted,
+    color: colors.dark.text,
   },
   errorText: {
     ...type.meta,

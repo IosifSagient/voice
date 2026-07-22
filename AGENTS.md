@@ -186,7 +186,7 @@ never a separate flag or `NODE_ENV` check.
 **HOOKS-ONLY scheduling — a hard invariant, same weight as the layer rules below:**
 `scheduleReminder` / `cancelReminder` are called only from hooks or screens
 (`useNotificationSettings`, `useTasks`, `useTodayTasks`, `useNoteActionItems`,
-`useRegenerateNote`, `usePipelineRun`, `NoteDetailScreen`, `NotesListScreen`) —
+`usePipelineRun`, `NoteDetailScreen`, `NotesListScreen`, `src/hooks/reminderDiff.ts`) —
 **never** from `db/` and never from a service acting alone. `db/` write paths that
 remove or replace an action item return `ReminderIds` (`notification_id` +
 `calendar_event_id`) so the *caller* can cancel the device-side reminder; `db/`
@@ -198,9 +198,10 @@ itself never imports `expo-notifications` or `expo-calendar`.
 /src
   /screens    — RecordScreen, NotesListScreen, NoteDetailScreen, TasksScreen,
                 ChatScreen, AuthScreen, LockScreen, SettingsScreen
-  /hooks      — useRecorder, usePipelineRun, useRegenerateNote, useCalendarToggle,
-                useCalendarSettings, useTasks, useTodayTasks, useNoteActionItems,
-                useNotificationSettings, useAgentChat, useAuth, useAppLock
+  /hooks      — useRecorder, usePipelineRun, reminderDiff.ts, useRegenerateSummary,
+                useCalendarToggle, useCalendarSettings, useTasks, useTodayTasks,
+                useNoteActionItems, useNotificationSettings, useAgentChat, useAuth,
+                useAppLock
   /components — NoteCard, FollowUpRow, Tag, NoteEditForm, TaskRow, TaskFilterBar,
                 TasksEmptyState, TodaySection, Snackbar
   /services   — transcription.ts, extraction.ts, agent.ts (tool-use loop),
@@ -302,10 +303,13 @@ notification-tap routing to `NoteDetail`, agent Q&A (tool-use loop over notes/ac
 items), Supabase auth + app-lock, and the OpenAI proxy (key is off-device).
 
 Known deferred:
-- `NotesListScreen.test.tsx` (and other render-test files) fail `tsc --noEmit` —
-  missing `@types/react-test-renderer` declarations; `npm test` itself is unaffected.
+- `react-test-renderer` (used by every render test) is deprecated as of React 19;
+  the eventual migration target is `@testing-library/react-native` — not started,
+  no timeline set.
+- `tsc --noEmit` has 6 expected errors, all in `supabase/functions/openai-proxy/index.ts`
+  — a Deno-runtime file not covered by this project's tsconfig; not a regression signal.
 - `NoteDetailScreen`'s reminder-cleanup wiring (`saveEdit`/`handleDelete`) has no
-  dedicated screen-level test; the underlying logic is covered via `useRegenerateNote.test.ts`.
+  dedicated screen-level test.
 
 ## Rules — DO NOT
 

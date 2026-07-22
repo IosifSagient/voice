@@ -1,7 +1,7 @@
 // Regression coverage for updateNote's action-item diffing (src/db.js).
 // updateNote used to delete every action_items row for a note and re-insert
 // fresh rows from note.action_items, hard-coding status='open' and omitting
-// calendar_event_id (see CLEANUP_REPORT.md §3). It now diffs incoming items
+// calendar_event_id. It now diffs incoming items
 // against existing OPEN rows by exact trimmed-text match: a matched row keeps
 // its calendar_event_id and only has due_date/due_time/all_day updated;
 // unmatched existing (open) rows are deleted; unmatched incoming items are

@@ -5,6 +5,7 @@ import { NoteDetailScreen } from '../src/screens/NoteDetailScreen';
 import { notesRepository } from '../src/services/notesRepository';
 import { removeReminder } from '../src/services/calendar';
 import { cancelReminder, scheduleReminder } from '../src/services/notifications';
+import { extractNote } from '../src/services/extraction';
 import type { Note } from '../src/types/note';
 
 jest.mock('../src/services/notesRepository', () => ({
@@ -14,6 +15,10 @@ jest.mock('../src/services/notesRepository', () => ({
     delete: jest.fn(),
     setNotificationId: jest.fn(),
   },
+}));
+
+jest.mock('../src/services/extraction', () => ({
+  extractNote: jest.fn(),
 }));
 
 jest.mock('../src/services/calendar', () => ({
@@ -39,10 +44,21 @@ const mockDelete = notesRepository.delete as jest.Mock;
 const mockRemoveReminder = removeReminder as jest.Mock;
 const mockCancelReminder = cancelReminder as jest.Mock;
 const mockScheduleReminder = scheduleReminder as jest.Mock;
+const mockExtractNote = extractNote as jest.Mock;
 
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 async function confirmDelete() {
+  const [, , buttons] = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
+  const destructive = (buttons as Array<{ style?: string; onPress?: () => void }>).find(
+    (b) => b.style === 'destructive',
+  );
+  await act(async () => {
+    await destructive?.onPress?.();
+  });
+}
+
+async function confirmRegenerate() {
   const [, , buttons] = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
   const destructive = (buttons as Array<{ style?: string; onPress?: () => void }>).find(
     (b) => b.style === 'destructive',
@@ -199,6 +215,55 @@ describe('NoteDetailScreen — saveEdit applies the reminder diff', () => {
         task_id: 'a1',
       }),
     );
+    expect(mockRemoveReminder).not.toHaveBeenCalled();
+  });
+});
+
+describe('NoteDetailScreen — transcript edit regenerates summary/tags only', () => {
+  it('does not touch existing action items or their reminders on a transcript-only save', async () => {
+    const existingActionItems = [
+      {
+        id: 'a1',
+        text: 'Call the plumber',
+        due_date: '2099-01-01',
+        calendar_event_id: 'cal-1',
+        notification_id: 'notif-1',
+        status: 'open',
+      },
+    ];
+    mockGet.mockResolvedValue(
+      mkNote({ transcript: 'old transcript', action_items: existingActionItems }),
+    );
+    mockExtractNote.mockResolvedValue({
+      summary: 'new summary',
+      people: ['New Person'],
+      topics: ['new topic'],
+      action_items: [{ text: 'A hallucinated task', due_date: '2030-05-05' }],
+    });
+    mockSave.mockResolvedValue({ removed: [], changed: [] });
+
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'note-detail-transcript' }).props.onPress();
+    });
+    await act(async () => {
+      renderer.root
+        .findByProps({ testID: 'note-detail-transcript-input' })
+        .props.onChangeText('new transcript');
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'note-detail-regenerate' }).props.onPress();
+    });
+    await confirmRegenerate();
+
+    expect(mockSave).toHaveBeenCalledTimes(1);
+    const savedNote = mockSave.mock.calls[0][0] as Note;
+    expect(savedNote.action_items).toEqual(existingActionItems);
+    expect(savedNote.summary).toBe('new summary');
+    expect(savedNote.transcript).toBe('new transcript');
+    expect(mockScheduleReminder).not.toHaveBeenCalled();
+    expect(mockCancelReminder).not.toHaveBeenCalled();
     expect(mockRemoveReminder).not.toHaveBeenCalled();
   });
 });
