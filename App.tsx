@@ -21,6 +21,7 @@ import { TasksScreen } from "./src/screens/TasksScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { LockScreen } from "./src/screens/LockScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { AnimatedTabIcon } from "./src/components/AnimatedTabIcon";
 import { colors, radii, spacing } from "./src/config/theme";
 import { initDb } from "./src/db";
 import { useAuth } from "./src/hooks/useAuth";
@@ -93,12 +94,14 @@ function MainTabs() {
         options={({ navigation }) => ({
           title: "Hey Lisa",
           tabBarLabel: "Σημειώσεις",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="document-text-outline"
-              size={size}
-              color={color}
-            />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              <Ionicons
+                name="document-text-outline"
+                size={size}
+                color={color}
+              />
+            </AnimatedTabIcon>
           ),
           headerLeft: () => (
             <Pressable
@@ -124,12 +127,14 @@ function MainTabs() {
         options={{
           title: "Εργασίες",
           tabBarLabel: "Εργασίες",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="checkmark-done-outline"
-              size={size}
-              color={color}
-            />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              <Ionicons
+                name="checkmark-done-outline"
+                size={size}
+                color={color}
+              />
+            </AnimatedTabIcon>
           ),
         }}
       />
@@ -139,12 +144,14 @@ function MainTabs() {
         options={{
           title: "Chat",
           tabBarLabel: "Chat",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="chatbubble-outline"
-              size={size}
-              color={color}
-            />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              <Ionicons
+                name="chatbubble-outline"
+                size={size}
+                color={color}
+              />
+            </AnimatedTabIcon>
           ),
         }}
       />

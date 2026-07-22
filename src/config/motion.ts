@@ -90,7 +90,17 @@ export const spring = {
   // 1.0 -> 0.96), given its own semantic name rather than aliasing fabPress
   // since this is a different feature (login submit, not the notes FAB).
   authButtonPress: { damping: 15, stiffness: 250 },
+  // ANIMATION_SPEC.md GLOBAL > Tab Bar > Icon: active icon scales
+  // 1.0->1.1->1.0 on tap, 200ms spring. Picked damping:15/stiffness:255 —
+  // within the fabPress/cardPress/authButtonPress family (damping 15-16,
+  // stiffness 250-260), roughly their midpoint: snappy enough for a small
+  // icon pop without the softer settle cardPress uses for its larger press area.
+  tabIconPop: { damping: 15, stiffness: 255 },
 } as const;
+
+// ANIMATION_SPEC.md GLOBAL > Tab Bar > Icon: peak scale of the 1.0->1.1->1.0
+// active-icon pop.
+export const tabIconScale = 1.1;
 
 // ANIMATION_SPEC.md NOTES > FAB "Idle pulse: shadow radius 20->28->20,
 // opacity 0.4->0.2->0.4". `radiusFrom`/`opacityFrom` match
