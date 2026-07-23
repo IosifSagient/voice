@@ -17,6 +17,18 @@ Use `react-native-reanimated` for all animations. All timings in ms.
 
 ---
 
+## TOAST / SNACKBAR
+
+Shared component (`Snackbar`), used by both TASKS (`TodaySection`) and CHAT.
+
+### Appear / Dismiss
+- **Appear**: fade `opacity` 0→1 + `translateY`, `duration.base` (200ms), `easing.out`
+- **Dismiss**: fade `opacity` 1→0 + `translateY`, `duration.base`, `easing.out`
+- Component stays mounted for the exit duration, then unmounts — not removed instantly on dismiss
+- Note: call sites that remount via `key` (e.g. TodaySection) bypass both transitions by design — the timer restart depends on that remount
+
+---
+
 ## LOGIN / REGISTER
 
 ### Logo Float

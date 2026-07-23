@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import {
 import { useHeaderHeight } from "@react-navigation/elements";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -20,29 +19,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useAgentChat } from "../hooks/useAgentChat";
+import { useMessageActions } from "../hooks/useMessageActions";
+import { ChatBubble } from "../components/ChatBubble";
 import { ClarificationChips } from "../components/ClarificationChips";
 import { ThinkingDots } from "../components/ThinkingDots";
+import { Snackbar } from "../components/Snackbar";
 import { colors, spacing, type, radii, shadows } from "../config/theme";
 import type { VisibleMessage, LiteralMatchCandidate } from "../types/agent";
-
-// Message Appear (ANIMATION_SPEC.md CHAT): slide in from the side the role
-// speaks from, 300ms ease-out. Runs once per mount, driven directly (not via
-// Reanimated's built-in SlideIn presets) so the 40px offset matches spec
-// exactly instead of the presets' full-width default.
-function MessageBubble({ role, children }: { role: VisibleMessage["role"]; children: React.ReactNode }) {
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) });
-  }, [progress]);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateX: (1 - progress.value) * (role === "user" ? 40 : -40) }],
-  }));
-
-  return <Animated.View style={style}>{children}</Animated.View>;
-}
 
 // Send Button (ANIMATION_SPEC.md CHAT): disabled↔enabled opacity/scale spring,
 // press dip + arrow shoot-up on release.
@@ -94,6 +77,7 @@ function SendButton({ enabled, onPress }: { enabled: boolean; onPress: () => voi
 
 export function ChatScreen() {
   const { messages, isThinking, send, clear } = useAgentChat();
+  const { onLongPress, snackbarVisible, dismissSnackbar } = useMessageActions();
   const [input, setInput] = useState("");
   const listRef = useRef<FlatList<VisibleMessage>>(null);
   const inputRef = useRef<TextInput>(null);
@@ -116,6 +100,27 @@ export function ChatScreen() {
     send(text);
   };
 
+  const renderItem = useCallback(
+    ({ item }: { item: VisibleMessage }) => (
+      <View
+        style={item.role === "user" ? styles.rowUser : styles.rowAssistant}
+      >
+        <View style={styles.turnColumn}>
+          <ChatBubble role={item.role} content={item.content} onLongPress={onLongPress} />
+          {item.role === "assistant" && item.clarification && (
+            <ClarificationChips
+              candidates={item.clarification.candidates}
+              onSelect={handleSelectCandidate}
+              onNone={handleNoneOfThese}
+              onRetry={handleRetryDifferently}
+            />
+          )}
+        </View>
+      </View>
+    ),
+    [handleSelectCandidate, handleNoneOfThese, handleRetryDifferently, onLongPress]
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.kav}
@@ -124,13 +129,16 @@ export function ChatScreen() {
     >
       <View style={styles.topBar}>
         <Pressable onPress={clear}>
-          <Text style={styles.clearText}>New Chat</Text>
+          <Text style={styles.clearText}>Νέα συνομιλία</Text>
         </Pressable>
       </View>
 
       <FlatList
         ref={listRef}
         data={messages}
+        // Index-based keys are only safe while this list is append-only —
+        // switch to a stable message id before any action can delete, retry,
+        // or reorder messages.
         keyExtractor={(_, i) => String(i)}
         contentContainerStyle={styles.list}
         onContentSizeChange={() =>
@@ -143,38 +151,7 @@ export function ChatScreen() {
             εβδομάδα;»
           </Text>
         }
-        renderItem={({ item }) => (
-          <View
-            style={item.role === "user" ? styles.rowUser : styles.rowAssistant}
-          >
-            <View style={styles.turnColumn}>
-              <MessageBubble role={item.role}>
-                {item.role === "user" ? (
-                  <LinearGradient
-                    colors={colors.light.gradientUserBubble}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.bubbleUser}
-                  >
-                    <Text style={styles.textUser}>{item.content}</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.bubbleAssistant}>
-                    <Text style={styles.textAssistant}>{item.content}</Text>
-                  </View>
-                )}
-              </MessageBubble>
-              {item.role === "assistant" && item.clarification && (
-                <ClarificationChips
-                  candidates={item.clarification.candidates}
-                  onSelect={handleSelectCandidate}
-                  onNone={handleNoneOfThese}
-                  onRetry={handleRetryDifferently}
-                />
-              )}
-            </View>
-          </View>
-        )}
+        renderItem={renderItem}
       />
 
       {isThinking && (
@@ -200,6 +177,23 @@ export function ChatScreen() {
           editable={!isThinking}
         />
         <SendButton enabled={!!input.trim() && !isThinking} onPress={handleSend} />
+      </View>
+
+      {/* Anchored via `top`, not `bottom` — a `bottom` inset on an absolute
+          child of KeyboardAvoidingView is measured against its fixed outer
+          height and ignores the paddingBottom it adds for the keyboard (see
+          Phase 2C), so it wouldn't move as the keyboard raises/lowers. `top`
+          has no such issue: KeyboardAvoidingView's top edge/padding never
+          changes for the keyboard, so this stays put regardless of keyboard
+          state. Declared last so it paints above FlatList's content without
+          needing zIndex — later JSX siblings paint on top of earlier ones. */}
+      <View pointerEvents="box-none" style={styles.snackbarFloat}>
+        <Snackbar
+          visible={snackbarVisible}
+          message="Αντιγράφηκε"
+          durationMs={1800}
+          onDismiss={dismissSnackbar}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -238,31 +232,6 @@ const styles = StyleSheet.create({
     maxWidth: "80%",
   },
 
-  bubbleUser: {
-    borderRadius: radii.bubble,
-    borderBottomRightRadius: radii.bubbleTail,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    ...shadows.light.bubbleUser,
-  },
-  bubbleAssistant: {
-    backgroundColor: colors.light.bgCard,
-    borderRadius: radii.bubble,
-    borderBottomLeftRadius: radii.bubbleTail,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    ...shadows.light.card,
-  },
-
-  textUser: {
-    ...type.body,
-    color: colors.light.textOnDark,
-  },
-  textAssistant: {
-    ...type.body,
-    color: colors.light.text,
-  },
-
   thinkingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -273,6 +242,17 @@ const styles = StyleSheet.create({
   thinkingText: {
     ...type.meta,
     color: colors.light.textMuted,
+  },
+
+  // top/left/right all reuse spacing.base — left/right match inputRow's own
+  // paddingHorizontal (same horizontal inset already used elsewhere in this
+  // file); top gives the same breathing room below the nav header that
+  // topBar's own paddingTop/paddingHorizontal already establish.
+  snackbarFloat: {
+    position: "absolute",
+    top: spacing.base,
+    left: spacing.base,
+    right: spacing.base,
   },
 
   inputRow: {

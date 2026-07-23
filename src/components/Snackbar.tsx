@@ -1,6 +1,12 @@
-import { useEffect } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useEffect, useState } from "react";
+import { Text, Pressable, StyleSheet } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { colors, spacing, type, radii, shadows } from "../config/theme";
+import { duration, easing } from "../config/motion";
 
 type Props = {
   visible: boolean;
@@ -10,6 +16,12 @@ type Props = {
   onDismiss: () => void;
   durationMs?: number;
 };
+
+// Fade+settle entrance/exit distance, px. Not sourced from motion.ts — that
+// file centralizes duration/easing only; translate distances for a specific
+// transition live next to their usage (see ChatBubble's MessageBubble for
+// the same convention).
+const TRANSLATE_Y = 8;
 
 export function Snackbar({
   visible,
@@ -29,10 +41,33 @@ export function Snackbar({
     return () => clearTimeout(timer);
   }, [visible, message, durationMs, onDismiss]);
 
-  if (!visible) return null;
+  // Stays mounted through the exit transition: `visible` flipping false
+  // starts the fade/translate-out below, and only once it finishes does
+  // `rendered` flip false and this actually stop rendering.
+  const [rendered, setRendered] = useState(visible);
+  const progress = useSharedValue(visible ? 1 : 0);
+
+  useEffect(() => {
+    if (visible) {
+      setRendered(true);
+      progress.value = withTiming(1, { duration: duration.base, easing: easing.out });
+      return;
+    }
+
+    progress.value = withTiming(0, { duration: duration.base, easing: easing.out });
+    const timer = setTimeout(() => setRendered(false), duration.base);
+    return () => clearTimeout(timer);
+  }, [visible, progress]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * TRANSLATE_Y }],
+  }));
+
+  if (!rendered) return null;
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, animatedStyle]}>
       <Text style={styles.message} numberOfLines={2}>
         {message}
       </Text>
@@ -41,7 +76,7 @@ export function Snackbar({
           <Text style={styles.actionText}>{actionLabel}</Text>
         </Pressable>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
