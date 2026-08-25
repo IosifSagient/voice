@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -20,9 +20,11 @@ import { useTodayTasks } from "../hooks/useTodayTasks";
 import { TodaySection } from "../components/TodaySection";
 import { RecordFab } from "../components/RecordFab";
 import { NoteListRow } from "../components/NoteListRow";
+import { NoteListSectionHeader } from "../components/NoteListSectionHeader";
 import { AnimatedSearchInput } from "../components/AnimatedSearchInput";
 import { duration } from "../config/motion";
 import { useReducedMotionPreference } from "../lib/useReducedMotionPreference";
+import { groupNotesByDate } from "../lib/groupNotesByDate";
 import type { Note } from "../types/note";
 import { colors, spacing, type, radii } from "../config/theme";
 
@@ -122,7 +124,7 @@ export function NotesListScreen({ navigation }: Props) {
     useCallback(() => {
       (async () => {
         try {
-          const results = await notesRepository.list();
+          const results = await notesRepository.listAll();
           computeEntryPlan(results, false);
           setNotes(results);
           setError(null);
@@ -145,7 +147,7 @@ export function NotesListScreen({ navigation }: Props) {
     try {
       const results = q.trim()
         ? await notesRepository.search(q.trim())
-        : await notesRepository.list();
+        : await notesRepository.listAll();
       computeEntryPlan(results, false);
       setNotes(results);
       setError(null);
@@ -155,12 +157,19 @@ export function NotesListScreen({ navigation }: Props) {
     }
   };
 
+  // Interleaves date-section headers into the flat FlatList data array.
+  // Recomputed only when `notes` itself changes (a new fetch/search/refresh),
+  // not on every render — the entry-stagger bookkeeping above (entryPlanRef
+  // etc.) still operates on `notes` directly, keyed by note id, so header
+  // rows never shift stagger positions or consume a stagger slot.
+  const groupedItems = useMemo(() => groupNotesByDate(notes), [notes]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       const results = query.trim()
         ? await notesRepository.search(query.trim())
-        : await notesRepository.list();
+        : await notesRepository.listAll();
       computeEntryPlan(results, true); // forceRestagger: pull-to-refresh always re-plays the stagger
       setNotes(results);
       setError(null);
@@ -187,8 +196,8 @@ export function NotesListScreen({ navigation }: Props) {
 
       <Animated.FlatList
         style={styles.flatlist}
-        data={notes}
-        keyExtractor={(item) => item.id}
+        data={groupedItems}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={styles.list}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
@@ -234,31 +243,35 @@ export function NotesListScreen({ navigation }: Props) {
             </View>
           )
         }
-        renderItem={({ item }) => (
-          <NoteListRow
-            note={item}
-            entryDelay={entryPlanRef.current.get(item.id) ?? null}
-            entryToken={entryTokenRef.current}
-            onPress={() => navigation.navigate("NoteDetail", { id: item.id })}
-            onLongPress={() =>
-              Alert.alert("Διαγραφή σημείωσης;", undefined, [
-                { text: "Άκυρο", style: "cancel" },
-                {
-                  text: "Διαγραφή",
-                  style: "destructive",
-                  onPress: async () => {
-                    const reminders = await notesRepository.delete(item.id);
-                    for (const r of reminders) {
-                      if (r.calendarEventId) await removeReminder(r.calendarEventId);
-                      if (r.notificationId) await cancelReminder(r.notificationId);
-                    }
-                    search(query);
+        renderItem={({ item }) =>
+          item.type === "header" ? (
+            <NoteListSectionHeader label={item.label} />
+          ) : (
+            <NoteListRow
+              note={item.note}
+              entryDelay={entryPlanRef.current.get(item.note.id) ?? null}
+              entryToken={entryTokenRef.current}
+              onPress={() => navigation.navigate("NoteDetail", { id: item.note.id })}
+              onLongPress={() =>
+                Alert.alert("Διαγραφή σημείωσης;", undefined, [
+                  { text: "Άκυρο", style: "cancel" },
+                  {
+                    text: "Διαγραφή",
+                    style: "destructive",
+                    onPress: async () => {
+                      const reminders = await notesRepository.delete(item.note.id);
+                      for (const r of reminders) {
+                        if (r.calendarEventId) await removeReminder(r.calendarEventId);
+                        if (r.notificationId) await cancelReminder(r.notificationId);
+                      }
+                      search(query);
+                    },
                   },
-                },
-              ])
-            }
-          />
-        )}
+                ])
+              }
+            />
+          )
+        }
       />
 
       <RecordFab

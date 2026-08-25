@@ -39,6 +39,23 @@ export async function getRecentNotes(limit = 20) {
   return rows.map(hydrateNote);
 }
 
+// Unlimited variant of getRecentNotes, for the notes-list screen (which shows
+// every note, grouped under date headers, not just the most recent N). A
+// dedicated function rather than an optional/overridden limit on
+// getRecentNotes — keeps that function's existing default and every existing
+// caller (notesRepository.list, __tests__/getRecentNotesResilience.test.js)
+// completely untouched.
+export async function getAllNotes() {
+  const db = await getDb();
+  const rows = await db.getAllAsync(
+    `SELECT notes.*,
+       (SELECT COUNT(*) FROM action_items a WHERE a.note_id = notes.id AND a.status = 'open') AS open_count
+     FROM notes
+     ORDER BY notes.created_at DESC`,
+  );
+  return rows.map(hydrateNote);
+}
+
 export async function getNotesByDateRange(from, to) {
   const db = await getDb();
   const fromTs = parseDueDate(from);

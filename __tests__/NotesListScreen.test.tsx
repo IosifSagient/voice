@@ -10,6 +10,7 @@ import type { Note } from '../src/types/note';
 jest.mock('../src/services/notesRepository', () => ({
   notesRepository: {
     list: jest.fn(),
+    listAll: jest.fn(),
     search: jest.fn(),
     delete: jest.fn(),
   },
@@ -50,7 +51,7 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-const mockList = notesRepository.list as jest.Mock;
+const mockListAll = notesRepository.listAll as jest.Mock;
 const mockSearch = notesRepository.search as jest.Mock;
 const mockDelete = notesRepository.delete as jest.Mock;
 const mockRemoveReminder = removeReminder as jest.Mock;
@@ -127,9 +128,9 @@ beforeEach(() => {
   mockDelete.mockResolvedValue([]);
 });
 
-describe('NotesListScreen — initial list() failure', () => {
-  it('shows an error state with retry (not the empty-account state) when list() rejects', async () => {
-    mockList.mockRejectedValueOnce(new Error('boom'));
+describe('NotesListScreen — initial listAll() failure', () => {
+  it('shows an error state with retry (not the empty-account state) when listAll() rejects', async () => {
+    mockListAll.mockRejectedValueOnce(new Error('boom'));
     const renderer = await renderScreen();
 
     const text = renderedText(renderer);
@@ -139,11 +140,11 @@ describe('NotesListScreen — initial list() failure', () => {
   });
 
   it('retry re-fetches and recovers into the normal list', async () => {
-    mockList.mockRejectedValueOnce(new Error('boom'));
+    mockListAll.mockRejectedValueOnce(new Error('boom'));
     const renderer = await renderScreen();
     expect(renderedText(renderer)).toContain('boom');
 
-    mockList.mockResolvedValueOnce([mkNote({ summary: 'Recovered note' })]);
+    mockListAll.mockResolvedValueOnce([mkNote({ summary: 'Recovered note' })]);
     await act(async () => {
       renderer.root.findByProps({ testID: 'notes-list-retry' }).props.onPress();
     });
@@ -153,8 +154,8 @@ describe('NotesListScreen — initial list() failure', () => {
     expect(text).not.toContain('boom');
   });
 
-  it('a genuinely empty account (list() resolves to []) still shows the empty-account state, not the error state', async () => {
-    mockList.mockResolvedValueOnce([]);
+  it('a genuinely empty account (listAll() resolves to []) still shows the empty-account state, not the error state', async () => {
+    mockListAll.mockResolvedValueOnce([]);
     const renderer = await renderScreen();
 
     const text = renderedText(renderer);
@@ -165,7 +166,7 @@ describe('NotesListScreen — initial list() failure', () => {
 
 describe('NotesListScreen — search() failure', () => {
   it('shows the error state (not stale results) when search() rejects', async () => {
-    mockList.mockResolvedValueOnce([mkNote({ summary: 'Original note' })]);
+    mockListAll.mockResolvedValueOnce([mkNote({ summary: 'Original note' })]);
     const renderer = await renderScreen();
     expect(renderedText(renderer)).toContain('Original note');
 
@@ -180,7 +181,7 @@ describe('NotesListScreen — search() failure', () => {
   });
 
   it('retry after a search failure re-runs the search and recovers', async () => {
-    mockList.mockResolvedValueOnce([]);
+    mockListAll.mockResolvedValueOnce([]);
     const renderer = await renderScreen();
 
     mockSearch.mockRejectedValueOnce(new Error('search failed'));
@@ -202,7 +203,7 @@ describe('NotesListScreen — search() failure', () => {
 
 describe('NotesListScreen — long-press delete cleans up child reminders', () => {
   it('cancels every child action item\'s calendar event and notification before refreshing the list', async () => {
-    mockList.mockResolvedValue([mkNote({ id: 'n1', summary: 'Note to delete' })]);
+    mockListAll.mockResolvedValue([mkNote({ id: 'n1', summary: 'Note to delete' })]);
     mockDelete.mockResolvedValue([
       { calendarEventId: 'cal-1', notificationId: 'notif-1' },
       { calendarEventId: null, notificationId: 'notif-2' },
@@ -223,7 +224,7 @@ describe('NotesListScreen — long-press delete cleans up child reminders', () =
   });
 
   it('calls neither cleanup function when the note had no action items', async () => {
-    mockList.mockResolvedValue([mkNote({ id: 'n1', summary: 'Note to delete' })]);
+    mockListAll.mockResolvedValue([mkNote({ id: 'n1', summary: 'Note to delete' })]);
     mockDelete.mockResolvedValue([]);
     const renderer = await renderScreen();
 

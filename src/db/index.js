@@ -14,6 +14,7 @@ import { getActionItemsFiltered, getTasksWithDueDates } from "./agentQueries";
 import {
   getNote,
   getRecentNotes,
+  getAllNotes,
   getNotesByDateRange,
   getNotesByTag,
   getRecentNotesByDays,
@@ -34,6 +35,7 @@ export { getActionItemsFiltered, getTasksWithDueDates };
 export {
   getNote,
   getRecentNotes,
+  getAllNotes,
   getNotesByDateRange,
   getNotesByTag,
   getRecentNotesByDays,

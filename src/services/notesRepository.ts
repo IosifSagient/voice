@@ -2,6 +2,7 @@
 import {
   saveNote,
   getRecentNotes,
+  getAllNotes,
   searchNotes,
   searchNotesInRange,
   searchNotesLiteral,
@@ -28,6 +29,7 @@ export const notesRepository = {
   create: (extraction: ExtractedNote, transcript: string): Promise<string> =>
     saveNote(extraction, transcript),
   list: (): Promise<Note[]> => getRecentNotes(),
+  listAll: (): Promise<Note[]> => getAllNotes(),
   search: (terms: string | string[]): Promise<Note[]> => searchNotes(terms),
   searchInRange: (terms: string | string[], from: string, to: string): Promise<Note[]> =>
     searchNotesInRange(terms, from, to),

@@ -37,6 +37,14 @@ export type UpdateNoteDiff = {
   changed: Array<ReminderIds & { id: string; item: ActionItem }>;
 };
 
+// One row of the notes list's flat FlatList data array, after grouping notes
+// under date headers (lib/groupNotesByDate.ts) — a header row never carries a
+// note, so renderItem/keyExtractor can switch on `type` without touching db/
+// or service types.
+export type NoteListItem =
+  | { type: "header"; key: string; label: string }
+  | { type: "note"; key: string; note: Note };
+
 // Deep-copies a Note so edits to the draft never mutate the displayed note.
 // Lists every field explicitly so TypeScript flags a missing copy if Note gains a field.
 export function copyNote(n: Note): Note {
