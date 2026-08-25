@@ -1,14 +1,5 @@
 import type { TaskWithDueDate, TaskBuckets } from "../types/tasks";
-
-// Local (device-timezone) YYYY-MM-DD, from Date getters — not toISOString(),
-// which would give the UTC date and drift from the user's actual calendar
-// day near midnight.
-function toLocalDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import { toLocalDateString } from "../lib/localDate";
 
 // Buckets pre-sorted (due_date ascending, per getTasksWithDueDates) rows into
 // overdue / today / upcoming (next 7 days inclusive, beyond that excluded).

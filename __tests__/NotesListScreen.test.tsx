@@ -201,6 +201,124 @@ describe('NotesListScreen — search() failure', () => {
   });
 });
 
+describe('NotesListScreen — tag chip filter', () => {
+  function findChip(renderer: ReactTestRenderer, label: string) {
+    return renderer.root.findByProps({ label });
+  }
+
+  it('tapping a person chip narrows the list to notes containing that person', async () => {
+    mockListAll.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'] }),
+      mkNote({ id: 'b', summary: 'Note B', people: ['Γιαννόπουλος'] }),
+    ]);
+    const renderer = await renderScreen();
+    expect(renderedText(renderer)).toContain('Note A');
+    expect(renderedText(renderer)).toContain('Note B');
+
+    await act(async () => {
+      findChip(renderer, 'Παπαδόπουλος').props.onPress();
+    });
+
+    const text = renderedText(renderer);
+    expect(text).toContain('Note A');
+    expect(text).not.toContain('Note B');
+  });
+
+  it('tapping a topic chip narrows the list via word-boundary subset match', async () => {
+    mockListAll.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Note A', topics: ['φόρος εισοδήματος'] }),
+      mkNote({ id: 'b', summary: 'Note B', topics: ['αυτοκίνητο'] }),
+    ]);
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      findChip(renderer, 'φόρος εισοδήματος').props.onPress();
+    });
+
+    const text = renderedText(renderer);
+    expect(text).toContain('Note A');
+    expect(text).not.toContain('Note B');
+  });
+
+  it('tapping the active chip again clears it and restores the full list', async () => {
+    mockListAll.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'] }),
+      mkNote({ id: 'b', summary: 'Note B', people: ['Γιαννόπουλος'] }),
+    ]);
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      findChip(renderer, 'Παπαδόπουλος').props.onPress();
+    });
+    expect(renderedText(renderer)).not.toContain('Note B');
+
+    await act(async () => {
+      findChip(renderer, 'Παπαδόπουλος').props.onPress();
+    });
+
+    const text = renderedText(renderer);
+    expect(text).toContain('Note A');
+    expect(text).toContain('Note B');
+  });
+
+  it('an active chip intersects with an active search — both must match', async () => {
+    mockListAll.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Meeting about taxes', people: ['Παπαδόπουλος'] }),
+      mkNote({ id: 'b', summary: 'Meeting about lunch', people: ['Παπαδόπουλος'] }),
+    ]);
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      findChip(renderer, 'Παπαδόπουλος').props.onPress();
+    });
+    expect(renderedText(renderer)).toContain('Meeting about taxes');
+    expect(renderedText(renderer)).toContain('Meeting about lunch');
+
+    mockSearch.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Meeting about taxes', people: ['Παπαδόπουλος'] }),
+    ]);
+    await act(async () => {
+      renderer.root.findByProps({ placeholder: 'Αναζήτηση…' }).props.onChangeText('taxes');
+    });
+
+    const text = renderedText(renderer);
+    expect(text).toContain('Meeting about taxes');
+    expect(text).not.toContain('Meeting about lunch');
+  });
+
+  it('the chip bar does not change while searching (stable all-notes snapshot)', async () => {
+    mockListAll.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'] }),
+    ]);
+    const renderer = await renderScreen();
+    expect(() => findChip(renderer, 'Παπαδόπουλος')).not.toThrow();
+
+    mockSearch.mockResolvedValueOnce([]); // search finds nothing, but the chip must still be offered
+    await act(async () => {
+      renderer.root.findByProps({ placeholder: 'Αναζήτηση…' }).props.onChangeText('nothing matches');
+    });
+
+    expect(() => findChip(renderer, 'Παπαδόπουλος')).not.toThrow();
+  });
+
+  it('date grouping still applies to the chip-filtered result', async () => {
+    mockListAll.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'], timestamp: 0 }),
+      mkNote({ id: 'b', summary: 'Note B', people: ['Γιαννόπουλος'], timestamp: 0 }),
+    ]);
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      findChip(renderer, 'Παπαδόπουλος').props.onPress();
+    });
+
+    const text = renderedText(renderer);
+    expect(text).toContain('Παλαιότερα'); // epoch timestamp always buckets as "older"
+    expect(text).toContain('Note A');
+    expect(text).not.toContain('Note B');
+  });
+});
+
 describe('NotesListScreen — long-press delete cleans up child reminders', () => {
   it('cancels every child action item\'s calendar event and notification before refreshing the list', async () => {
     mockListAll.mockResolvedValue([mkNote({ id: 'n1', summary: 'Note to delete' })]);

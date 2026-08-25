@@ -1,16 +1,5 @@
 import type { Note, NoteListItem } from "../types/note";
-
-// Local (device-timezone) YYYY-MM-DD, from Date getters — not toISOString(),
-// which would give the UTC date and drift from the user's actual calendar
-// day near midnight. Duplicated from services/taskBuckets.ts rather than
-// imported: lib/ sits below services/ in the layer stack (see AGENTS.md), so
-// lib can't import a services module without an upward import.
-function toLocalDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import { toLocalDateString } from "./localDate";
 
 type BucketKey = "today" | "thisWeek" | "older";
 
