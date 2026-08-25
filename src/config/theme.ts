@@ -60,12 +60,6 @@ export const colors = {
     accentLight: "#D1FAE5",
     accentFaint: "rgba(16,185,129,0.05)",
 
-    // Topic-chip family (notes-list filter, increment 3) — terracotta,
-    // distinct from the green `accent` family used for person chips and from
-    // `destructive` (delete/error semantics, never reuse for topics).
-    topicAccent:      "#E07A5F",
-    topicAccentFaint: "rgba(224,122,95,0.12)",
-
     destructive: "#EF4444",
 
     glassLight: "rgba(255,255,255,0.12)",

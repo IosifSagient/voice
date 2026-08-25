@@ -34,7 +34,7 @@ export const duration = {
   // ANIMATION_SPEC.md TASKS > Filter Pills / Task Card Deletion, and NOTES >
   // FAB. Named per-feature (not aliased to base/medium/slow) for the same
   // reason as the checkbox entries above.
-  filterPillSwap: 200, // pill active/inactive fill crossfade — task filter pills (TaskFilterBar) and notes-list tag filter chips (FilterChip)
+  filterPillSwap: 200, // pill active/inactive fill crossfade — task filter pills (TaskFilterBar)
   taskDelete: 300, // task card exit: height/opacity/scale collapse
   taskEnter: 200, // task card entrance: plain FadeIn when a filter re-admits a row
   fabScrollToggle: 250, // notes FAB translateY+opacity on scroll show/hide

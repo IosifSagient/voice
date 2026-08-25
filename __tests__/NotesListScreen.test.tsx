@@ -201,12 +201,25 @@ describe('NotesListScreen — search() failure', () => {
   });
 });
 
-describe('NotesListScreen — tag chip filter', () => {
-  function findChip(renderer: ReactTestRenderer, label: string) {
-    return renderer.root.findByProps({ label });
+describe('NotesListScreen — tag filter sheet', () => {
+  // Rows only exist in the tree once the sheet is open (RN Modal renders
+  // null while `visible` is false) — open via the trigger button first,
+  // same as a real tap would, then find the row by its `label` prop (the
+  // sheet's internal FilterRow renderer).
+  async function openSheet(renderer: ReactTestRenderer) {
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'tag-filter-button' }).props.onPress();
+    });
   }
 
-  it('tapping a person chip narrows the list to notes containing that person', async () => {
+  async function selectRow(renderer: ReactTestRenderer, label: string) {
+    await openSheet(renderer);
+    await act(async () => {
+      renderer.root.findByProps({ label }).props.onPress();
+    });
+  }
+
+  it('selecting a person row narrows the list to notes containing that person', async () => {
     mockListAll.mockResolvedValueOnce([
       mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'] }),
       mkNote({ id: 'b', summary: 'Note B', people: ['Γιαννόπουλος'] }),
@@ -215,62 +228,52 @@ describe('NotesListScreen — tag chip filter', () => {
     expect(renderedText(renderer)).toContain('Note A');
     expect(renderedText(renderer)).toContain('Note B');
 
-    await act(async () => {
-      findChip(renderer, 'Παπαδόπουλος').props.onPress();
-    });
+    await selectRow(renderer, 'Παπαδόπουλος');
 
     const text = renderedText(renderer);
     expect(text).toContain('Note A');
     expect(text).not.toContain('Note B');
   });
 
-  it('tapping a topic chip narrows the list via word-boundary subset match', async () => {
+  it('selecting a topic row narrows the list via word-boundary subset match', async () => {
     mockListAll.mockResolvedValueOnce([
       mkNote({ id: 'a', summary: 'Note A', topics: ['φόρος εισοδήματος'] }),
       mkNote({ id: 'b', summary: 'Note B', topics: ['αυτοκίνητο'] }),
     ]);
     const renderer = await renderScreen();
 
-    await act(async () => {
-      findChip(renderer, 'φόρος εισοδήματος').props.onPress();
-    });
+    await selectRow(renderer, 'φόρος εισοδήματος');
 
     const text = renderedText(renderer);
     expect(text).toContain('Note A');
     expect(text).not.toContain('Note B');
   });
 
-  it('tapping the active chip again clears it and restores the full list', async () => {
+  it('selecting Όλα clears an active filter and restores the full list', async () => {
     mockListAll.mockResolvedValueOnce([
       mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'] }),
       mkNote({ id: 'b', summary: 'Note B', people: ['Γιαννόπουλος'] }),
     ]);
     const renderer = await renderScreen();
 
-    await act(async () => {
-      findChip(renderer, 'Παπαδόπουλος').props.onPress();
-    });
+    await selectRow(renderer, 'Παπαδόπουλος');
     expect(renderedText(renderer)).not.toContain('Note B');
 
-    await act(async () => {
-      findChip(renderer, 'Παπαδόπουλος').props.onPress();
-    });
+    await selectRow(renderer, 'Όλα');
 
     const text = renderedText(renderer);
     expect(text).toContain('Note A');
     expect(text).toContain('Note B');
   });
 
-  it('an active chip intersects with an active search — both must match', async () => {
+  it('an active filter intersects with an active search — both must match', async () => {
     mockListAll.mockResolvedValueOnce([
       mkNote({ id: 'a', summary: 'Meeting about taxes', people: ['Παπαδόπουλος'] }),
       mkNote({ id: 'b', summary: 'Meeting about lunch', people: ['Παπαδόπουλος'] }),
     ]);
     const renderer = await renderScreen();
 
-    await act(async () => {
-      findChip(renderer, 'Παπαδόπουλος').props.onPress();
-    });
+    await selectRow(renderer, 'Παπαδόπουλος');
     expect(renderedText(renderer)).toContain('Meeting about taxes');
     expect(renderedText(renderer)).toContain('Meeting about lunch');
 
@@ -286,36 +289,53 @@ describe('NotesListScreen — tag chip filter', () => {
     expect(text).not.toContain('Meeting about lunch');
   });
 
-  it('the chip bar does not change while searching (stable all-notes snapshot)', async () => {
+  it('the sheet does not change while searching (stable all-notes snapshot)', async () => {
     mockListAll.mockResolvedValueOnce([
       mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'] }),
     ]);
     const renderer = await renderScreen();
-    expect(() => findChip(renderer, 'Παπαδόπουλος')).not.toThrow();
+    await openSheet(renderer);
+    expect(() => renderer.root.findByProps({ label: 'Παπαδόπουλος' })).not.toThrow();
 
-    mockSearch.mockResolvedValueOnce([]); // search finds nothing, but the chip must still be offered
+    // Close without selecting (backdrop tap = cancel), same as LOCKED DECISION 3.
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'tag-filter-sheet-backdrop' }).props.onPress();
+    });
+
+    mockSearch.mockResolvedValueOnce([]); // search finds nothing, but the row must still be offered
     await act(async () => {
       renderer.root.findByProps({ placeholder: 'Αναζήτηση…' }).props.onChangeText('nothing matches');
     });
 
-    expect(() => findChip(renderer, 'Παπαδόπουλος')).not.toThrow();
+    await openSheet(renderer);
+    expect(() => renderer.root.findByProps({ label: 'Παπαδόπουλος' })).not.toThrow();
   });
 
-  it('date grouping still applies to the chip-filtered result', async () => {
+  it('date grouping still applies to the filtered result', async () => {
     mockListAll.mockResolvedValueOnce([
       mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'], timestamp: 0 }),
       mkNote({ id: 'b', summary: 'Note B', people: ['Γιαννόπουλος'], timestamp: 0 }),
     ]);
     const renderer = await renderScreen();
 
-    await act(async () => {
-      findChip(renderer, 'Παπαδόπουλος').props.onPress();
-    });
+    await selectRow(renderer, 'Παπαδόπουλος');
 
     const text = renderedText(renderer);
     expect(text).toContain('Παλαιότερα'); // epoch timestamp always buckets as "older"
     expect(text).toContain('Note A');
     expect(text).not.toContain('Note B');
+  });
+
+  it('the button label reflects the active filter', async () => {
+    mockListAll.mockResolvedValueOnce([
+      mkNote({ id: 'a', summary: 'Note A', people: ['Παπαδόπουλος'] }),
+    ]);
+    const renderer = await renderScreen();
+    expect(renderedText(renderer)).toContain('Φίλτρα');
+
+    await selectRow(renderer, 'Παπαδόπουλος');
+
+    expect(renderedText(renderer)).toContain('Παπαδόπουλος');
   });
 });
 

@@ -22,7 +22,8 @@ import { RecordFab } from "../components/RecordFab";
 import { NoteListRow } from "../components/NoteListRow";
 import { NoteListSectionHeader } from "../components/NoteListSectionHeader";
 import { AnimatedSearchInput } from "../components/AnimatedSearchInput";
-import { NoteTagFilterBar } from "../components/NoteTagFilterBar";
+import { TagFilterButton } from "../components/TagFilterButton";
+import { TagFilterSheet } from "../components/TagFilterSheet";
 import { duration } from "../config/motion";
 import { useReducedMotionPreference } from "../lib/useReducedMotionPreference";
 import { groupNotesByDate } from "../lib/groupNotesByDate";
@@ -49,6 +50,9 @@ export function NotesListScreen({ navigation }: Props) {
   // search or narrows by chip (LOCKED DECISION 4).
   const [allNotesSnapshot, setAllNotesSnapshot] = useState<Note[]>([]);
   const [activeChip, setActiveChip] = useState<TagChip | null>(null);
+  // View-level only (which modal is open) — the sheet's own onSelect still
+  // goes straight to setActiveChip above; this just tracks whether it's shown.
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -185,12 +189,6 @@ export function NotesListScreen({ navigation }: Props) {
     [notes, activeChip],
   );
 
-  const onChipPress = (chip: TagChip) => {
-    setActiveChip((prev) =>
-      prev && prev.kind === chip.kind && prev.key === chip.key ? null : chip,
-    );
-  };
-
   // Interleaves date-section headers into the flat FlatList data array.
   // Recomputed whenever the filtered notes change (a new fetch/search/refresh,
   // or the active chip) — the entry-stagger bookkeeping above (entryPlanRef
@@ -223,18 +221,36 @@ export function NotesListScreen({ navigation }: Props) {
   return (
     <View style={styles.screen}>
       <View style={styles.searchBand}>
-        <AnimatedSearchInput
-          placeholder="Αναζήτηση…"
-          value={query}
-          onChangeText={(t) => {
-            setQuery(t);
-            search(t);
-          }}
-          returnKeyType="search"
-        />
+        <View style={styles.searchRow}>
+          <View style={styles.searchInputWrapper}>
+            <AnimatedSearchInput
+              placeholder="Αναζήτηση…"
+              value={query}
+              onChangeText={(t) => {
+                setQuery(t);
+                search(t);
+              }}
+              returnKeyType="search"
+            />
+          </View>
+          {chips.length > 0 && (
+            <TagFilterButton activeChip={activeChip} onPress={() => setFilterSheetOpen(true)} />
+          )}
+        </View>
       </View>
 
-      <NoteTagFilterBar chips={chips} activeChip={activeChip} onPress={onChipPress} />
+      {chips.length > 0 && (
+        <TagFilterSheet
+          visible={filterSheetOpen}
+          chips={chips}
+          activeChip={activeChip}
+          onSelect={(chip) => {
+            setActiveChip(chip);
+            setFilterSheetOpen(false);
+          }}
+          onCancel={() => setFilterSheetOpen(false)}
+        />
+      )}
 
       <Animated.FlatList
         style={styles.flatlist}
@@ -334,6 +350,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingTop: spacing.md,
     paddingBottom: spacing.base,
+  },
+  // TagFilterButton sits inline here, beside the search input, instead of on
+  // its own row below the band (increment 3 follow-up) — reclaims that row's
+  // vertical space now that the button no longer needs full width.
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  searchInputWrapper: {
+    flex: 1,
   },
   flatlist: {
     flex: 1,

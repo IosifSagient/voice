@@ -9,9 +9,11 @@ type Props = {
 };
 
 // Display-only by default (NoteCard.tsx's two call sites pass neither prop
-// and must stay non-interactive). Becomes a pressable, selectable chip only
-// when a caller supplies onPress — used by NoteTagFilterBar for the
-// notes-list tag filter.
+// and must stay non-interactive). Becomes a pressable, selectable chip when
+// a caller supplies onPress, but nothing currently does — the notes-list
+// filter that once used this selectable mode (NoteTagFilterBar) was replaced
+// by TagFilterSheet/TagFilterButton (increment 3), which don't use Tag.
+// NoteCard's display-only calls are the sole live caller today.
 export function Tag({ label, variant, onPress, selected }: Props) {
   const text = (
     <Text style={[styles.base, styles[variant], selected && styles.selected]}>
