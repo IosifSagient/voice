@@ -5,6 +5,3 @@ export const REMINDER_OFFSET_MINUTES = 10;
 
 // R2: local hour a date-only (no due_time) action item's notification fires at.
 export const DATE_ONLY_REMINDER_HOUR = 9;
-
-export const NOTIFICATION_PERMISSION_RATIONALE =
-  "Το Ask Lisa χρειάζεται άδεια ειδοποιήσεων για να σου υπενθυμίζει τις ενέργειές σου.";
