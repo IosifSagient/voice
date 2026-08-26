@@ -237,7 +237,11 @@ export function getDb() {
   return dbPromise;
 }
 
-// Called once at App startup — just ensures the DB is ready before any render.
+// Called once at App startup, fire-and-forget (not awaited before render) —
+// a warm-up call only. Correctness doesn't depend on it: every read/write
+// function above calls getDb() itself, and getDb() memoizes a single
+// dbPromise (above) that every caller awaits, so whichever call reaches it
+// first always gets the fully-migrated DB, never a partial one.
 export async function initDb() {
   await getDb();
 }

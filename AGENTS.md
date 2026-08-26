@@ -1,4 +1,4 @@
-# Hey Lisa — personal voice-note assistant
+# Ask Lisa — personal voice-note assistant
 
 ## What this is
 

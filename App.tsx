@@ -58,7 +58,7 @@ const sharedHeaderOptions = {
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ["heylisa://"],
+  prefixes: ["asklisa://"],
   config: {
     screens: {
       Record: "record",
@@ -92,7 +92,7 @@ function MainTabs() {
         name="NotesList"
         component={NotesListScreen}
         options={({ navigation }) => ({
-          title: "Hey Lisa",
+          title: "Ask Lisa",
           tabBarLabel: "Σημειώσεις",
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon focused={focused}>

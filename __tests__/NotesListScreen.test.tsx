@@ -164,6 +164,44 @@ describe('NotesListScreen — initial listAll() failure', () => {
   });
 });
 
+describe('NotesListScreen — cold-start loading flash', () => {
+  it('does not flash the empty-account copy while the initial listAll() fetch is still pending', async () => {
+    // Deliberately NOT resolved via mockResolvedValueOnce — this keeps the
+    // fetch genuinely pending across the initial render, unlike every other
+    // test in this file where mount + resolution are coalesced into one
+    // `await act()`. That coalescing is exactly why this bug shipped
+    // unnoticed: it never let anyone observe the interim render.
+    let resolveListAll!: (notes: Note[]) => void;
+    mockListAll.mockReturnValueOnce(
+      new Promise<Note[]>((resolve) => {
+        resolveListAll = resolve;
+      }),
+    );
+
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(React.createElement(NotesListScreen, { navigation, route }));
+    });
+    activeRenderers.push(renderer);
+
+    // The fetch is still pending here — this is the render that used to
+    // paint "no notes yet" before the loading gate existed.
+    expect(renderedText(renderer)).not.toContain('Καμία σημείωση ακόμα');
+
+    await act(async () => {
+      resolveListAll([]);
+      // Flush the microtask queue so the resolved promise's .then (setNotes/
+      // setNotesLoading) runs inside this act().
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Now that the fetch has genuinely resolved to an empty account, the
+    // real empty-account copy is expected.
+    expect(renderedText(renderer)).toContain('Καμία σημείωση ακόμα');
+  });
+});
+
 describe('NotesListScreen — search() failure', () => {
   it('shows the error state (not stale results) when search() rejects', async () => {
     mockListAll.mockResolvedValueOnce([mkNote({ summary: 'Original note' })]);

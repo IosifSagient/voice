@@ -18,7 +18,7 @@ type Props = { children: ReactNode };
 // same reason as PulseRings/RecordFab: without it the loop resets to 0 at
 // each cycle boundary instead of animating back through it, so it would
 // snap instead of floating smoothly. Wraps whatever children it's given
-// (here, the "Hey Lisa" Text) rather than owning any text/logo asset itself.
+// (here, the "Ask Lisa" Text) rather than owning any text/logo asset itself.
 export function LogoFloat({ children }: Props) {
   const reducedMotion = useReducedMotionPreference();
   const translateY = useSharedValue(0);

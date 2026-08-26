@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "heylisa",
-    "slug": "heylisa",
+    "name": "asklisa",
+    "slug": "asklisa",
     "version": "1.0.0",
-    "scheme": "heylisa",
+    "scheme": "asklisa",
     "orientation": "portrait",
     "icon": "./assets/branding/icon.png",
     "userInterfaceStyle": "light",

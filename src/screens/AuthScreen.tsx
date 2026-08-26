@@ -97,7 +97,7 @@ export function AuthScreen() {
       >
         <View style={styles.inner}>
           <LogoFloat>
-            <Text style={styles.appName}>Hey Lisa</Text>
+            <Text style={styles.appName}>Ask Lisa</Text>
           </LogoFloat>
           <Text style={styles.subtitle}>
             {mode === "signIn"

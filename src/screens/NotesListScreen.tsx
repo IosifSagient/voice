@@ -56,6 +56,10 @@ export function NotesListScreen({ navigation }: Props) {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Gates ListEmptyComponent's empty-account copy so it can't paint on the
+  // first render, before the initial listAll() below has resolved — that
+  // window otherwise flashes "no notes yet" even on an account with notes.
+  const [notesLoading, setNotesLoading] = useState(true);
   const reducedMotion = useReducedMotionPreference();
   const fabVisible = useSharedValue(1);
   const lastScrollY = useSharedValue(0);
@@ -146,6 +150,7 @@ export function NotesListScreen({ navigation }: Props) {
           setNotes([]);
           setError(e instanceof Error ? e.message : String(e));
         }
+        setNotesLoading(false);
       })();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
@@ -279,7 +284,7 @@ export function NotesListScreen({ navigation }: Props) {
           />
         }
         ListEmptyComponent={
-          error ? (
+          notesLoading ? null : error ? (
             <View style={styles.errorState}>
               <Text style={styles.errorText}>{error}</Text>
               <Pressable

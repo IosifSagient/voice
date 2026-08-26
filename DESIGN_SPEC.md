@@ -109,7 +109,7 @@ const shadows = {
 - **Gradient header**: LinearGradient ['#064E3B','#134E4A','#0F766E'] wraps greeting + search
   - Radial glow blob (absolute, top-right)
   - Profile avatar: glass circle (rgba(255,255,255,0.15) bg, blur, white icon)
-  - "Hey Lisa" centered, white, 22px bold
+  - "Ask Lisa" centered, white, 22px bold
   - "+ Εγγραφή" button: glass pill (rgba(255,255,255,0.15), blur, border rgba(255,255,255,0.1))
   - Search bar: glass style (rgba(255,255,255,0.12), blur, borderRadius 12)
 - **Content area**: bg '#F0F4F3'
