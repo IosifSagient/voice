@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert } from 'react-native';
+import { Alert, ActionSheetIOS } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { NotesListScreen } from '../src/screens/NotesListScreen';
 import { notesRepository } from '../src/services/notesRepository';
@@ -60,6 +60,24 @@ const mockCancelReminder = cancelReminder as jest.Mock;
 // Alert.alert is a native call with no UI to interact with in this renderer —
 // spy on it so the destructive button's onPress can be invoked directly.
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+// Same reasoning for the list row's long-press action sheet (Increment 4b):
+// no native ActionSheetManager under Jest, so spy on it and drive its
+// callback directly with the Διαγραφή option's index.
+const actionSheetSpy = jest
+  .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+  .mockImplementation(() => {});
+
+// Index of «Διαγραφή» in the sheet's options: Αντιγραφή, Κοινοποίηση,
+// Διαγραφή, Άκυρο (NotesListScreen.tsx's onLongPress action sheet).
+const DELETE_OPTION_INDEX = 2;
+
+async function selectDeleteFromActionSheet() {
+  const [, callback] = actionSheetSpy.mock.calls[actionSheetSpy.mock.calls.length - 1];
+  await act(async () => {
+    (callback as (buttonIndex: number) => void)(DELETE_OPTION_INDEX);
+  });
+}
 
 async function confirmDelete() {
   const [, , buttons] = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
@@ -389,6 +407,7 @@ describe('NotesListScreen — long-press delete cleans up child reminders', () =
     await act(async () => {
       renderer.root.findByProps({ testID: 'notes-list-row' }).props.onLongPress();
     });
+    await selectDeleteFromActionSheet();
     await confirmDelete();
 
     expect(mockDelete).toHaveBeenCalledWith('n1');
@@ -407,6 +426,7 @@ describe('NotesListScreen — long-press delete cleans up child reminders', () =
     await act(async () => {
       renderer.root.findByProps({ testID: 'notes-list-row' }).props.onLongPress();
     });
+    await selectDeleteFromActionSheet();
     await confirmDelete();
 
     expect(mockRemoveReminder).not.toHaveBeenCalled();

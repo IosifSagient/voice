@@ -8,23 +8,20 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
-  Share,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
-import { removeReminder } from "../services/calendar";
-import { cancelReminder } from "../services/notifications";
-import { copyToClipboard } from "../services/clipboard";
 import { useCalendarToggle } from "../hooks/useCalendarToggle";
 import { applyReminderDiff } from "../hooks/reminderDiff";
 import { useRegenerateSummary } from "../hooks/useRegenerateSummary";
 import { useNoteActionItems } from "../hooks/useNoteActionItems";
+import { useNoteActions } from "../hooks/useNoteActions";
+import { useDeleteNote } from "../hooks/useDeleteNote";
 import { NoteCard } from "../components/NoteCard";
 import { NoteEditForm } from "../components/NoteEditForm";
 import { Snackbar } from "../components/Snackbar";
 import { formatDateTime } from "../lib/dateFormat";
-import { formatNoteForShare } from "../lib/formatNoteForShare";
 import type { Note, ActionItem } from "../types/note";
 import { copyNote } from "../types/note";
 import { colors, spacing, type, radii, shadows } from "../config/theme";
@@ -37,7 +34,6 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const [mode, setMode] = useState<Mode>("view");
   const [draft, setDraft] = useState<Note | null>(null);
   const [transcriptDraft, setTranscriptDraft] = useState("");
-  const [copySnackbarVisible, setCopySnackbarVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -53,30 +49,20 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const handleToggleCalendar = useCalendarToggle(note, setNote);
   const { regenerating, regenerate } = useRegenerateSummary(note, setNote);
   const { completeItem, deleteItem } = useNoteActionItems(note, setNote);
+  const {
+    handleCopy,
+    handleShare,
+    snackbarVisible: copySnackbarVisible,
+    snackbarMessage: copySnackbarMessage,
+    dismissSnackbar: dismissCopySnackbar,
+  } = useNoteActions(note);
+  const { deleteNote } = useDeleteNote();
 
   if (!note) return null;
 
   const enterEdit = () => {
     setDraft(copyNote(note));
     setMode("edit");
-  };
-
-  const handleCopy = async () => {
-    const text = formatNoteForShare(note);
-    if (!text) return;
-    await copyToClipboard(text);
-    setCopySnackbarVisible(true);
-  };
-
-  const handleShare = async () => {
-    const text = formatNoteForShare(note);
-    if (!text) return;
-    try {
-      await Share.share({ message: text });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert("Σφάλμα", msg);
-    }
   };
 
   const saveEdit = async () => {
@@ -104,12 +90,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
         text: "Διαγραφή",
         style: "destructive",
         onPress: async () => {
-          const reminders = await notesRepository.delete(note.id);
-          for (const r of reminders) {
-            if (r.calendarEventId) await removeReminder(r.calendarEventId);
-            if (r.notificationId) await cancelReminder(r.notificationId);
-          }
-          navigation.goBack();
+          await deleteNote(note.id, { onDeleted: () => navigation.goBack() });
         },
       },
     ]);
@@ -303,9 +284,9 @@ export function NoteDetailScreen({ route, navigation }: Props) {
     <View pointerEvents="box-none" style={styles.snackbarFloat}>
       <Snackbar
         visible={copySnackbarVisible}
-        message="Αντιγράφηκε"
+        message={copySnackbarMessage}
         durationMs={1800}
-        onDismiss={() => setCopySnackbarVisible(false)}
+        onDismiss={dismissCopySnackbar}
       />
     </View>
     </View>

@@ -1,12 +1,14 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   View,
   Text,
   Pressable,
   Alert,
+  ActionSheetIOS,
   RefreshControl,
   StyleSheet,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import Animated, { useAnimatedScrollHandler, useSharedValue, withTiming } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import type { CompositeScreenProps } from "@react-navigation/native";
@@ -14,8 +16,8 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList, MainTabParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
-import { removeReminder } from "../services/calendar";
-import { cancelReminder } from "../services/notifications";
+import { useDeleteNote } from "../hooks/useDeleteNote";
+import { useNoteActions } from "../hooks/useNoteActions";
 import { useTodayTasks } from "../hooks/useTodayTasks";
 import { TodaySection } from "../components/TodaySection";
 import { RecordFab } from "../components/RecordFab";
@@ -24,6 +26,7 @@ import { NoteListSectionHeader } from "../components/NoteListSectionHeader";
 import { AnimatedSearchInput } from "../components/AnimatedSearchInput";
 import { TagFilterButton } from "../components/TagFilterButton";
 import { TagFilterSheet } from "../components/TagFilterSheet";
+import { Snackbar } from "../components/Snackbar";
 import { duration } from "../config/motion";
 import { useReducedMotionPreference } from "../lib/useReducedMotionPreference";
 import { groupNotesByDate } from "../lib/groupNotesByDate";
@@ -136,6 +139,56 @@ export function NotesListScreen({ navigation }: Props) {
     complete: completeTodayTask,
     reopen: reopenTodayTask,
   } = useTodayTasks();
+  const { deleteNote } = useDeleteNote();
+
+  // The row a long-press's action sheet is currently acting on. useNoteActions
+  // must be called at top level, but which note it acts on is only known at
+  // long-press time — held in state and bound here so handleCopy/handleShare
+  // below always close over the row that triggered the sheet.
+  const [actionSheetNote, setActionSheetNote] = useState<Note | null>(null);
+  const {
+    handleCopy,
+    handleShare,
+    snackbarVisible: copySnackbarVisible,
+    snackbarMessage: copySnackbarMessage,
+    dismissSnackbar: dismissCopySnackbar,
+  } = useNoteActions(actionSheetNote);
+
+  // Deferred to an effect (rather than opened inline from onLongPress) so the
+  // sheet's button callback closes over THIS render's handleCopy/handleShare
+  // — the ones freshly bound to the just-set actionSheetNote — instead of the
+  // previous render's stale closures. See Increment 4b Phase 1 notes.
+  useEffect(() => {
+    if (!actionSheetNote) return;
+    const note = actionSheetNote;
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ["Αντιγραφή", "Κοινοποίηση", "Διαγραφή", "Άκυρο"],
+        destructiveButtonIndex: 2,
+        cancelButtonIndex: 3,
+      },
+      (buttonIndex) => {
+        if (buttonIndex === 0) {
+          handleCopy();
+        } else if (buttonIndex === 1) {
+          handleShare();
+        } else if (buttonIndex === 2) {
+          Alert.alert("Διαγραφή σημείωσης;", undefined, [
+            { text: "Άκυρο", style: "cancel" },
+            {
+              text: "Διαγραφή",
+              style: "destructive",
+              onPress: async () => {
+                await deleteNote(note.id, { onDeleted: () => search(query) });
+              },
+            },
+          ]);
+        }
+        setActionSheetNote(null);
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionSheetNote]);
 
   useFocusEffect(
     useCallback(() => {
@@ -315,23 +368,10 @@ export function NotesListScreen({ navigation }: Props) {
               entryDelay={entryPlanRef.current.get(item.note.id) ?? null}
               entryToken={entryTokenRef.current}
               onPress={() => navigation.navigate("NoteDetail", { id: item.note.id })}
-              onLongPress={() =>
-                Alert.alert("Διαγραφή σημείωσης;", undefined, [
-                  { text: "Άκυρο", style: "cancel" },
-                  {
-                    text: "Διαγραφή",
-                    style: "destructive",
-                    onPress: async () => {
-                      const reminders = await notesRepository.delete(item.note.id);
-                      for (const r of reminders) {
-                        if (r.calendarEventId) await removeReminder(r.calendarEventId);
-                        if (r.notificationId) await cancelReminder(r.notificationId);
-                      }
-                      search(query);
-                    },
-                  },
-                ])
-              }
+              onLongPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActionSheetNote(item.note);
+              }}
             />
           )
         }
@@ -341,12 +381,29 @@ export function NotesListScreen({ navigation }: Props) {
         onPress={() => navigation.navigate("Record")}
         visible={fabVisible}
       />
+
+      <View pointerEvents="box-none" style={styles.snackbarFloat}>
+        <Snackbar
+          visible={copySnackbarVisible}
+          message={copySnackbarMessage}
+          durationMs={1800}
+          onDismiss={dismissCopySnackbar}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.light.bg },
+  // Same top-anchored float convention as NoteDetailScreen/ChatScreen's
+  // snackbarFloat — see NoteDetailScreen's comment for why `top`, not `bottom`.
+  snackbarFloat: {
+    position: "absolute",
+    top: spacing.base,
+    left: spacing.base,
+    right: spacing.base,
+  },
   // Deliberate taste call: fills with the header gradient's darker
   // top-of-header stop rather than its lighter final stop, accepting a
   // visible seam at the header/search-band boundary.
