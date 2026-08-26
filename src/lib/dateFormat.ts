@@ -23,3 +23,26 @@ export function formatDateTime(timestamp: number): string {
   const m = String(d.getMinutes()).padStart(2, "0");
   return `${day} ${month}, ${h}:${m}`;
 }
+
+const GREEK_MONTHS_GENITIVE = [
+  "Ιανουαρίου", "Φεβρουαρίου", "Μαρτίου", "Απριλίου", "Μαΐου", "Ιουνίου",
+  "Ιουλίου", "Αυγούστου", "Σεπτεμβρίου", "Οκτωβρίου", "Νοεμβρίου", "Δεκεμβρίου",
+];
+
+const DUE_DATE_SHAPE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// Formats an action item's "YYYY-MM-DD" due_date as Greek "<day> <genitive
+// month>" (e.g. "15 Σεπτεμβρίου") — no year, deliberately: this stays a pure
+// function with no clock read, unlike formatDate's "this year vs other year"
+// check above. Parses the string directly (split, no `new Date()`) to avoid
+// timezone/off-by-one entirely. Returns null on anything not cleanly
+// "YYYY-MM-DD" — never throws, never emits a garbled date.
+export function formatDueDate(dueDate: string | null | undefined): string | null {
+  if (!dueDate) return null;
+  const match = DUE_DATE_SHAPE.exec(dueDate);
+  if (!match) return null;
+  const day = Number(match[3]);
+  const month = GREEK_MONTHS_GENITIVE[Number(match[2]) - 1];
+  if (!month || day < 1 || day > 31) return null;
+  return `${day} ${month}`;
+}

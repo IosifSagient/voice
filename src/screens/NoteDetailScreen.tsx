@@ -8,19 +8,23 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Share,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { notesRepository } from "../services/notesRepository";
 import { removeReminder } from "../services/calendar";
 import { cancelReminder } from "../services/notifications";
+import { copyToClipboard } from "../services/clipboard";
 import { useCalendarToggle } from "../hooks/useCalendarToggle";
 import { applyReminderDiff } from "../hooks/reminderDiff";
 import { useRegenerateSummary } from "../hooks/useRegenerateSummary";
 import { useNoteActionItems } from "../hooks/useNoteActionItems";
 import { NoteCard } from "../components/NoteCard";
 import { NoteEditForm } from "../components/NoteEditForm";
+import { Snackbar } from "../components/Snackbar";
 import { formatDateTime } from "../lib/dateFormat";
+import { formatNoteForShare } from "../lib/formatNoteForShare";
 import type { Note, ActionItem } from "../types/note";
 import { copyNote } from "../types/note";
 import { colors, spacing, type, radii, shadows } from "../config/theme";
@@ -33,6 +37,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const [mode, setMode] = useState<Mode>("view");
   const [draft, setDraft] = useState<Note | null>(null);
   const [transcriptDraft, setTranscriptDraft] = useState("");
+  const [copySnackbarVisible, setCopySnackbarVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -54,6 +59,24 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const enterEdit = () => {
     setDraft(copyNote(note));
     setMode("edit");
+  };
+
+  const handleCopy = async () => {
+    const text = formatNoteForShare(note);
+    if (!text) return;
+    await copyToClipboard(text);
+    setCopySnackbarVisible(true);
+  };
+
+  const handleShare = async () => {
+    const text = formatNoteForShare(note);
+    if (!text) return;
+    try {
+      await Share.share({ message: text });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Σφάλμα", msg);
+    }
   };
 
   const saveEdit = async () => {
@@ -126,8 +149,8 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   };
 
   return (
+    <View style={styles.screen}>
     <ScrollView
-      style={styles.screen}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
@@ -141,6 +164,8 @@ export function NoteDetailScreen({ route, navigation }: Props) {
             onToggleCalendar={handleToggleCalendar}
             onCompleteActionItem={completeItem}
             onDeleteActionItem={deleteItem}
+            onCopy={handleCopy}
+            onShare={handleShare}
           />
           <View style={styles.viewActions}>
             <Pressable
@@ -275,6 +300,15 @@ export function NoteDetailScreen({ route, navigation }: Props) {
         </>
       )}
     </ScrollView>
+    <View pointerEvents="box-none" style={styles.snackbarFloat}>
+      <Snackbar
+        visible={copySnackbarVisible}
+        message="Αντιγράφηκε"
+        durationMs={1800}
+        onDismiss={() => setCopySnackbarVisible(false)}
+      />
+    </View>
+    </View>
   );
 }
 
@@ -283,6 +317,14 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.base,
     paddingBottom: spacing.listBottomInset,
+  },
+  // Same top-anchored float convention as ChatScreen's snackbarFloat — see
+  // that file's comment for why `top`, not `bottom`.
+  snackbarFloat: {
+    position: "absolute",
+    top: spacing.base,
+    left: spacing.base,
+    right: spacing.base,
   },
   viewActions: {
     marginTop: spacing.xl,

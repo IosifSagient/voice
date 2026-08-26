@@ -1,4 +1,4 @@
-import { formatDate, formatDateTime } from '../src/lib/dateFormat';
+import { formatDate, formatDateTime, formatDueDate } from '../src/lib/dateFormat';
 
 // Pin "now" so same-year vs cross-year logic is deterministic.
 // formatDate reads `new Date()` internally, so we mock the global Date constructor.
@@ -54,5 +54,47 @@ describe('formatDateTime', () => {
   it('never includes the year', () => {
     const ts = new Date(2019, 0, 1, 8, 0).getTime();
     expect(formatDateTime(ts)).not.toMatch(/\d{4}/);
+  });
+});
+
+describe('formatDueDate', () => {
+  it('formats a valid date as day + genitive month', () => {
+    expect(formatDueDate('2025-09-15')).toBe('15 Σεπτεμβρίου');
+  });
+
+  it('strips the leading zero from a single-digit day', () => {
+    expect(formatDueDate('2025-09-05')).toBe('5 Σεπτεμβρίου');
+  });
+
+  it('uses the correct genitive month name across quarters', () => {
+    expect(formatDueDate('2025-01-10')).toBe('10 Ιανουαρίου');
+    expect(formatDueDate('2025-04-10')).toBe('10 Απριλίου');
+    expect(formatDueDate('2025-07-10')).toBe('10 Ιουλίου');
+    expect(formatDueDate('2025-10-10')).toBe('10 Οκτωβρίου');
+  });
+
+  it('never includes the year', () => {
+    expect(formatDueDate('2025-09-15')).not.toMatch(/2025/);
+  });
+
+  it('returns null for null, undefined, and empty input', () => {
+    expect(formatDueDate(null)).toBeNull();
+    expect(formatDueDate(undefined)).toBeNull();
+    expect(formatDueDate('')).toBeNull();
+  });
+
+  it('returns null for a malformed date string', () => {
+    expect(formatDueDate('15/09/2025')).toBeNull();
+    expect(formatDueDate('2025-9-15')).toBeNull();
+    expect(formatDueDate('not-a-date')).toBeNull();
+  });
+
+  it('returns null for an out-of-range month (13th month, or month 0)', () => {
+    expect(formatDueDate('2025-13-01')).toBeNull();
+    expect(formatDueDate('2025-00-01')).toBeNull();
+  });
+
+  it('does not throw on garbage input', () => {
+    expect(() => formatDueDate('garbage')).not.toThrow();
   });
 });

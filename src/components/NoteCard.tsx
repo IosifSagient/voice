@@ -10,9 +10,11 @@ type Props = {
   onToggleCalendar?: (itemId: string, currentEventId: string | null) => void;
   onCompleteActionItem?: (itemId: string) => void;
   onDeleteActionItem?: (itemId: string) => void;
+  onCopy?: () => void;
+  onShare?: () => void;
 };
 
-export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDeleteActionItem }: Props) {
+export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDeleteActionItem, onCopy, onShare }: Props) {
   const [showTranscript, setShowTranscript] = useState(false);
 
   return (
@@ -67,6 +69,30 @@ export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDelet
           ))}
         </View>
       )}
+
+      {onCopy || onShare ? (
+        <>
+          <View style={styles.divider} />
+          <View style={styles.linkRow}>
+            {onCopy ? (
+              <Pressable
+                onPress={onCopy}
+                style={({ pressed }) => [styles.transcriptToggle, pressed && styles.transcriptTogglePressed]}
+              >
+                <Text style={styles.transcriptToggleText}>Αντιγραφή</Text>
+              </Pressable>
+            ) : null}
+            {onShare ? (
+              <Pressable
+                onPress={onShare}
+                style={({ pressed }) => [styles.transcriptToggle, pressed && styles.transcriptTogglePressed]}
+              >
+                <Text style={styles.transcriptToggleText}>Κοινοποίηση</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </>
+      ) : null}
 
       {note.transcript ? (
         <>
@@ -125,6 +151,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.light.border,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
+  },
+  linkRow: {
+    flexDirection: "row",
+    gap: spacing.lg,
   },
   transcriptToggle: {
     paddingVertical: spacing.sm,
