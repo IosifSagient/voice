@@ -1,5 +1,6 @@
 import { normalizeAndDedupeNames, canonicalizeTopics } from "../db/shared";
 import { topicTagMatches, personKeyMatches } from "./tagMatch";
+import { toKey } from "./textNormalize";
 import type { Note } from "../types/note";
 import type { TagChip } from "../types/tags";
 
@@ -21,7 +22,22 @@ export function deriveTagChips(notes: Note[]): TagChip[] {
   const topics = canonicalizeTopics(notes.flatMap((n) => n.topics)).map(
     (label): TagChip => ({ kind: "topic", key: label, label }),
   );
-  return [...people, ...topics];
+  return [...people, ...topics].sort(compareByGreekLabel);
+}
+
+// Alphabetical by display label, via toKey() (accent-strip → lowercase →
+// final-sigma fold) rather than Intl.Collator — on-device Hermes support for
+// Intl.Collator('el') is unverified, while toKey()'s output sorts correctly
+// within the Greek block by plain code-point compare. Raw-label tiebreak is
+// only reachable across kinds (e.g. a person and a topic both named
+// "Αθήνα") — within one kind, normalizeAndDedupeNames/canonicalizeTopics
+// already dedupe by a key derived from toKey, so two chips of the same kind
+// can never tie here.
+function compareByGreekLabel(a: TagChip, b: TagChip): number {
+  const ka = toKey(a.label);
+  const kb = toKey(b.label);
+  if (ka !== kb) return ka < kb ? -1 : 1;
+  return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
 }
 
 // Whether `note` matches the active chip — dispatches to the matching rule

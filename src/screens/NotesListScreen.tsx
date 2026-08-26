@@ -179,7 +179,12 @@ export function NotesListScreen({ navigation }: Props) {
               text: "Διαγραφή",
               style: "destructive",
               onPress: async () => {
-                await deleteNote(note.id, { onDeleted: () => search(query) });
+                await deleteNote(note.id, {
+                  onDeleted: () => {
+                    search(query);
+                    refreshTodayTasks();
+                  },
+                });
               },
             },
           ]);

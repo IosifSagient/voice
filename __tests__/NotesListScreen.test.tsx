@@ -24,6 +24,7 @@ jest.mock('../src/services/notifications', () => ({
   cancelReminder: jest.fn(),
 }));
 
+const mockRefreshTodayTasks = jest.fn();
 jest.mock('../src/hooks/useTodayTasks', () => ({
   useTodayTasks: () => ({
     overdue: [],
@@ -31,7 +32,7 @@ jest.mock('../src/hooks/useTodayTasks', () => ({
     upcoming: [],
     loading: false,
     error: null,
-    refresh: jest.fn(),
+    refresh: mockRefreshTodayTasks,
     complete: jest.fn(),
     reopen: jest.fn(),
   }),
@@ -416,6 +417,9 @@ describe('NotesListScreen — long-press delete cleans up child reminders', () =
     expect(mockCancelReminder).toHaveBeenCalledTimes(2);
     expect(mockCancelReminder).toHaveBeenCalledWith('notif-1');
     expect(mockCancelReminder).toHaveBeenCalledWith('notif-2');
+    // Today section must refresh alongside the list so a deleted note's
+    // today/overdue/upcoming action item doesn't linger until next focus.
+    expect(mockRefreshTodayTasks).toHaveBeenCalled();
   });
 
   it('calls neither cleanup function when the note had no action items', async () => {

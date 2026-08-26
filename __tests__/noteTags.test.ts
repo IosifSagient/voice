@@ -31,7 +31,30 @@ describe("deriveTagChips", () => {
 
     const chips = deriveTagChips(notes).filter((c) => c.kind === "person");
 
-    expect(chips.map((c) => c.label)).toEqual(["Παπαδόπουλος", "Γιαννόπουλος"]);
+    // Alphabetical (Γ before Π), not first-occurrence/recency order — see the
+    // dedicated ordering test below.
+    expect(chips.map((c) => c.label)).toEqual(["Γιαννόπουλος", "Παπαδόπουλος"]);
+  });
+
+  it("sorts chips in Greek alphabetical order, accented names beside their base letter, independent of mention recency", () => {
+    // Deliberately fed newest-mentioned-first (the shape allNotesSnapshot
+    // arrives in, per db/notesRead.js's getAllNotes ORDER BY created_at DESC)
+    // to prove sorting overrides recency rather than happening to agree with it.
+    const notes = [
+      mkNote({ people: ["Βασίλης"], topics: ["ταξίδι"] }),
+      mkNote({ people: ["Αντώνης"], topics: ["δουλειά"] }),
+      mkNote({ people: ["Άννα"] }),
+    ];
+
+    const chips = deriveTagChips(notes);
+    const people = chips.filter((c) => c.kind === "person").map((c) => c.label);
+    const topics = chips.filter((c) => c.kind === "topic").map((c) => c.label);
+
+    // Άννα before Αντώνης: third letter ν (nu) precedes τ (tau) once the
+    // accent on the first Α is stripped — both precede Βασίλης (Β).
+    expect(people).toEqual(["Άννα", "Αντώνης", "Βασίλης"]);
+    // δ (delta) precedes τ (tau).
+    expect(topics).toEqual(["δουλειά", "ταξίδι"]);
   });
 
   it("derives distinct topic chips across notes, deduped by stem, canonical display chosen", () => {
