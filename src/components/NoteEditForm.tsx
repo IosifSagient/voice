@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { Alert, View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import type { Note, ActionItem } from "../types/note";
 import { colors, spacing, type, radii } from "../config/theme";
 
@@ -36,6 +36,27 @@ export function NoteEditForm({
   const commitTopic = () => {
     const t = newTopic.trim();
     if (t) { onTopicAdd(t); setNewTopic(""); }
+  };
+
+  const confirmActionItemDelete = (i: number) => {
+    Alert.alert("Διαγραφή ενέργειας;", undefined, [
+      { text: "Άκυρο", style: "cancel" },
+      { text: "Διαγραφή", style: "destructive", onPress: () => onActionItemDelete(i) },
+    ]);
+  };
+
+  const confirmPersonRemove = (i: number) => {
+    Alert.alert("Αφαίρεση ατόμου;", undefined, [
+      { text: "Άκυρο", style: "cancel" },
+      { text: "Διαγραφή", style: "destructive", onPress: () => onPersonRemove(i) },
+    ]);
+  };
+
+  const confirmTopicRemove = (i: number) => {
+    Alert.alert("Αφαίρεση θέματος;", undefined, [
+      { text: "Άκυρο", style: "cancel" },
+      { text: "Διαγραφή", style: "destructive", onPress: () => onTopicRemove(i) },
+    ]);
   };
 
   return (
@@ -76,7 +97,8 @@ export function NoteEditForm({
             />
           </View>
           <Pressable
-            onPress={() => onActionItemDelete(i)}
+            testID={`note-edit-action-delete-${i}`}
+            onPress={() => confirmActionItemDelete(i)}
             style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
             hitSlop={8}
           >
@@ -98,7 +120,8 @@ export function NoteEditForm({
           {draft.people.map((p, i) => (
             <Pressable
               key={i}
-              onPress={() => onPersonRemove(i)}
+              testID={`note-edit-person-chip-${i}`}
+              onPress={() => confirmPersonRemove(i)}
               style={({ pressed }) => [styles.chip, styles.personChip, pressed && styles.pressed]}
             >
               <Text style={styles.personChipText}>{p} ×</Text>
@@ -131,7 +154,8 @@ export function NoteEditForm({
           {draft.topics.map((t, i) => (
             <Pressable
               key={i}
-              onPress={() => onTopicRemove(i)}
+              testID={`note-edit-topic-chip-${i}`}
+              onPress={() => confirmTopicRemove(i)}
               style={({ pressed }) => [styles.chip, styles.topicChip, pressed && styles.pressed]}
             >
               <Text style={styles.topicChipText}>{t} ×</Text>

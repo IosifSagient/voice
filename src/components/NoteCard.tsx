@@ -50,15 +50,6 @@ export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDelet
         </View>
       )}
 
-      {note.decisions.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Αποφάσεις</Text>
-          {note.decisions.map((d, i) => (
-            <Text key={i} style={styles.decisionText}>• {d}</Text>
-          ))}
-        </View>
-      )}
-
       {(note.people.length > 0 || note.topics.length > 0) && (
         <View style={styles.tagsRow}>
           {note.people.map((p, i) => (
@@ -134,11 +125,6 @@ const styles = StyleSheet.create({
     ...type.label,
     color: colors.light.textMuted,
     marginBottom: spacing.md,
-  },
-  decisionText: {
-    ...type.body,
-    color: colors.light.textSecondary,
-    marginBottom: spacing.sm,
   },
   tagsRow: {
     flexDirection: "row",
