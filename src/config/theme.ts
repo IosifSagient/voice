@@ -1,92 +1,151 @@
-export const colors = {
+// Flat semantic token set (replaces the old flat/light/dark namespaces).
+// Light-surface tokens are unprefixed defaults; dark-surface tokens
+// (LockScreen/splash, RecordScreen, Auth) take an `inverse*` prefix.
+// Identical-hex tokens that shared a role across the old namespaces are
+// unified into one shared token (accentVivid, accentSoft, destructive,
+// white, inverseBg, inverseTextMuted); everything else keeps its own hex
+// even where an unprefixed/inverse pair happens to collide in name.
+const base = {
   // Backgrounds
-  bgBase:     "#0F1115",
-  bgCard:     "#161A22",
-  bgElevated: "#1E2330",
+  bg:                "#F5F2EC",
+  bgCard:             "#FDFBF7",
+  inverseBg:          "#0A1F18",
+  inverseBgCard:      "#161A22",
+  inverseBgElevated:  "#1E2330",
 
-  // Primary accent — teal
-  accent:      "#2DD4BF",
-  accentMuted: "#0D2926",
+  // Accent
+  accent:             "#0E7A54",
+  accentVivid:        "#1FA36E",
+  accentSoft:         "#DCEAE1",
+  accentFaint:        "rgba(14,122,84,0.05)",
+  inverseAccentMuted: "#0D2926",
 
-  // Recording state
-  recording:      "#EF4444",
-  recordingMuted: "#2A1010",
+  // Recording / destructive state
+  destructive:          "#C9503F",
+  inverseRecordingMuted: "#2A1010",
 
   // Text hierarchy
-  textPrimary:   "#F1F5F9",
-  textSecondary: "#94A3B8",
-  textMuted:     "#64748B",
+  text:                 "#1E1B16",
+  textMuted:            "#9A9184",
+  textSecondary:        "#6B6459",
+  inverseText:          "#F1F5F9",
+  inverseTextSecondary: "#B9AE9C",
+  inverseTextMuted:     "rgba(255,255,255,0.5)",
+  white:                "#FFFFFF",
 
-  // Person tags — amber, warm but quiet
-  personText: "#C9922A",
-  personBg:   "#1C1608",
+  // Person tags — amber, warm but quiet (dark-surface only)
+  inversePersonText: "#C9922A",
+  inversePersonBg:   "#1C1608",
 
-  // Topic tags — teal-green, distinct from accent
-  topicText: "#2BB5A2",
-  topicBg:   "#071916",
+  // Topic tags — teal-green, distinct from accent (dark-surface only)
+  inverseTopicText: "#2BB5A2",
+  inverseTopicBg:   "#071916",
 
-  // Due date chip
-  dueText: "#7ED8CF",
-  dueBg:   "#0D2926",
+  // Due date chip (dark-surface only)
+  inverseDueText: "#7ED8CF",
+  inverseDueBg:   "#0D2926",
 
-  // Structural
-  border:     "#252A35",
-  borderFaint: "#1C2130",
+  // Structural / borders
+  border:             "#E7E1D6",
+  borderLight:        "#F0EBE1",
+  borderGlass:        "rgba(255,255,255,0.1)",
+  inverseBorder:      "#252A35",
+  inverseBorderFaint: "#1C2130",
+  inverseBorderGlass: "rgba(255,255,255,0.15)",
 
-  // Status / error
-  error: "#FCA5A5",
+  // Status
+  inverseError: "#FCA5A5",
 
-  white: "#FFFFFF",
+  // Modal/sheet backdrop tint (e.g. TagFilterSheet).
+  scrim: "rgba(30,27,22,0.45)",
 
-  // Light-theme palette (spec DESIGN_SPEC.md) — scoped to screens restyled
-  // so far (Chat). Additive only: never read a flat key above as a
-  // fallback for these, and never let a `colors.dark.*` addition change
-  // these values later — each namespace is self-contained.
+  glassLight: "rgba(255,255,255,0.12)",
+
+  // ANIMATION_SPEC.md TASKS > Filter Pills, on-dark-header background
+  // crossfade endpoints — pinned to the spec's exact pill values.
+  filterPillBg:       "rgba(255,255,255,0.08)",
+  filterPillBgActive: "rgba(255,255,255,0.2)",
+
+  // RecordScreen glass fill — same rgba as filterPillBg above but a
+  // distinct semantic token (dark-surface only); do not merge the two.
+  inverseGlass: "rgba(255,255,255,0.08)",
+
+  gradientHeader:     ["#0C3B2E", "#103F31", "#0E4A38"],
+  gradientButton:     ["#0E7A54", "#0A5C40"],
+  gradientUserBubble: ["#0E7A54", "#0A5C40"],
+} as const;
+
+export const colors = {
+  ...base,
+
+  // --- Back-compat aliases (TEMPORARY — deleted once no call site
+  // references the old flat/light/dark namespaces; see AGENTS.md theme
+  // migration plan). Every value below is byte-identical to the historical
+  // flat/light/dark key it replaces. Some shadow a same-named `base` key
+  // that now carries the *light-surface* meaning (bgCard, accent,
+  // textSecondary, textMuted, border) — that's expected: nothing reads the
+  // unprefixed key for its new light meaning until LockScreen (the first
+  // consumer of these old flat names) is migrated off them.
+  bgBase:        base.inverseBg,
+  bgCard:        base.inverseBgCard,
+  bgElevated:    base.inverseBgElevated,
+  accent:        base.accentVivid,
+  accentMuted:   base.inverseAccentMuted,
+  recording:     base.destructive,
+  recordingMuted: base.inverseRecordingMuted,
+  textPrimary:   base.inverseText,
+  textSecondary: base.inverseTextSecondary,
+  textMuted:     base.inverseTextMuted,
+  personText:    base.inversePersonText,
+  personBg:      base.inversePersonBg,
+  topicText:     base.inverseTopicText,
+  topicBg:       base.inverseTopicBg,
+  dueText:       base.inverseDueText,
+  dueBg:         base.inverseDueBg,
+  border:        base.inverseBorder,
+  borderFaint:   base.inverseBorderFaint,
+  error:         base.inverseError,
+
   light: {
-    bg:     "#F0F4F3",
-    bgCard: "#FFFFFF",
+    bg:     base.bg,
+    bgCard: base.bgCard,
 
-    text:          "#0F172A",
-    textOnDark:    "#FFFFFF",
-    textMuted:     "#94A3B8",
-    textSecondary: "#64748B",
+    text:          base.text,
+    textOnDark:    base.white,
+    textMuted:     base.textMuted,
+    textSecondary: base.textSecondary,
 
-    border:      "#E2E8F0",
-    borderLight: "#F1F5F9",
-    borderGlass: "rgba(255,255,255,0.1)",
+    border:      base.border,
+    borderLight: base.borderLight,
+    borderGlass: base.borderGlass,
 
-    accent:      "#10B981",
-    accentMint:  "#34D399",
-    accentLight: "#D1FAE5",
-    accentFaint: "rgba(16,185,129,0.05)",
+    accent:      base.accent,
+    accentMint:  base.accentVivid,
+    accentLight: base.accentSoft,
+    accentFaint: base.accentFaint,
 
-    destructive: "#EF4444",
+    destructive: base.destructive,
 
-    glassLight: "rgba(255,255,255,0.12)",
+    scrim: base.scrim,
 
-    // ANIMATION_SPEC.md TASKS > Filter Pills, on-dark-header background
-    // crossfade endpoints. Distinct from glassLight/borderGlass above —
-    // those are reused elsewhere at different opacities, these are pinned
-    // to the spec's exact pill values.
-    filterPillBg:       "rgba(255,255,255,0.08)",
-    filterPillBgActive: "rgba(255,255,255,0.2)",
+    glassLight: base.glassLight,
 
-    gradientHeader:     ["#064E3B", "#134E4A", "#0F766E"],
-    gradientButton:     ["#10B981", "#06B6D4"],
-    gradientUserBubble: ["#10B981", "#0D9488"],
+    filterPillBg:       base.filterPillBg,
+    filterPillBgActive: base.filterPillBgActive,
+
+    gradientHeader:     base.gradientHeader,
+    gradientButton:     base.gradientButton,
+    gradientUserBubble: base.gradientUserBubble,
   },
 
-  // Dark-record palette (spec DESIGN_SPEC.md, RECORD section) — scoped to
-  // RecordScreen, which stays dark by design (not part of the light-theme
-  // migration). Additive only, self-contained like `light` above.
   dark: {
-    bg:          "#0F172A",
-    text:        "#FFFFFF",
-    textMuted:   "rgba(255,255,255,0.5)",
-    glass:       "rgba(255,255,255,0.08)",
-    borderGlass: "rgba(255,255,255,0.15)",
-    accent:      "#10B981",
-    destructive: "#EF4444",
+    bg:          base.inverseBg,
+    text:        base.white,
+    textMuted:   base.inverseTextMuted,
+    glass:       base.inverseGlass,
+    borderGlass: base.inverseBorderGlass,
+    accent:      base.accentVivid,
+    destructive: base.destructive,
   },
 } as const;
 
@@ -94,10 +153,10 @@ export const colors = {
 // light/dark namespace. Record-only for now.
 export const gradients = {
   recordScreen: {
-    colors: ["#064E3B", "#0F172A"] as [string, string],
+    colors: ["#0C3B2E", "#0A1712"] as [string, string],
   },
   recordButton: {
-    colors: ["#34D399", "#10B981", "#06B6D4"] as [string, string, string],
+    colors: ["#1FA36E", "#0E7A54", "#0A5C40"] as [string, string, string],
   },
 
   // Auth screen (spec DESIGN_SPEC.md LOGIN/REGISTER) — dark gradient bg and
@@ -105,10 +164,10 @@ export const gradients = {
   // colors.light.gradientButton but is referenced under gradients.* here
   // for semantic cleanliness on a dark screen.
   auth: {
-    colors: ["#0F172A", "#134E4A", "#064E3B"] as [string, string, string],
+    colors: ["#0A1F18", "#0C3B2E", "#0E4A38"] as [string, string, string],
   },
   authButton: {
-    colors: ["#10B981", "#06B6D4"] as [string, string],
+    colors: ["#0E7A54", "#0A5C40"] as [string, string],
   },
 } as const;
 
@@ -126,51 +185,111 @@ export const spacing = {
   listBottomInset: 60,
 } as const;
 
-// System font (San Francisco on iOS, Roboto on Android)
+// Literata (serif, display/reading moments) + Inter (UI/body) — both cover
+// Greek glyphs, loaded via useFonts in App.tsx. Only 400/500/600 weight
+// files are loaded, so no token here sets `fontWeight`: with named-weight
+// font files, a numeric fontWeight on top causes RN to synthesize a
+// (wrong) weight on Android instead of picking the loaded file.
 export const type = {
+  displaySerif: {
+    fontFamily: "Literata_600SemiBold",
+    fontSize: 30,
+    lineHeight: 36,
+    color: colors.inverseText,
+  },
+  titleSerif: {
+    fontFamily: "Literata_500Medium",
+    fontSize: 22,
+    lineHeight: 28,
+    color: colors.inverseText,
+  },
+  // Note bodies in NoteDetail.
+  bodyReading: {
+    fontFamily: "Literata_400Regular",
+    fontSize: 16,
+    lineHeight: 26,
+    color: colors.inverseText,
+  },
+
   headline: {
-    fontSize: 21,
-    fontWeight: "600" as const,
-    lineHeight: 29,
-    color: colors.textPrimary,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 17,
+    lineHeight: 24,
+    color: colors.inverseText,
   },
   bodyLarge: {
+    fontFamily: "Inter_400Regular",
     fontSize: 16,
     lineHeight: 24,
-    color: colors.textPrimary,
+    color: colors.inverseText,
   },
   body: {
+    fontFamily: "Inter_400Regular",
     fontSize: 15,
     lineHeight: 22,
-    color: colors.textPrimary,
+    color: colors.inverseText,
+  },
+  bodyMedium: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.inverseText,
+  },
+  subhead: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.inverseText,
   },
   // Section headings: ΕΝΕΡΓΕΙΕΣ etc.
   label: {
+    fontFamily: "Inter_600SemiBold",
     fontSize: 11,
-    fontWeight: "700" as const,
     letterSpacing: 1.2,
     textTransform: "uppercase" as const,
-    color: colors.textMuted,
+    color: colors.inverseTextMuted,
   },
   meta: {
+    fontFamily: "Inter_400Regular",
     fontSize: 12,
     lineHeight: 17,
-    color: colors.textSecondary,
+    color: colors.inverseTextSecondary,
   },
   metaLarge: {
+    fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 19,
-    color: colors.textSecondary,
+    color: colors.inverseTextSecondary,
+  },
+  footnote: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.inverseTextSecondary,
+  },
+  caption: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    lineHeight: 14,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+    color: colors.inverseTextMuted,
+  },
+  tabLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 10,
+    lineHeight: 12,
+    color: colors.inverseTextMuted,
   },
   buttonHero: {
+    fontFamily: "Inter_600SemiBold",
     fontSize: 18,
-    fontWeight: "600" as const,
     letterSpacing: 0.5,
     color: colors.white,
   },
   buttonSmall: {
+    fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    fontWeight: "600" as const,
     color: colors.white,
   },
 } as const;
@@ -197,37 +316,40 @@ export const radii = {
   cardLg: 20,
 } as const;
 
-// Colored shadows (spec DESIGN_SPEC.md `shadows`), light-theme only for now.
+// Neutral, subtle shadows (no colored glow) on light surfaces. Record's
+// dark-screen shadow keeps its accent-colored glow — see shadows.dark.fab.
 export const shadows = {
   light: {
     card: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      elevation: 2,
+      shadowColor: "#1E1B16",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      elevation: 1,
     },
     bubbleUser: {
-      shadowColor: "#10B981",
+      shadowColor: "#1E1B16",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
+      shadowOpacity: 0.12,
       shadowRadius: 8,
       elevation: 3,
     },
     button: {
-      shadowColor: "#10B981",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.3,
-      shadowRadius: 24,
-      elevation: 6,
+      shadowColor: "#1E1B16",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      elevation: 4,
     },
   },
 
   // Dark-record palette (spec DESIGN_SPEC.md `shadows.fab`) — scoped to
-  // RecordScreen's button glow.
+  // RecordScreen's button glow. Kept as an intentional accent-colored glow
+  // (unlike the light-surface shadows above) — the Record orb is meant to
+  // glow; only the banned literal was replaced, not the glow itself.
   dark: {
     fab: {
-      shadowColor: "#10B981",
+      shadowColor: "#1FA36E",
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.4,
       shadowRadius: 20,
