@@ -127,14 +127,14 @@ const styles = StyleSheet.create({
   },
   header: {
     ...type.label,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     marginBottom: spacing.sm,
   },
   headerOverdue: {
-    color: colors.light.destructive,
+    color: colors.destructive,
   },
   headerToday: {
-    color: colors.light.accent,
+    color: colors.accent,
   },
   emptyState: {
     alignItems: "center",
@@ -142,12 +142,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...type.bodyLarge,
-    color: colors.light.textSecondary,
+    color: colors.textSecondary,
     textAlign: "center",
   },
   error: {
     ...type.body,
-    color: colors.light.destructive,
+    color: colors.destructive,
     marginBottom: spacing.md,
   },
 });
