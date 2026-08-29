@@ -19,7 +19,7 @@ export function LockScreen({ onUnlock }: Props) {
       <Ionicons
         name="lock-closed"
         size={48}
-        color={colors.textMuted}
+        color={colors.inverseTextMuted}
         style={styles.icon}
       />
       <Pressable
@@ -35,7 +35,7 @@ export function LockScreen({ onUnlock }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgBase,
+    backgroundColor: colors.inverseBg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
@@ -44,14 +44,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '600',
     letterSpacing: 0.5,
-    color: colors.accent,
+    color: colors.accentVivid,
     marginBottom: spacing.lg,
   },
   icon: {
     marginBottom: spacing.xxxl,
   },
   btn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accentVivid,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.xxl,
     paddingVertical: 14,
@@ -60,6 +60,6 @@ const styles = StyleSheet.create({
   btnPressed: { opacity: 0.72 },
   btnText: {
     ...type.buttonHero,
-    color: colors.bgBase,
+    color: colors.inverseBg,
   },
 });
