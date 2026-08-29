@@ -70,6 +70,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: radii.full,
-    backgroundColor: colors.light.accent,
+    backgroundColor: colors.accent,
   },
 });
