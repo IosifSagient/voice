@@ -1,11 +1,11 @@
-// Flat semantic token set (replaces the old flat/light/dark namespaces).
-// Light-surface tokens are unprefixed defaults; dark-surface tokens
-// (LockScreen/splash, RecordScreen, Auth) take an `inverse*` prefix.
-// Identical-hex tokens that shared a role across the old namespaces are
-// unified into one shared token (accentVivid, accentSoft, destructive,
-// white, inverseBg, inverseTextMuted); everything else keeps its own hex
-// even where an unprefixed/inverse pair happens to collide in name.
-const base = {
+// Flat semantic token set. Light-surface tokens are unprefixed defaults;
+// dark-surface tokens (LockScreen/splash, RecordScreen, Auth) take an
+// `inverse*` prefix. Identical-hex tokens that shared a role across the
+// old flat/light/dark namespaces this replaced were unified into one
+// shared token (accentVivid, accentSoft, destructive, white, inverseBg,
+// inverseTextMuted); everything else keeps its own hex even where an
+// unprefixed/inverse pair happens to collide in name.
+export const colors = {
   // Backgrounds
   bg:                "#F5F2EC",
   bgCard:             "#FDFBF7",
@@ -75,76 +75,6 @@ const base = {
   gradientUserBubble: ["#0E7A54", "#0A5C40"],
 } as const;
 
-export const colors = {
-  ...base,
-
-  // --- Back-compat aliases (TEMPORARY — deleted once no call site
-  // references the old flat/light/dark namespaces; see AGENTS.md theme
-  // migration plan). Every value below is byte-identical to the historical
-  // flat key it replaces. bgCard/accent/textSecondary/textMuted/border are
-  // deliberately NOT aliased here even though they were flat keys too:
-  // those names collide with `base`'s same-named *light-surface* tokens,
-  // and LockScreen (their only flat-meaning consumer) is already migrated
-  // off them — so the unprefixed name is free for its new light meaning as
-  // soon as light-surface files start consuming it in step 4.
-  bgBase:        base.inverseBg,
-  bgElevated:    base.inverseBgElevated,
-  accentMuted:   base.inverseAccentMuted,
-  recording:     base.destructive,
-  recordingMuted: base.inverseRecordingMuted,
-  textPrimary:   base.inverseText,
-  personText:    base.inversePersonText,
-  personBg:      base.inversePersonBg,
-  topicText:     base.inverseTopicText,
-  topicBg:       base.inverseTopicBg,
-  dueText:       base.inverseDueText,
-  dueBg:         base.inverseDueBg,
-  borderFaint:   base.inverseBorderFaint,
-  error:         base.inverseError,
-
-  light: {
-    bg:     base.bg,
-    bgCard: base.bgCard,
-
-    text:          base.text,
-    textOnDark:    base.white,
-    textMuted:     base.textMuted,
-    textSecondary: base.textSecondary,
-
-    border:      base.border,
-    borderLight: base.borderLight,
-    borderGlass: base.borderGlass,
-
-    accent:      base.accent,
-    accentMint:  base.accentVivid,
-    accentLight: base.accentSoft,
-    accentFaint: base.accentFaint,
-
-    destructive: base.destructive,
-
-    scrim: base.scrim,
-
-    glassLight: base.glassLight,
-
-    filterPillBg:       base.filterPillBg,
-    filterPillBgActive: base.filterPillBgActive,
-
-    gradientHeader:     base.gradientHeader,
-    gradientButton:     base.gradientButton,
-    gradientUserBubble: base.gradientUserBubble,
-  },
-
-  dark: {
-    bg:          base.inverseBg,
-    text:        base.white,
-    textMuted:   base.inverseTextMuted,
-    glass:       base.inverseGlass,
-    borderGlass: base.inverseBorderGlass,
-    accent:      base.accentVivid,
-    destructive: base.destructive,
-  },
-} as const;
-
 // Cross-screen gradient stops (spec DESIGN_SPEC.md) not tied to a single
 // light/dark namespace. Record-only for now.
 export const gradients = {
@@ -157,8 +87,8 @@ export const gradients = {
 
   // Auth screen (spec DESIGN_SPEC.md LOGIN/REGISTER) — dark gradient bg and
   // submit-button gradient. authButton shares stops with
-  // colors.light.gradientButton but is referenced under gradients.* here
-  // for semantic cleanliness on a dark screen.
+  // colors.gradientButton but is referenced under gradients.* here for
+  // semantic cleanliness on a dark screen.
   auth: {
     colors: ["#0A1F18", "#0C3B2E", "#0E4A38"] as [string, string, string],
   },
