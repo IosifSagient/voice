@@ -34,7 +34,7 @@ export function TasksScreen({ navigation }: Props) {
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             loading ? (
-              <ActivityIndicator style={styles.spinner} color={colors.light.accent} />
+              <ActivityIndicator style={styles.spinner} color={colors.accent} />
             ) : (
               <TasksEmptyState filter={filter} />
             )
@@ -54,7 +54,7 @@ export function TasksScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.light.bg },
+  screen: { flex: 1, backgroundColor: colors.bg },
   // Matches NotesListScreen's searchBand: same gradientHeader token (flat
   // fill with the darker top-of-gradient stop, not a second LinearGradient
   // — see that file's comment) and the same paddingTop/paddingBottom.
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   // since this band wraps a horizontally-scrolling pill row, not a
   // full-width input — matching that padding here would double-inset it.
   headerBand: {
-    backgroundColor: colors.light.gradientHeader[0],
+    backgroundColor: colors.gradientHeader[0],
     paddingTop: spacing.md,
     paddingBottom: spacing.base,
   },
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...type.body,
-    color: colors.light.destructive,
+    color: colors.destructive,
     textAlign: "center",
     marginTop: 80,
     paddingHorizontal: spacing.xxl,
