@@ -85,12 +85,12 @@ export function RecordFab({ onPress, visible }: Props) {
     >
       <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
         <LinearGradient
-          colors={colors.light.gradientButton}
+          colors={colors.gradientButton}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.pill}
         >
-          <Ionicons name="mic-outline" size={20} color={colors.light.textOnDark} />
+          <Ionicons name="mic-outline" size={20} color={colors.white} />
           <Text style={styles.label}>Νέα σημείωση</Text>
         </LinearGradient>
       </Pressable>
@@ -117,6 +117,6 @@ const styles = StyleSheet.create({
   },
   label: {
     ...type.buttonSmall,
-    color: colors.light.textOnDark,
+    color: colors.white,
   },
 });
