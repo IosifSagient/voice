@@ -18,8 +18,8 @@ type Props = Pick<
 // token, so its own external behavior (props, rendered output) is unchanged
 // from before the extraction.
 const FOCUS_THEME = {
-  restColor: colors.light.borderGlass,
-  focusColor: colors.light.accentMint,
+  restColor: colors.borderGlass,
+  focusColor: colors.accentVivid,
   restShadowOpacity: 0,
   focusShadowOpacity: 0.35,
 };
@@ -33,7 +33,7 @@ export function AnimatedSearchInput({ value, onChangeText, placeholder, returnKe
       <TextInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor={colors.light.textMuted}
+        placeholderTextColor={colors.textMuted}
         value={value}
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
@@ -49,12 +49,12 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    shadowColor: colors.light.accentMint,
+    shadowColor: colors.accentVivid,
     shadowOffset: { width: 0, height: 0 },
   },
   input: {
-    backgroundColor: colors.light.glassLight,
-    color: colors.light.textOnDark,
+    backgroundColor: colors.glassLight,
+    color: colors.white,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 11,
