@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.cardSm,
     padding: spacing.base,
     marginBottom: spacing.sm,
@@ -170,29 +170,29 @@ const styles = StyleSheet.create({
   taskText: {
     fontSize: 14,
     fontWeight: "500" as const,
-    color: colors.light.text,
+    color: colors.text,
   },
   taskTextDone: {
     textDecorationLine: "line-through",
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
   context: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     marginTop: spacing.xs,
   },
   due: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     marginTop: spacing.xs,
     alignSelf: "flex-start",
-    backgroundColor: colors.light.borderLight,
+    backgroundColor: colors.borderLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.pill,
     overflow: "hidden",
   },
   dueOverdue: {
-    color: colors.light.destructive,
+    color: colors.destructive,
   },
 });
