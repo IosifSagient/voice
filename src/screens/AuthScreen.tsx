@@ -152,7 +152,7 @@ export function AuthScreen() {
                   />
                 </View>
                 {submitting ? (
-                  <ActivityIndicator color={colors.dark.text} />
+                  <ActivityIndicator color={colors.white} />
                 ) : (
                   <Text style={styles.btnText}>
                     {mode === "signIn" ? "Σύνδεση" : "Εγγραφή"}
@@ -197,27 +197,27 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     letterSpacing: 0.5,
-    color: colors.dark.accent,
+    color: colors.accentVivid,
     textAlign: "center",
     marginBottom: spacing.xs,
   },
   subtitle: {
     fontSize: 14,
     fontWeight: "400",
-    color: colors.dark.textMuted,
+    color: colors.inverseTextMuted,
     textAlign: "center",
     marginBottom: spacing.xxl,
   },
   card: {
-    backgroundColor: colors.dark.glass,
+    backgroundColor: colors.inverseGlass,
     borderWidth: 1,
-    borderColor: colors.dark.borderGlass,
+    borderColor: colors.inverseBorderGlass,
     borderRadius: radii.cardLg,
     padding: spacing.lg,
   },
   error: {
     ...type.meta,
-    color: colors.dark.destructive,
+    color: colors.destructive,
     textAlign: "center",
     marginBottom: spacing.md,
   },
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   btnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: colors.dark.text,
+    color: colors.white,
     textAlign: "center",
   },
   toggleBtn: {
@@ -259,11 +259,11 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     ...type.meta,
-    color: colors.dark.textMuted,
+    color: colors.inverseTextMuted,
     textAlign: "center",
   },
   toggleTextAccent: {
-    color: colors.dark.accent,
+    color: colors.accentVivid,
     fontWeight: "700",
   },
 });
