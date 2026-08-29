@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: radii.full,
-    backgroundColor: colors.light.accent,
+    backgroundColor: colors.accent,
     marginRight: spacing.md,
     marginTop: 7,
     flexShrink: 0,
@@ -75,8 +75,8 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: radii.full,
     borderWidth: 2,
-    borderColor: colors.light.accent,
-    backgroundColor: colors.light.accentFaint,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFaint,
     marginRight: spacing.md,
     marginTop: 1,
     flexShrink: 0,
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   action: {
     fontSize: 14,
     fontWeight: "500" as const,
-    color: colors.light.text,
+    color: colors.text,
   },
   dueRow: {
     flexDirection: "row",
@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
   },
   due: {
     ...type.meta,
-    color: colors.light.textMuted,
-    backgroundColor: colors.light.borderLight,
+    color: colors.textMuted,
+    backgroundColor: colors.borderLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radii.pill,
@@ -110,14 +110,14 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
   },
   calBtnText: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
   calBtnTextActive: {
-    color: colors.light.accent,
+    color: colors.accent,
   },
   pressed: {
     opacity: 0.6,
