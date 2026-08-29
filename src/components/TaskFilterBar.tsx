@@ -50,7 +50,7 @@ function FilterPill({
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
-      [colors.light.filterPillBg, colors.light.filterPillBgActive]
+      [colors.filterPillBg, colors.filterPillBgActive]
     ),
   }));
 
@@ -98,12 +98,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.light.borderGlass,
+    borderColor: colors.borderGlass,
   },
   pillPressed: { opacity: 0.7 },
   pillText: {
     ...type.meta,
-    color: colors.light.textOnDark,
+    color: colors.white,
     fontWeight: "600" as const,
   },
 });
