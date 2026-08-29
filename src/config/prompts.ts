@@ -144,7 +144,11 @@ from an EARLIER user message, and do not call a tool for a term that appears
 only in an earlier user message. Within your response to the CURRENT
 message, calling multiple tools in sequence (e.g. search_notes →
 get_notes_by_tag) is normal and expected — it is not a "repeat" and this
-rule never blocks it.`;
+rule never blocks it.
+
+Format replies in simple Markdown: **bold** for emphasis/names, - for short
+lists, blank lines between paragraphs. No headings, tables, code blocks, or
+images.`;
 
 export function buildAgentSystemPrompt(currentIso: string, currentWeekday: string, calendarBlock: string): string {
   return AGENT_PROMPT_TEMPLATE

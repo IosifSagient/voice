@@ -1,6 +1,7 @@
 import { memo, useEffect } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Markdown from "react-native-markdown-display";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,6 +10,44 @@ import Animated, {
 } from "react-native-reanimated";
 import { colors, spacing, type, radii, shadows } from "../config/theme";
 import type { VisibleMessage } from "../types/agent";
+
+// react-native-markdown-display's `body` style targets its outer View
+// container (layout only) — text never renders through it, so the base
+// typography has to live on `textgroup` instead, the Text wrapper each
+// paragraph's inline runs actually render into. strong/em explicitly
+// clear the library's default fontWeight ('bold') by overriding it to
+// undefined: with named-weight font files (see theme.ts's type.* comment),
+// any fontWeight alongside a specific font family makes Android synthesize
+// a wrong-looking weight on top of the loaded file, so bold/italic must
+// come from a font-family swap, never fontWeight/fontStyle-on-top-of-weight.
+const markdownStyles = {
+  textgroup: {
+    ...type.body,
+    color: colors.text,
+  },
+  paragraph: {
+    marginTop: 0,
+    marginBottom: spacing.xs,
+  },
+  strong: {
+    fontFamily: "Inter_600SemiBold",
+    fontWeight: undefined,
+  },
+  em: {
+    fontFamily: "Inter_400Regular",
+    fontStyle: "italic" as const,
+  },
+  bullet_list: {
+    marginBottom: spacing.xs,
+  },
+  list_item: {
+    marginBottom: spacing.xs,
+  },
+  bullet_list_icon: {
+    marginLeft: spacing.xs,
+    marginRight: spacing.xs,
+  },
+};
 
 // Message Appear (ANIMATION_SPEC.md CHAT): slide in from the side the role
 // speaks from, 300ms ease-out. Runs once per mount, driven directly (not via
@@ -50,7 +89,7 @@ function ChatBubbleImpl({ role, content, onLongPress }: Props) {
           </LinearGradient>
         ) : (
           <View style={styles.bubbleAssistant}>
-            <Text style={styles.textAssistant}>{content}</Text>
+            <Markdown style={markdownStyles}>{content}</Markdown>
           </View>
         )}
       </Pressable>
@@ -84,9 +123,5 @@ const styles = StyleSheet.create({
   textUser: {
     ...type.body,
     color: colors.white,
-  },
-  textAssistant: {
-    ...type.body,
-    color: colors.text,
   },
 });
