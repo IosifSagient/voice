@@ -69,7 +69,7 @@ export function NoteEditForm({
         onChangeText={onSummaryChange}
         multiline
         textAlignVertical="top"
-        placeholderTextColor={colors.light.textMuted}
+        placeholderTextColor={colors.textMuted}
         placeholder="Σύνοψη σημείωσης…"
       />
 
@@ -85,14 +85,14 @@ export function NoteEditForm({
               onChangeText={(text) => onActionItemChange(i, { ...item, text })}
               multiline
               textAlignVertical="top"
-              placeholderTextColor={colors.light.textMuted}
+              placeholderTextColor={colors.textMuted}
               placeholder="Ενέργεια…"
             />
             <TextInput
               style={styles.dueInput}
               value={item.due_date ?? ""}
               onChangeText={(text) => onActionItemChange(i, { ...item, due_date: text || null })}
-              placeholderTextColor={colors.light.textMuted}
+              placeholderTextColor={colors.textMuted}
               placeholder="Προθεσμία (YYYY-MM-DD, προαιρετικό)"
             />
           </View>
@@ -134,7 +134,7 @@ export function NoteEditForm({
           style={styles.tagInput}
           value={newPerson}
           onChangeText={setNewPerson}
-          placeholderTextColor={colors.light.textMuted}
+          placeholderTextColor={colors.textMuted}
           placeholder="Προσθήκη ατόμου…"
           onSubmitEditing={commitPerson}
           returnKeyType="done"
@@ -168,7 +168,7 @@ export function NoteEditForm({
           style={styles.tagInput}
           value={newTopic}
           onChangeText={setNewTopic}
-          placeholderTextColor={colors.light.textMuted}
+          placeholderTextColor={colors.textMuted}
           placeholder="Προσθήκη θέματος…"
           onSubmitEditing={commitTopic}
           returnKeyType="done"
@@ -187,7 +187,7 @@ export function NoteEditForm({
 const styles = StyleSheet.create({
   label: {
     ...type.label,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     marginBottom: spacing.sm,
   },
   sectionGap: {
@@ -195,12 +195,12 @@ const styles = StyleSheet.create({
   },
   summaryInput: {
     ...type.headline,
-    color: colors.light.text,
-    backgroundColor: colors.light.bgCard,
+    color: colors.text,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
     minHeight: 72,
   },
   followUpRow: {
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: radii.full,
-    backgroundColor: colors.light.accent,
+    backgroundColor: colors.accent,
     marginRight: spacing.md,
     marginTop: 11,
   },
@@ -222,24 +222,24 @@ const styles = StyleSheet.create({
   },
   actionInput: {
     ...type.body,
-    color: colors.light.text,
-    backgroundColor: colors.light.bgCard,
+    color: colors.text,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
     textAlignVertical: "top",
   },
   dueInput: {
     ...type.meta,
-    color: colors.light.textMuted,
-    backgroundColor: colors.light.borderLight,
+    color: colors.textMuted,
+    backgroundColor: colors.borderLight,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
   },
   deleteBtn: {
     paddingHorizontal: spacing.sm,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     fontSize: 20,
     lineHeight: 26,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
   addLink: {
     alignSelf: "flex-start",
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   addLinkText: {
     ...type.meta,
-    color: colors.light.accent,
+    color: colors.accent,
   },
   tagsRow: {
     flexDirection: "row",
@@ -271,18 +271,18 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   personChip: {
-    backgroundColor: colors.light.accentFaint,
+    backgroundColor: colors.accentFaint,
   },
   personChipText: {
     ...type.meta,
-    color: colors.light.accent,
+    color: colors.accent,
   },
   topicChip: {
-    backgroundColor: colors.light.borderLight,
+    backgroundColor: colors.borderLight,
   },
   topicChipText: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
   addTagRow: {
     flexDirection: "row",
@@ -292,13 +292,13 @@ const styles = StyleSheet.create({
   tagInput: {
     ...type.meta,
     flex: 1,
-    color: colors.light.text,
-    backgroundColor: colors.light.bgCard,
+    color: colors.text,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
   },
   addTagBtn: {
     paddingHorizontal: spacing.sm,
