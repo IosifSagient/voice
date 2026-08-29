@@ -113,7 +113,7 @@ export function TaskCheckbox({ done, onToggle, checkboxTestID }: Props) {
           <Svg width={16} height={16} viewBox="0 0 24 24">
             <AnimatedPath
               d={CHECK_PATH}
-              stroke={colors.light.textOnDark}
+              stroke={colors.white}
               strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: radii.full,
     borderWidth: 2,
-    borderColor: colors.light.accent,
-    backgroundColor: colors.light.accentFaint,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFaint,
     marginRight: spacing.md,
     marginTop: 1,
     flexShrink: 0,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   fill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.light.accent,
+    backgroundColor: colors.accent,
     borderRadius: radii.full,
   },
   checkmark: {
