@@ -39,16 +39,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   person: {
-    color: colors.light.accent,
-    backgroundColor: colors.light.accentFaint,
+    color: colors.accent,
+    backgroundColor: colors.accentFaint,
   },
   topic: {
-    color: colors.light.textMuted,
-    backgroundColor: colors.light.borderLight,
+    color: colors.textMuted,
+    backgroundColor: colors.borderLight,
   },
   selected: {
-    color: colors.light.textOnDark,
-    backgroundColor: colors.light.accent,
+    color: colors.white,
+    backgroundColor: colors.accent,
   },
   pressed: {
     opacity: 0.7,
