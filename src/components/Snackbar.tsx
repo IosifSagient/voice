@@ -84,19 +84,19 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.lg,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.base,
     marginHorizontal: spacing.base,
     marginBottom: spacing.base,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
     ...shadows.light.card,
   },
   message: {
     ...type.body,
-    color: colors.light.text,
+    color: colors.text,
     flex: 1,
   },
   actionBtn: {
@@ -104,6 +104,6 @@ const styles = StyleSheet.create({
   },
   actionText: {
     ...type.buttonSmall,
-    color: colors.light.accent,
+    color: colors.accent,
   },
 });
