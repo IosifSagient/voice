@@ -120,36 +120,36 @@ export function NoteListRow({ note, entryDelay, entryToken, onPress, onLongPress
 
 const styles = StyleSheet.create({
   row: {
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.cardSm,
     padding: spacing.base,
     marginBottom: spacing.sm,
     borderLeftWidth: 3,
-    borderLeftColor: colors.light.accent,
+    borderLeftColor: colors.accent,
     overflow: "hidden",
     ...shadows.light.card,
   },
   pressOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.light.text,
+    backgroundColor: colors.text,
   },
   rowDate: {
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 0.5,
     textTransform: "uppercase",
-    color: colors.light.accent,
+    color: colors.accent,
     marginBottom: spacing.sm,
   },
   rowSummary: {
     fontSize: 14,
     lineHeight: 21,
-    color: colors.light.text,
+    color: colors.text,
   },
   badge: {
     alignSelf: "flex-start",
     marginTop: spacing.md,
-    backgroundColor: colors.light.accentLight,
+    backgroundColor: colors.accentSoft,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
@@ -157,6 +157,6 @@ const styles = StyleSheet.create({
   badgeText: {
     ...type.meta,
     fontWeight: "600",
-    color: colors.light.accent,
+    color: colors.accent,
   },
 });
