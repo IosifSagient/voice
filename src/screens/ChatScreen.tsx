@@ -63,7 +63,7 @@ function SendButton({ enabled, onPress }: { enabled: boolean; onPress: () => voi
     >
       <Animated.View style={[styles.sendBtn, containerStyle]}>
         <LinearGradient
-          colors={colors.light.gradientButton}
+          colors={colors.gradientButton}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.sendBtnGradient}
@@ -168,7 +168,7 @@ export function ChatScreen() {
           value={input}
           onChangeText={setInput}
           placeholder="Ρώτησε κάτι…"
-          placeholderTextColor={colors.light.textMuted}
+          placeholderTextColor={colors.textMuted}
           multiline
           maxLength={500}
           returnKeyType="send"
@@ -200,7 +200,7 @@ export function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  kav: { flex: 1, backgroundColor: colors.light.bg },
+  kav: { flex: 1, backgroundColor: colors.bg },
 
   list: {
     paddingHorizontal: spacing.base,
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
 
   emptyHint: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     textAlign: "center",
     paddingHorizontal: spacing.xxl,
     marginTop: 60,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   thinkingText: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
 
   // top/left/right all reuse spacing.base — left/right match inputRow's own
@@ -262,14 +262,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.light.border,
-    backgroundColor: colors.light.bgCard,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bgCard,
   },
   input: {
     flex: 1,
     ...type.body,
-    color: colors.light.text,
-    backgroundColor: colors.light.bg,
+    color: colors.text,
+    backgroundColor: colors.bg,
     borderRadius: radii.inputPill,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   sendBtnText: {
     fontSize: 18,
     fontWeight: "700",
-    color: colors.light.textOnDark,
+    color: colors.white,
     lineHeight: 22,
   },
   topBar: {
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
 
   clearText: {
     ...type.meta,
-    color: colors.light.accentMint,
+    color: colors.accentVivid,
     fontWeight: "600",
   },
 });
