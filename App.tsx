@@ -9,9 +9,25 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as SplashScreen from "expo-splash-screen";
+import {
+  useFonts,
+  Literata_400Regular,
+  Literata_500Medium,
+  Literata_600SemiBold,
+} from "@expo-google-fonts/literata";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+} from "@expo-google-fonts/inter";
 // Registers the foreground notification handler at module scope (R5) —
 // importing this once, here, before anything else runs is enough.
 import "./src/services/notifications";
+
+// Keep the native splash up until the custom fonts below are loaded, so
+// there's no flash of system-font text before Literata/Inter swap in.
+SplashScreen.preventAutoHideAsync();
 
 import { NotesListScreen } from "./src/screens/NotesListScreen";
 import { RecordScreen } from "./src/screens/RecordScreen";
@@ -22,7 +38,7 @@ import { AuthScreen } from "./src/screens/AuthScreen";
 import { LockScreen } from "./src/screens/LockScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { AnimatedTabIcon } from "./src/components/AnimatedTabIcon";
-import { colors, radii, spacing } from "./src/config/theme";
+import { colors, radii, spacing, type } from "./src/config/theme";
 import { initDb } from "./src/db";
 import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
@@ -51,10 +67,18 @@ const sharedHeaderOptions = {
   ),
   headerTintColor: colors.white,
   headerTitleStyle: {
-    fontWeight: "600" as const,
+    fontFamily: "Inter_600SemiBold",
     color: colors.white,
   },
   headerShadowVisible: false,
+};
+
+// "Ask Lisa" (NotesList) and the NoteDetail title get the serif display
+// treatment; every other header keeps sharedHeaderOptions' Inter title above.
+const serifHeaderTitleStyle = {
+  fontFamily: type.displaySerif.fontFamily,
+  fontSize: type.displaySerif.fontSize,
+  color: colors.white,
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
@@ -93,6 +117,7 @@ function MainTabs() {
         component={NotesListScreen}
         options={({ navigation }) => ({
           title: "Ask Lisa",
+          headerTitleStyle: serifHeaderTitleStyle,
           tabBarLabel: "Σημειώσεις",
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon focused={focused}>
@@ -160,6 +185,14 @@ function MainTabs() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Literata_400Regular,
+    Literata_500Medium,
+    Literata_600SemiBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+  });
   const { session, loading, signOut } = useAuth();
   const { locked, lockAvailable, lockEnabled, unlock, setLockEnabled } =
     useAppLock(!!session);
@@ -184,6 +217,14 @@ export default function App() {
     initDb().catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  // Keep the native splash covering the screen until fonts are ready —
+  // avoids any flash of system-font text.
+  if (!fontsLoaded) return null;
+
   if (loading) {
     return (
       <View style={styles.splash}>
@@ -196,11 +237,15 @@ export default function App() {
   }
 
   if (!session) {
-    return <AuthScreen />;
+    return (
+      <AuthScreen />
+    );
   }
 
   if (locked) {
-    return <LockScreen onUnlock={unlock} />;
+    return (
+      <LockScreen onUnlock={unlock} />
+    );
   }
 
   return (
@@ -226,7 +271,7 @@ export default function App() {
         <Stack.Screen
           name="NoteDetail"
           component={NoteDetailScreen}
-          options={{ title: "" }}
+          options={{ title: "", headerTitleStyle: serifHeaderTitleStyle }}
         />
         <Stack.Screen
           name="Settings"

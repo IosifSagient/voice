@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15,23,42,0.4)",
+    backgroundColor: colors.scrim,
   },
   sheet: {
     maxHeight: "70%",
@@ -198,12 +198,12 @@ const styles = StyleSheet.create({
   },
   rowLabelSelected: {
     color: colors.accent,
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
   checkmark: {
     ...type.body,
     color: colors.accent,
-    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
     marginLeft: spacing.sm,
   },
 });

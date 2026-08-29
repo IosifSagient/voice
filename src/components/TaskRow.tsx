@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   textCol: { flex: 1 },
   taskText: {
     fontSize: 14,
-    fontWeight: "500" as const,
+    fontFamily: "Inter_500Medium",
     color: colors.text,
   },
   taskTextDone: {

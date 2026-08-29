@@ -9,7 +9,11 @@ import {
   StyleSheet,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import Animated, { useAnimatedScrollHandler, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import type { CompositeScreenProps } from "@react-navigation/native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
@@ -34,6 +38,7 @@ import { deriveTagChips, noteMatchesChip } from "../lib/noteTags";
 import type { Note } from "../types/note";
 import type { TagChip } from "../types/tags";
 import { colors, spacing, type, radii } from "../config/theme";
+import { dateKeyOf } from "../lib/dateFormat";
 
 // How many cards, counted from the top, participate in the initial-mount /
 // pull-to-refresh stagger (ANIMATION_SPEC.md NOTES (HOME): "first ~8 visible
@@ -154,6 +159,25 @@ export function NotesListScreen({ navigation }: Props) {
     dismissSnackbar: dismissCopySnackbar,
   } = useNoteActions(actionSheetNote);
 
+  const search = async (q: string) => {
+    try {
+      const isSearching = q.trim().length > 0;
+      const results = isSearching
+        ? await notesRepository.search(q.trim())
+        : await notesRepository.listAll();
+      computeEntryPlan(results, false);
+      setNotes(results);
+      // Same reasoning as onRefresh: only a full unfiltered fetch (empty
+      // query) is a valid resync point for the chip snapshot — e.g. after
+      // clearing the search box, or after search(query) re-runs post-delete.
+      if (!isSearching) setAllNotesSnapshot(results);
+      setError(null);
+    } catch (e) {
+      setNotes([]);
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   // Deferred to an effect (rather than opened inline from onLongPress) so the
   // sheet's button callback closes over THIS render's handleCopy/handleShare
   // — the ones freshly bound to the just-set actionSheetNote — instead of the
@@ -220,35 +244,20 @@ export function NotesListScreen({ navigation }: Props) {
     }, [refreshTodayTasks]),
   );
 
-  const search = async (q: string) => {
-    try {
-      const isSearching = q.trim().length > 0;
-      const results = isSearching
-        ? await notesRepository.search(q.trim())
-        : await notesRepository.listAll();
-      computeEntryPlan(results, false);
-      setNotes(results);
-      // Same reasoning as onRefresh: only a full unfiltered fetch (empty
-      // query) is a valid resync point for the chip snapshot — e.g. after
-      // clearing the search box, or after search(query) re-runs post-delete.
-      if (!isSearching) setAllNotesSnapshot(results);
-      setError(null);
-    } catch (e) {
-      setNotes([]);
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
   // Chip set for the filter bar: derived from the stable all-notes snapshot
   // (never from `notes`, which can be a search result) so it doesn't
   // appear/disappear as the user types or filters.
-  const chips = useMemo(() => deriveTagChips(allNotesSnapshot), [allNotesSnapshot]);
+  const chips = useMemo(
+    () => deriveTagChips(allNotesSnapshot),
+    [allNotesSnapshot],
+  );
 
   // The active chip narrows whatever `notes` already holds (search result OR
   // full fetch) — it intersects, it never replaces the fetch or re-queries
   // the DB (LOCKED DECISION 1).
   const filteredNotes = useMemo(
-    () => (activeChip ? notes.filter((n) => noteMatchesChip(n, activeChip)) : notes),
+    () =>
+      activeChip ? notes.filter((n) => noteMatchesChip(n, activeChip)) : notes,
     [notes, activeChip],
   );
 
@@ -257,7 +266,24 @@ export function NotesListScreen({ navigation }: Props) {
   // or the active chip) — the entry-stagger bookkeeping above (entryPlanRef
   // etc.) still operates on the fetched `notes` directly, keyed by note id,
   // so header rows never shift stagger positions or consume a stagger slot.
-  const groupedItems = useMemo(() => groupNotesByDate(filteredNotes), [filteredNotes]);
+  const groupedItems = useMemo(
+    () => groupNotesByDate(filteredNotes),
+    [filteredNotes],
+  );
+
+  const railItems = useMemo(() => {
+    let prevKey: string | null = null;
+    return groupedItems.map((item) => {
+      if (item.type === "header") {
+        prevKey = null;
+        return { ...item, showRail: false };
+      }
+      const key = dateKeyOf(item.note.timestamp);
+      const showRail = key !== prevKey;
+      prevKey = key;
+      return { ...item, showRail };
+    });
+  }, [groupedItems]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -297,7 +323,10 @@ export function NotesListScreen({ navigation }: Props) {
             />
           </View>
           {chips.length > 0 && (
-            <TagFilterButton activeChip={activeChip} onPress={() => setFilterSheetOpen(true)} />
+            <TagFilterButton
+              activeChip={activeChip}
+              onPress={() => setFilterSheetOpen(true)}
+            />
           )}
         </View>
       </View>
@@ -317,7 +346,7 @@ export function NotesListScreen({ navigation }: Props) {
 
       <Animated.FlatList
         style={styles.flatlist}
-        data={groupedItems}
+        data={railItems}
         keyExtractor={(item) => item.key}
         contentContainerStyle={styles.list}
         onScroll={scrollHandler}
@@ -336,7 +365,9 @@ export function NotesListScreen({ navigation }: Props) {
             upcoming={upcoming}
             loading={todayLoading}
             error={todayError}
-            onPressTask={(noteId) => navigation.navigate("NoteDetail", { id: noteId })}
+            onPressTask={(noteId) =>
+              navigation.navigate("NoteDetail", { id: noteId })
+            }
             onComplete={completeTodayTask}
             onUndo={reopenTodayTask}
           />
@@ -348,7 +379,10 @@ export function NotesListScreen({ navigation }: Props) {
               <Pressable
                 testID="notes-list-retry"
                 onPress={() => search(query)}
-                style={({ pressed }) => [styles.retryBtn, pressed && styles.retryBtnPressed]}
+                style={({ pressed }) => [
+                  styles.retryBtn,
+                  pressed && styles.retryBtnPressed,
+                ]}
               >
                 <Text style={styles.retryBtnText}>Δοκιμάστε ξανά</Text>
               </Pressable>
@@ -372,7 +406,10 @@ export function NotesListScreen({ navigation }: Props) {
               note={item.note}
               entryDelay={entryPlanRef.current.get(item.note.id) ?? null}
               entryToken={entryTokenRef.current}
-              onPress={() => navigation.navigate("NoteDetail", { id: item.note.id })}
+              showRail={item.showRail}
+              onPress={() =>
+                navigation.navigate("NoteDetail", { id: item.note.id })
+              }
               onLongPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setActionSheetNote(item.note);
@@ -387,7 +424,10 @@ export function NotesListScreen({ navigation }: Props) {
         visible={fabVisible}
       />
 
-      <View pointerEvents="box-none" style={styles.snackbarFloat}>
+      <View
+        pointerEvents="box-none"
+        style={styles.snackbarFloat}
+      >
         <Snackbar
           visible={copySnackbarVisible}
           message={copySnackbarMessage}
@@ -434,8 +474,8 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing.base,
-    paddingTop: spacing.sm,
-    paddingBottom: 48,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.listBottomInset,
   },
   emptySearch: {
     ...type.body,

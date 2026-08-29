@@ -20,17 +20,16 @@ type Props = Pick<
   | "onSubmitEditing"
 >;
 
-// ANIMATION_SPEC.md LOGIN/REGISTER > Input Focus: border color
-// rgba(255,255,255,0.15) -> rgba(52,211,153,0.5), 200ms. Dark-screen
-// counterpart to AnimatedSearchInput; both call the shared useFocusGlow
-// hook (src/lib) so the animation isn't duplicated, only themed
-// differently. focusColor below is colors.accentVivid (#34D399) at
-// 50% alpha — the spec's literal rgba value, borrowed from the mint accent
-// rather than the plain accent, since that's the exact color the spec
-// calls for on this dark screen.
+// ANIMATION_SPEC.md LOGIN/REGISTER > Input Focus: border color transitions
+// to the accent on focus, 200ms. Dark-screen counterpart to
+// AnimatedSearchInput; both call the shared useFocusGlow hook (src/lib) so
+// the animation isn't duplicated, only themed differently. Matches
+// AnimatedSearchInput's pattern exactly: focusColor is a solid token
+// (interpolateColor handles the crossfade), the fade-in itself comes from
+// shadowOpacity animating 0 -> 0.35 below, not from alpha baked into the color.
 const FOCUS_THEME = {
   restColor: colors.inverseBorderGlass,
-  focusColor: "rgba(52,211,153,0.5)",
+  focusColor: colors.accentVivid,
   restShadowOpacity: 0,
   focusShadowOpacity: 0.35,
 };

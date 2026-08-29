@@ -118,10 +118,7 @@ export function TodaySection({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.md,
-  },
+  container: {},
   section: {
     marginBottom: spacing.lg,
   },

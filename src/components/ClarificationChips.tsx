@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   highlight: {
     color: colors.accent,
-    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
   },
   meta: {
     ...type.meta,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   actionText: {
     ...type.metaLarge,
     color: colors.accent,
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
   actionTextPressed: {
     opacity: 0.5,

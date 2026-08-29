@@ -4,92 +4,87 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import type { Note } from "../types/note";
-import { colors, spacing, type, radii, shadows } from "../config/theme";
-import { formatDate } from "../lib/dateFormat";
-import { duration, spring, noteCardEntryTranslateY } from "../config/motion";
+import { colors, spacing } from "../config/theme";
+import { formatDateRail } from "../lib/dateFormat";
+import { duration, noteCardEntryTranslateY } from "../config/motion";
 import { useReducedMotionPreference } from "../lib/useReducedMotionPreference";
 
-// Peak opacity of the press-darken overlay — subtle, not a visible block of
-// color. Local to this component, not a motion.ts token (it's an opacity
-// ceiling, not a duration/spring).
-const PRESS_OVERLAY_MAX_OPACITY = 0.06;
+const PRESS_DIM_OPACITY = 0.55;
+const RAIL_WIDTH = 46;
 
 type Props = {
   note: Note;
-  // null = this row does not animate in (already-seen note, e.g. a row
-  // revealed by scrolling further down an unchanged list) — see
-  // NotesListScreen's entryPlanRef for who gets a delay and why.
   entryDelay: number | null;
-  // Bumped by the screen every time entryPlanRef is recomputed. entryDelay
-  // alone can't signal "play again" when the same numeric delay recurs
-  // (e.g. two consecutive pull-to-refreshes both stagger index 0 as 0ms) —
-  // this is what the effect below actually keys off of.
   entryToken: number;
+  // First row of each date run shows the rail label; repeats within the same
+  // day suppress it so the day-number doesn't stutter down the list. Computed
+  // at the list level (NotesListScreen railItems), so it's virtualization-safe.
+  showRail: boolean;
   onPress: () => void;
   onLongPress: () => void;
 };
 
-// Presentational only: entrance (opacity/translateY) and press (scale +
-// overlay darken) animations live entirely here, same pattern as
-// TaskCheckbox / RecordFab. NotesListScreen owns no animation state of its
-// own for this row.
-export function NoteListRow({ note, entryDelay, entryToken, onPress, onLongPress }: Props) {
+// Presentational only: entrance (opacity/translateY) and press (opacity dim)
+// animations live here. Flat timeline row — no card surface, so press is a
+// list-row dim, not the old scale+darken-overlay.
+export function NoteListRow({
+  note,
+  entryDelay,
+  entryToken,
+  showRail,
+  onPress,
+  onLongPress,
+}: Props) {
   const reducedMotion = useReducedMotionPreference();
   const opacity = useSharedValue(entryDelay == null ? 1 : 0);
-  const translateY = useSharedValue(entryDelay == null ? 0 : noteCardEntryTranslateY);
-  const pressScale = useSharedValue(1);
-  const pressOverlay = useSharedValue(0);
+  const translateY = useSharedValue(
+    entryDelay == null ? 0 : noteCardEntryTranslateY,
+  );
+  const pressDim = useSharedValue(1);
 
   useEffect(() => {
     if (entryDelay == null) return;
-
     if (reducedMotion) {
-      // ANIMATION_SPEC.md NOTES (HOME) reduced motion: skip stagger, all
-      // participating cards fade in together — no per-card delay, no translateY.
       opacity.value = withTiming(1, { duration: duration.base });
       translateY.value = 0;
       return;
     }
-
-    opacity.value = withDelay(entryDelay, withTiming(1, { duration: duration.cardEntry }));
-    translateY.value = withDelay(entryDelay, withTiming(0, { duration: duration.cardEntry }));
-    // entryToken (not entryDelay) is the intentional replay trigger — see the
-    // Props comment above.
+    opacity.value = withDelay(
+      entryDelay,
+      withTiming(1, { duration: duration.cardEntry }),
+    );
+    translateY.value = withDelay(
+      entryDelay,
+      withTiming(0, { duration: duration.cardEntry }),
+    );
+    // entryToken (not entryDelay) is the intentional replay trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryToken]);
 
   const handlePressIn = () => {
-    if (reducedMotion) {
-      pressOverlay.value = withTiming(1, { duration: duration.cardPress });
-      return;
-    }
-    pressScale.value = withTiming(0.98, { duration: duration.cardPress });
-    pressOverlay.value = withTiming(1, { duration: duration.cardPress });
+    pressDim.value = withTiming(PRESS_DIM_OPACITY, {
+      duration: duration.cardPress,
+    });
   };
-
   const handlePressOut = () => {
-    if (reducedMotion) {
-      pressOverlay.value = withTiming(0, { duration: duration.cardPress });
-      return;
-    }
-    pressScale.value = withSpring(1, spring.cardPress);
-    pressOverlay.value = withTiming(0, { duration: duration.cardPress });
+    pressDim.value = withTiming(1, { duration: duration.cardPress });
   };
 
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }, { scale: pressScale.value }],
+  // Entrance opacity and press-dim multiply cleanly: entrance runs 0→1 with
+  // dim at 1; press holds opacity at 1 and drives dim 1→0.55.
+  const rowStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value * pressDim.value,
+    transform: [{ translateY: translateY.value }],
   }));
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: pressOverlay.value * PRESS_OVERLAY_MAX_OPACITY,
-  }));
+
+  const { day, month } = formatDateRail(note.timestamp);
+  const actionCount = note.openActionCount ?? 0;
 
   return (
-    <Animated.View style={cardStyle}>
+    <Animated.View style={rowStyle}>
       <Pressable
         testID="notes-list-row"
         style={styles.row}
@@ -98,21 +93,27 @@ export function NoteListRow({ note, entryDelay, entryToken, onPress, onLongPress
         onPressOut={handlePressOut}
         onLongPress={onLongPress}
       >
-        {/* Background darken overlay, not a bg color mutation — see ANIMATION_SPEC.md. */}
-        <Animated.View style={[styles.pressOverlay, overlayStyle]} pointerEvents="none" />
-        <Text style={styles.rowDate}>{formatDate(note.timestamp)}</Text>
-        <Text style={styles.rowSummary} numberOfLines={2}>
-          {note.summary || "—"}
-        </Text>
-        {(note.openActionCount ?? 0) > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {note.openActionCount === 1
-                ? "1 ενέργεια"
-                : `${note.openActionCount} ενέργειες`}
+        <View style={styles.rail}>
+          {showRail && (
+            <>
+              <Text style={styles.railDay}>{day}</Text>
+              <Text style={styles.railMonth}>{month}</Text>
+            </>
+          )}
+        </View>
+        <View style={styles.body}>
+          <Text
+            style={styles.summary}
+            numberOfLines={2}
+          >
+            {note.summary || "—"}
+          </Text>
+          {actionCount > 0 && (
+            <Text style={styles.action}>
+              {actionCount === 1 ? "1 ενέργεια" : `${actionCount} ενέργειες`} →
             </Text>
-          </View>
-        )}
+          )}
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -120,43 +121,49 @@ export function NoteListRow({ note, entryDelay, entryToken, onPress, onLongPress
 
 const styles = StyleSheet.create({
   row: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.cardSm,
-    padding: spacing.base,
-    marginBottom: spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.accent,
-    overflow: "hidden",
-    ...shadows.light.card,
+    flexDirection: "row",
+    paddingVertical: spacing.base,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  pressOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.text,
+  rail: {
+    width: RAIL_WIDTH,
+    alignItems: "flex-end",
+    paddingTop: 1,
   },
-  rowDate: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    color: colors.accent,
-    marginBottom: spacing.sm,
-  },
-  rowSummary: {
-    fontSize: 14,
-    lineHeight: 21,
+  railDay: {
+    fontFamily: "Literata_500Medium",
+    fontSize: 19,
+    lineHeight: 20,
     color: colors.text,
   },
-  badge: {
-    alignSelf: "flex-start",
-    marginTop: spacing.md,
-    backgroundColor: colors.accentSoft,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+  railMonth: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: colors.textMuted,
+    marginTop: 1,
   },
-  badgeText: {
-    ...type.meta,
-    fontWeight: "600",
+  body: {
+    flex: 1,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: colors.border,
+    paddingLeft: spacing.base,
+    marginLeft: spacing.md,
+  },
+  summary: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.text,
+  },
+  action: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.accent,
+    marginTop: spacing.xs + 2,
   },
 });

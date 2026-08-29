@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   label: {
     ...type.meta,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
   labelActive: {
     color: colors.white,

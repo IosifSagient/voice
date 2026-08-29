@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   action: {
     fontSize: 14,
-    fontWeight: "500" as const,
+    fontFamily: "Inter_500Medium",
     color: colors.text,
   },
   dueRow: {

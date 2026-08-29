@@ -26,7 +26,7 @@ export const colors = {
 
   // Text hierarchy
   text:                 "#1E1B16",
-  textMuted:            "#9A9184",
+  textMuted:            "#7A7368",
   textSecondary:        "#6B6459",
   inverseText:          "#F1F5F9",
   inverseTextSecondary: "#B9AE9C",

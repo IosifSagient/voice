@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Inter_500Medium',
     color: colors.text,
   },
   rowHint: {
@@ -261,6 +261,6 @@ const styles = StyleSheet.create({
   signOutText: {
     ...type.body,
     color: colors.destructive,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
   },
 });

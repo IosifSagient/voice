@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 28,
-    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
     letterSpacing: 0.5,
     color: colors.accentVivid,
     textAlign: "center",
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: "400",
+    fontFamily: "Inter_400Regular",
     color: colors.inverseTextMuted,
     textAlign: "center",
     marginBottom: spacing.xxl,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   btnText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
     color: colors.white,
     textAlign: "center",
   },
@@ -264,6 +264,6 @@ const styles = StyleSheet.create({
   },
   toggleTextAccent: {
     color: colors.accentVivid,
-    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
   },
 });

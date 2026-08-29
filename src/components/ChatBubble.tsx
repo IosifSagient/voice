@@ -31,6 +31,7 @@ const markdownStyles = {
   },
   strong: {
     fontFamily: "Inter_600SemiBold",
+    // eslint-disable-next-line no-restricted-syntax -- sanctioned exception: clears the markdown lib's default bold, not a real weight
     fontWeight: undefined,
   },
   em: {

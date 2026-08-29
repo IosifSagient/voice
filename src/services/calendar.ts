@@ -2,6 +2,7 @@ import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import type { CalendarOption } from '../types/calendar';
 import { getPreferredCalendarId } from './calendarPrefs';
+import { colors } from '../config/theme';
 
 let cachedCalendarId: string | null = null;
 let preferredCalendarStale = false;
@@ -81,7 +82,7 @@ async function resolveDefaultCalendarId(cache: boolean): Promise<string | null> 
     );
     const id = await Calendar.createCalendarAsync({
       title: 'VoiceNote',
-      color: '#2DD4BF',
+      color: colors.accent,
       entityType: Calendar.EntityTypes.EVENT,
       sourceId: local?.id,
       source: local ?? { isLocalAccount: true, name: 'VoiceNote', type: Calendar.SourceType.LOCAL },

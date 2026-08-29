@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 28,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     letterSpacing: 0.5,
     color: colors.accentVivid,
     marginBottom: spacing.lg,

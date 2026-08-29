@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   editBtnText: {
     fontSize: 15,
-    fontWeight: "600" as const,
+    fontFamily: "Inter_600SemiBold",
     color: colors.text,
   },
   regenLink: {
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: 15,
-    fontWeight: "600" as const,
+    fontFamily: "Inter_600SemiBold",
     color: colors.white,
   },
   secondaryBtn: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: 15,
-    fontWeight: "600" as const,
+    fontFamily: "Inter_600SemiBold",
     color: colors.text,
   },
   transcriptHeading: {

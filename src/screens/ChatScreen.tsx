@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   },
   sendBtnText: {
     fontSize: 18,
-    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
     color: colors.white,
     lineHeight: 22,
   },
@@ -307,6 +307,6 @@ const styles = StyleSheet.create({
   clearText: {
     ...type.meta,
     color: colors.accentVivid,
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
 });

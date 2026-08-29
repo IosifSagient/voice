@@ -104,6 +104,6 @@ const styles = StyleSheet.create({
   pillText: {
     ...type.meta,
     color: colors.white,
-    fontWeight: "600" as const,
+    fontFamily: "Inter_600SemiBold",
   },
 });
