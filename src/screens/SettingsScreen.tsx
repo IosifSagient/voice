@@ -56,7 +56,7 @@ export function SettingsScreen({
             <Switch
               value={lockEnabled}
               onValueChange={onSetLockEnabled}
-              trackColor={{ false: colors.light.border, true: colors.light.accent }}
+              trackColor={{ false: colors.border, true: colors.accent }}
             />
           </View>
           <Text style={styles.rowHint}>
@@ -120,7 +120,7 @@ export function SettingsScreen({
                   </View>
                 </View>
                 {cal.id === selectedCalendarId && (
-                  <Ionicons name="checkmark" size={20} color={colors.light.accent} />
+                  <Ionicons name="checkmark" size={20} color={colors.accent} />
                 )}
               </Pressable>
             ))}
@@ -193,11 +193,11 @@ export function SettingsScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.light.bg,
+    backgroundColor: colors.bg,
     paddingTop: spacing.lg,
   },
   section: {
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.cardSm,
     marginHorizontal: spacing.base,
     marginBottom: spacing.base,
@@ -213,19 +213,19 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.light.text,
+    color: colors.text,
   },
   rowHint: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     paddingBottom: spacing.base,
   },
   rowHintWarning: {
-    color: colors.light.destructive,
+    color: colors.destructive,
   },
   sectionLabel: {
     ...type.label,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     paddingTop: spacing.base,
   },
   calendarRowMain: {
@@ -240,14 +240,14 @@ const styles = StyleSheet.create({
   },
   calendarAccount: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.light.accent,
-    shadowColor: colors.light.accent,
+    backgroundColor: colors.accent,
+    shadowColor: colors.accent,
     shadowOpacity: 0.5,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 0 },
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   btnPressed: { opacity: 0.72 },
   signOutText: {
     ...type.body,
-    color: colors.light.destructive,
+    color: colors.destructive,
     fontWeight: '600',
   },
 });
