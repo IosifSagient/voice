@@ -24,12 +24,12 @@ type Props = Pick<
 // rgba(255,255,255,0.15) -> rgba(52,211,153,0.5), 200ms. Dark-screen
 // counterpart to AnimatedSearchInput; both call the shared useFocusGlow
 // hook (src/lib) so the animation isn't duplicated, only themed
-// differently. focusColor below is colors.light.accentMint (#34D399) at
+// differently. focusColor below is colors.accentVivid (#34D399) at
 // 50% alpha — the spec's literal rgba value, borrowed from the mint accent
-// rather than colors.dark.accent, since that's the exact color the spec
+// rather than the plain accent, since that's the exact color the spec
 // calls for on this dark screen.
 const FOCUS_THEME = {
-  restColor: colors.dark.borderGlass,
+  restColor: colors.inverseBorderGlass,
   focusColor: "rgba(52,211,153,0.5)",
   restShadowOpacity: 0,
   focusShadowOpacity: 0.35,
@@ -55,7 +55,7 @@ export function AnimatedAuthInput({
       <TextInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor={colors.dark.textMuted}
+        placeholderTextColor={colors.inverseTextMuted}
         value={value}
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
@@ -76,13 +76,13 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    shadowColor: colors.light.accentMint,
+    shadowColor: colors.accentVivid,
     shadowOffset: { width: 0, height: 0 },
     marginBottom: spacing.md,
   },
   input: {
-    backgroundColor: colors.dark.glass,
-    color: colors.dark.text,
+    backgroundColor: colors.inverseGlass,
+    color: colors.white,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 13,
