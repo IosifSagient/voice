@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     marginTop: -recordButton.outerSize / 2,
     borderRadius: recordButton.outerRadius,
     borderWidth: 1.5,
-    borderColor: colors.dark.accent,
+    borderColor: colors.accentVivid,
   },
   reducedMotionRing: {
     opacity: pulseRing.opacityFrom,
@@ -119,6 +119,6 @@ const styles = StyleSheet.create({
     borderRadius: recordButton.outerRadius,
     borderWidth: 3,
     borderColor: "transparent",
-    borderTopColor: colors.dark.destructive,
+    borderTopColor: colors.destructive,
   },
 });
