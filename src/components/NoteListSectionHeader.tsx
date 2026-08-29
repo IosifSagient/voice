@@ -12,7 +12,7 @@ export function NoteListSectionHeader({ label }: Props) {
 const styles = StyleSheet.create({
   header: {
     ...type.label,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
