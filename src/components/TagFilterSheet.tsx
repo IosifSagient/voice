@@ -78,7 +78,7 @@ export function TagFilterSheet({ visible, chips, activeChip, onSelect, onCancel 
             value={query}
             onChangeText={setQuery}
             placeholder="Φιλτράρισμα…"
-            placeholderTextColor={colors.light.textMuted}
+            placeholderTextColor={colors.textMuted}
             returnKeyType="search"
           />
           <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
@@ -154,23 +154,23 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: "70%",
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderTopLeftRadius: radii.cardLg,
     borderTopRightRadius: radii.cardLg,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
     paddingHorizontal: spacing.base,
     paddingTop: spacing.base,
     paddingBottom: spacing.listBottomInset,
     ...shadows.light.card,
   },
   input: {
-    backgroundColor: colors.light.borderLight,
+    backgroundColor: colors.borderLight,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 11,
     fontSize: 15,
-    color: colors.light.text,
+    color: colors.text,
     marginBottom: spacing.sm,
   },
   list: {
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     ...type.label,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
@@ -188,21 +188,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.light.borderLight,
+    borderBottomColor: colors.borderLight,
   },
   rowPressed: { opacity: 0.6 },
   rowLabel: {
     ...type.body,
-    color: colors.light.text,
+    color: colors.text,
     flex: 1,
   },
   rowLabelSelected: {
-    color: colors.light.accent,
+    color: colors.accent,
     fontWeight: "600",
   },
   checkmark: {
     ...type.body,
-    color: colors.light.accent,
+    color: colors.accent,
     fontWeight: "700",
     marginLeft: spacing.sm,
   },
