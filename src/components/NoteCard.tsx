@@ -108,14 +108,14 @@ export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDelet
 const styles = StyleSheet.create({
   card: {
     width: "100%",
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.cardSm,
     padding: spacing.lg,
     ...shadows.light.card,
   },
   summary: {
     ...type.headline,
-    color: colors.light.text,
+    color: colors.text,
     marginBottom: spacing.xs,
   },
   section: {
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     ...type.label,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     marginBottom: spacing.md,
   },
   tagsRow: {
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.light.border,
+    backgroundColor: colors.border,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
@@ -150,11 +150,11 @@ const styles = StyleSheet.create({
   },
   transcriptToggleText: {
     ...type.metaLarge,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
   transcriptText: {
     ...type.body,
-    color: colors.light.textSecondary,
+    color: colors.textSecondary,
     marginTop: spacing.md,
   },
 });
