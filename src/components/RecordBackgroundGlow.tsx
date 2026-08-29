@@ -67,6 +67,6 @@ const styles = StyleSheet.create({
     marginLeft: -recordGlow.size / 2,
     marginTop: -recordGlow.size / 2,
     borderRadius: recordGlow.size / 2,
-    backgroundColor: colors.dark.accent,
+    backgroundColor: colors.accentVivid,
   },
 });
