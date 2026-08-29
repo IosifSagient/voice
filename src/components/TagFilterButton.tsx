@@ -40,7 +40,7 @@ export function TagFilterButton({ activeChip, onPress }: Props) {
     transform: [{ scale: pressScale.value }],
   }));
 
-  const iconColor = active ? colors.light.textOnDark : colors.light.textSecondary;
+  const iconColor = active ? colors.white : colors.textSecondary;
 
   return (
     <Animated.View style={pressStyle}>
@@ -78,8 +78,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.light.border,
-    backgroundColor: colors.light.borderLight,
+    borderColor: colors.border,
+    backgroundColor: colors.borderLight,
     // Caps how wide a long active chip label can push this — searchRow's
     // search input has flex:1 and shrinks to make room, so without a cap a
     // long label could squeeze the input down to near nothing. numberOfLines
@@ -87,16 +87,16 @@ const styles = StyleSheet.create({
     maxWidth: 140,
   },
   pillActive: {
-    backgroundColor: colors.light.accent,
-    borderColor: colors.light.accent,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     ...shadows.light.button,
   },
   label: {
     ...type.meta,
-    color: colors.light.textSecondary,
+    color: colors.textSecondary,
     fontWeight: "600",
   },
   labelActive: {
-    color: colors.light.textOnDark,
+    color: colors.white,
   },
 });
