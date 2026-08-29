@@ -249,7 +249,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
             onChangeText={setTranscriptDraft}
             multiline
             textAlignVertical="top"
-            placeholderTextColor={colors.light.textMuted}
+            placeholderTextColor={colors.textMuted}
             placeholder="Κείμενο απομαγνητοφώνησης…"
           />
           <Text style={styles.transcriptWarning}>
@@ -258,7 +258,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
           {regenerating ? (
             <ActivityIndicator
               size="small"
-              color={colors.light.accent}
+              color={colors.accent}
               style={styles.regeneratingSpinner}
             />
           ) : (
@@ -294,7 +294,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.light.bg },
+  screen: { flex: 1, backgroundColor: colors.bg },
   container: {
     padding: spacing.base,
     paddingBottom: spacing.listBottomInset,
@@ -314,32 +314,32 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     width: "100%",
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.pill,
     paddingVertical: spacing.md,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
   },
   editBtnText: {
     fontSize: 15,
     fontWeight: "600" as const,
-    color: colors.light.text,
+    color: colors.text,
   },
   regenLink: {
     paddingVertical: spacing.sm,
   },
   regenLinkText: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
   },
   deleteLinkText: {
     ...type.meta,
-    color: colors.light.destructive,
+    color: colors.destructive,
     opacity: 0.6,
   },
   card: {
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.cardSm,
     padding: spacing.lg,
     ...shadows.light.card,
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   primaryBtn: {
-    backgroundColor: colors.light.accent,
+    backgroundColor: colors.accent,
     borderRadius: radii.pill,
     paddingVertical: spacing.md,
     alignItems: "center",
@@ -357,39 +357,39 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     fontSize: 15,
     fontWeight: "600" as const,
-    color: colors.light.textOnDark,
+    color: colors.white,
   },
   secondaryBtn: {
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.pill,
     paddingVertical: spacing.md,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
   },
   secondaryBtnText: {
     fontSize: 15,
     fontWeight: "600" as const,
-    color: colors.light.text,
+    color: colors.text,
   },
   transcriptHeading: {
     ...type.label,
-    color: colors.light.text,
+    color: colors.text,
     marginBottom: spacing.md,
   },
   transcriptInput: {
     ...type.body,
-    color: colors.light.text,
-    backgroundColor: colors.light.bgCard,
+    color: colors.text,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
     minHeight: 220,
   },
   transcriptWarning: {
     ...type.meta,
-    color: colors.light.destructive,
+    color: colors.destructive,
     marginTop: spacing.md,
     textAlign: "center",
   },
