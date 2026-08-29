@@ -50,10 +50,10 @@ function RecordIcon({ isRecording }: { isRecording: boolean }) {
   return (
     <View style={styles.iconStack}>
       <Animated.View style={[styles.iconLayer, micStyle]}>
-        <Ionicons name="mic" size={56} color={colors.dark.text} />
+        <Ionicons name="mic" size={56} color={colors.white} />
       </Animated.View>
       <Animated.View style={[styles.iconLayer, stopStyle]}>
-        <Ionicons name="stop" size={56} color={colors.dark.text} />
+        <Ionicons name="stop" size={56} color={colors.white} />
       </Animated.View>
     </View>
   );
@@ -172,7 +172,7 @@ export function RecordScreen({ navigation }: Props) {
                   <RecordingTimerText elapsed={elapsed} />
                 ) : busy ? (
                   <>
-                    <ActivityIndicator size="small" color={colors.dark.accent} style={styles.spinner} />
+                    <ActivityIndicator size="small" color={colors.accentVivid} style={styles.spinner} />
                     <Text style={styles.statusText}>
                       {phase === "transcribing" ? "Απομαγνητοφώνηση…" : "Δόμηση σημείωσης…"}
                     </Text>
@@ -249,7 +249,7 @@ export function RecordScreen({ navigation }: Props) {
                   hitSlop={{ top: spacing.xs, bottom: spacing.xs }}
                   style={({ pressed }) => [styles.textToggle, pressed && styles.buttonPressed]}
                 >
-                  <Ionicons name="pencil-outline" size={16} color={colors.dark.text} />
+                  <Ionicons name="pencil-outline" size={16} color={colors.white} />
                   <Text style={styles.textToggleText}>Γράψε σημείωση</Text>
                 </Pressable>
               )}
@@ -276,7 +276,7 @@ export function RecordScreen({ navigation }: Props) {
           <View style={styles.textModeContainer}>
             {busy ? (
               <View style={styles.textModeBusy}>
-                <ActivityIndicator size="small" color={colors.dark.accent} />
+                <ActivityIndicator size="small" color={colors.accentVivid} />
                 <Text style={styles.statusText}>Δόμηση σημείωσης…</Text>
               </View>
             ) : (
@@ -290,7 +290,7 @@ export function RecordScreen({ navigation }: Props) {
                   autoFocus
                   textAlignVertical="top"
                   placeholder="Γράψε τη σημείωσή σου εδώ…"
-                  placeholderTextColor={colors.dark.textMuted}
+                  placeholderTextColor={colors.inverseTextMuted}
                 />
                 <View style={styles.textModeActions}>
                   <Pressable
@@ -351,13 +351,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: radii.full,
-    backgroundColor: colors.dark.destructive,
+    backgroundColor: colors.destructive,
     marginRight: spacing.sm,
   },
   spinner: { marginRight: spacing.sm },
   statusText: {
     ...type.metaLarge,
-    color: colors.dark.textMuted,
+    color: colors.inverseTextMuted,
   },
   buttonStage: {
     width: recordButton.outerSize,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     ...shadows.dark.fab,
   },
   buttonMorphRecording: {
-    shadowColor: colors.dark.destructive,
+    shadowColor: colors.destructive,
   },
   buttonInner: {
     flex: 1,
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   },
   buttonFillRecording: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.dark.destructive,
+    backgroundColor: colors.destructive,
   },
   iconStack: {
     width: 56,
@@ -420,18 +420,18 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    backgroundColor: colors.dark.glass,
+    backgroundColor: colors.inverseGlass,
     borderWidth: 1,
-    borderColor: colors.dark.borderGlass,
+    borderColor: colors.inverseBorderGlass,
     borderRadius: radii.pill,
   },
   textToggleText: {
     ...type.meta,
-    color: colors.dark.text,
+    color: colors.white,
   },
   errorText: {
     ...type.meta,
-    color: colors.dark.destructive,
+    color: colors.destructive,
     marginTop: spacing.xl,
     textAlign: "center",
     paddingHorizontal: spacing.xl,
@@ -456,19 +456,19 @@ const styles = StyleSheet.create({
   textInput: {
     ...type.body,
     flex: 1,
-    color: colors.dark.text,
-    backgroundColor: colors.dark.glass,
+    color: colors.white,
+    backgroundColor: colors.inverseGlass,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.dark.borderGlass,
+    borderColor: colors.inverseBorderGlass,
   },
   textModeActions: {
     paddingTop: spacing.sm,
     gap: spacing.sm,
   },
   buildBtn: {
-    backgroundColor: colors.dark.accent,
+    backgroundColor: colors.accentVivid,
     borderRadius: radii.pill,
     paddingVertical: spacing.md,
     alignItems: "center",
@@ -476,19 +476,19 @@ const styles = StyleSheet.create({
   buildBtnDisabled: { opacity: 0.4 },
   buildBtnText: {
     ...type.buttonSmall,
-    color: colors.dark.text,
+    color: colors.white,
   },
   cancelLink: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: spacing.md,
-    backgroundColor: colors.dark.glass,
+    backgroundColor: colors.inverseGlass,
     borderWidth: 1,
-    borderColor: colors.dark.borderGlass,
+    borderColor: colors.inverseBorderGlass,
     borderRadius: radii.pill,
   },
   cancelLinkText: {
     ...type.meta,
-    color: colors.dark.text,
+    color: colors.white,
   },
 });
