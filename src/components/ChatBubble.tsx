@@ -41,7 +41,7 @@ function ChatBubbleImpl({ role, content, onLongPress }: Props) {
       <Pressable testID="chat-bubble-pressable" onLongPress={() => onLongPress?.(content)}>
         {role === "user" ? (
           <LinearGradient
-            colors={colors.light.gradientUserBubble}
+            colors={colors.gradientUserBubble}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.bubbleUser}
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     ...shadows.light.bubbleUser,
   },
   bubbleAssistant: {
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.bubble,
     borderBottomLeftRadius: radii.bubbleTail,
     paddingHorizontal: spacing.base,
@@ -83,10 +83,10 @@ const styles = StyleSheet.create({
 
   textUser: {
     ...type.body,
-    color: colors.light.textOnDark,
+    color: colors.white,
   },
   textAssistant: {
     ...type.body,
-    color: colors.light.text,
+    color: colors.text,
   },
 });
