@@ -7,46 +7,42 @@
 import { colors } from "../src/config/theme";
 
 describe("theme token back-compat snapshot", () => {
+  // bgCard/accent/textSecondary/textMuted/border are deliberately excluded:
+  // those flat-key names collide with base's same-named light-surface
+  // tokens, and LockScreen — their only flat-meaning consumer — is already
+  // migrated, so theme.ts intentionally lets the unprefixed name carry its
+  // new light meaning instead of preserving the old flat/dark value. See
+  // theme.ts's back-compat aliases comment.
   it("preserves every old flat key's resolved value", () => {
     expect({
       bgBase: colors.bgBase,
-      bgCard: colors.bgCard,
       bgElevated: colors.bgElevated,
-      accent: colors.accent,
       accentMuted: colors.accentMuted,
       recording: colors.recording,
       recordingMuted: colors.recordingMuted,
       textPrimary: colors.textPrimary,
-      textSecondary: colors.textSecondary,
-      textMuted: colors.textMuted,
       personText: colors.personText,
       personBg: colors.personBg,
       topicText: colors.topicText,
       topicBg: colors.topicBg,
       dueText: colors.dueText,
       dueBg: colors.dueBg,
-      border: colors.border,
       borderFaint: colors.borderFaint,
       error: colors.error,
       white: colors.white,
     }).toEqual({
       bgBase: "#0A1F18",
-      bgCard: "#161A22",
       bgElevated: "#1E2330",
-      accent: "#1FA36E",
       accentMuted: "#0D2926",
       recording: "#C9503F",
       recordingMuted: "#2A1010",
       textPrimary: "#F1F5F9",
-      textSecondary: "#B9AE9C",
-      textMuted: "rgba(255,255,255,0.5)",
       personText: "#C9922A",
       personBg: "#1C1608",
       topicText: "#2BB5A2",
       topicBg: "#071916",
       dueText: "#7ED8CF",
       dueBg: "#0D2926",
-      border: "#252A35",
       borderFaint: "#1C2130",
       error: "#FCA5A5",
       white: "#FFFFFF",

@@ -81,28 +81,24 @@ export const colors = {
   // --- Back-compat aliases (TEMPORARY — deleted once no call site
   // references the old flat/light/dark namespaces; see AGENTS.md theme
   // migration plan). Every value below is byte-identical to the historical
-  // flat/light/dark key it replaces. Some shadow a same-named `base` key
-  // that now carries the *light-surface* meaning (bgCard, accent,
-  // textSecondary, textMuted, border) — that's expected: nothing reads the
-  // unprefixed key for its new light meaning until LockScreen (the first
-  // consumer of these old flat names) is migrated off them.
+  // flat key it replaces. bgCard/accent/textSecondary/textMuted/border are
+  // deliberately NOT aliased here even though they were flat keys too:
+  // those names collide with `base`'s same-named *light-surface* tokens,
+  // and LockScreen (their only flat-meaning consumer) is already migrated
+  // off them — so the unprefixed name is free for its new light meaning as
+  // soon as light-surface files start consuming it in step 4.
   bgBase:        base.inverseBg,
-  bgCard:        base.inverseBgCard,
   bgElevated:    base.inverseBgElevated,
-  accent:        base.accentVivid,
   accentMuted:   base.inverseAccentMuted,
   recording:     base.destructive,
   recordingMuted: base.inverseRecordingMuted,
   textPrimary:   base.inverseText,
-  textSecondary: base.inverseTextSecondary,
-  textMuted:     base.inverseTextMuted,
   personText:    base.inversePersonText,
   personBg:      base.inversePersonBg,
   topicText:     base.inverseTopicText,
   topicBg:       base.inverseTopicBg,
   dueText:       base.inverseDueText,
   dueBg:         base.inverseDueBg,
-  border:        base.inverseBorder,
   borderFaint:   base.inverseBorderFaint,
   error:         base.inverseError,
 
