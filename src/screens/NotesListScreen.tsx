@@ -326,7 +326,7 @@ export function NotesListScreen({ navigation }: Props) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.light.accent}
+            tintColor={colors.accent}
           />
         }
         ListHeaderComponent={
@@ -400,7 +400,7 @@ export function NotesListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.light.bg },
+  screen: { flex: 1, backgroundColor: colors.bg },
   // Same top-anchored float convention as NoteDetailScreen/ChatScreen's
   // snackbarFloat — see NoteDetailScreen's comment for why `top`, not `bottom`.
   snackbarFloat: {
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   // top-of-header stop rather than its lighter final stop, accepting a
   // visible seam at the header/search-band boundary.
   searchBand: {
-    backgroundColor: colors.light.gradientHeader[0],
+    backgroundColor: colors.gradientHeader[0],
     paddingHorizontal: spacing.base,
     paddingTop: spacing.md,
     paddingBottom: spacing.base,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   },
   emptySearch: {
     ...type.body,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     textAlign: "center",
     marginTop: 60,
   },
@@ -450,13 +450,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...type.bodyLarge,
-    color: colors.light.textSecondary,
+    color: colors.textSecondary,
     marginBottom: spacing.sm,
     textAlign: "center",
   },
   emptyHint: {
     ...type.meta,
-    color: colors.light.textMuted,
+    color: colors.textMuted,
     textAlign: "center",
     lineHeight: 20,
   },
@@ -467,21 +467,21 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...type.body,
-    color: colors.light.destructive,
+    color: colors.destructive,
     textAlign: "center",
     marginBottom: spacing.lg,
   },
   retryBtn: {
-    backgroundColor: colors.light.bgCard,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.pill,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: colors.border,
   },
   retryBtnPressed: { opacity: 0.72 },
   retryBtnText: {
     ...type.buttonSmall,
-    color: colors.light.textSecondary,
+    color: colors.textSecondary,
   },
 });
