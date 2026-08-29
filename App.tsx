@@ -43,16 +43,16 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const sharedHeaderOptions = {
   headerBackground: () => (
     <LinearGradient
-      colors={colors.light.gradientHeader}
+      colors={colors.gradientHeader}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={StyleSheet.absoluteFill}
     />
   ),
-  headerTintColor: colors.light.textOnDark,
+  headerTintColor: colors.white,
   headerTitleStyle: {
     fontWeight: "600" as const,
-    color: colors.light.textOnDark,
+    color: colors.white,
   },
   headerShadowVisible: false,
 };
@@ -81,11 +81,11 @@ function MainTabs() {
       screenOptions={{
         ...sharedHeaderOptions,
         tabBarStyle: {
-          backgroundColor: colors.light.bgCard,
-          borderTopColor: colors.light.border,
+          backgroundColor: colors.bgCard,
+          borderTopColor: colors.border,
         },
-        tabBarActiveTintColor: colors.light.accent,
-        tabBarInactiveTintColor: colors.light.textMuted,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
       }}
     >
       <Tab.Screen
@@ -115,7 +115,7 @@ function MainTabs() {
               <Ionicons
                 name="person-outline"
                 size={18}
-                color={colors.light.textOnDark}
+                color={colors.white}
               />
             </Pressable>
           ),
@@ -261,7 +261,7 @@ export default function App() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: colors.bgBase,
+    backgroundColor: colors.inverseBg,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -272,8 +272,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.light.glassLight,
+    backgroundColor: colors.glassLight,
     borderWidth: 1,
-    borderColor: colors.light.borderGlass,
+    borderColor: colors.borderGlass,
   },
 });
