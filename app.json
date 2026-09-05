@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.iosifsagient.heylisa",
+      "associatedDomains": ["applinks:iosifsagient.github.io"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

@@ -24,6 +24,9 @@ import {
 // Registers the foreground notification handler at module scope (R5) —
 // importing this once, here, before anything else runs is enough.
 import "./src/services/notifications";
+// Registers the inbound-share-link 'url' listener at module scope, same
+// timing rationale as notifications.ts above.
+import "./src/services/shareLink";
 
 // Keep the native splash up until the custom fonts below are loaded, so
 // there's no flash of system-font text before Literata/Inter swap in.
@@ -37,6 +40,7 @@ import { TasksScreen } from "./src/screens/TasksScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { LockScreen } from "./src/screens/LockScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { ShareReceiveScreen } from "./src/screens/ShareReceiveScreen";
 import { AnimatedTabIcon } from "./src/components/AnimatedTabIcon";
 import { colors, radii, spacing, type } from "./src/config/theme";
 import { initDb } from "./src/db";
@@ -46,6 +50,7 @@ import { useCalendarSettings } from "./src/hooks/useCalendarSettings";
 import { useNotificationSettings } from "./src/hooks/useNotificationSettings";
 import { navigationRef } from "./src/lib/navigationRef";
 import { handleInitialNotification } from "./src/services/notifications";
+import { handleInitialShareLink } from "./src/services/shareLink";
 import type {
   RootStackParamList,
   MainTabParamList,
@@ -82,7 +87,16 @@ const serifHeaderTitleStyle = {
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ["asklisa://"],
+  // https prefix matches the AASA-verified Universal Link domain
+  // (iosifsagient.github.io, paths /heyLisa/s and /heyLisa/s/*) — kept so
+  // this prefix is recognized as belonging to the app. The share path ("s")
+  // is deliberately NOT mapped in `screens` below: react-navigation's path
+  // parser can't see the URL fragment (the actual share payload), so if it
+  // path-matched and auto-navigated here, it would do so with empty/undefined
+  // params, racing services/shareLink.ts's own fragment-aware listener for
+  // the same URL. Leaving the path unmapped means react-navigation ignores
+  // it entirely and shareLink.ts is the sole handler of inbound share links.
+  prefixes: ["asklisa://", "https://iosifsagient.github.io/heyLisa"],
   config: {
     screens: {
       Record: "record",
@@ -254,6 +268,7 @@ export default function App() {
       linking={linking}
       onReady={() => {
         handleInitialNotification();
+        handleInitialShareLink();
       }}
     >
       <Stack.Navigator screenOptions={sharedHeaderOptions}>
@@ -272,6 +287,11 @@ export default function App() {
           name="NoteDetail"
           component={NoteDetailScreen}
           options={{ title: "", headerTitleStyle: serifHeaderTitleStyle }}
+        />
+        <Stack.Screen
+          name="ShareReceive"
+          component={ShareReceiveScreen}
+          options={{ title: "Κοινοποιημένη σημείωση" }}
         />
         <Stack.Screen
           name="Settings"
