@@ -24,19 +24,31 @@ export function extractFragment(url: string): string | null {
   return fragment.length > 0 ? fragment : null;
 }
 
+// Some platforms redeliver the cold-start launch URL as an immediate
+// follow-up 'url' event; this bounds how long a repeat of the same URL is
+// treated as that redelivery (a no-op) rather than a genuine second tap of
+// the same share link later in the same app session. Wide enough to cover
+// the redelivery, narrow enough that a deliberate re-tap (e.g. re-sharing
+// the same note, or a warm-tap device test run right after a cold-start
+// test) is never permanently swallowed.
+const DUPLICATE_URL_WINDOW_MS = 2000;
+
 // Pure routing decision, factored out of the Linking/navigationRef side
-// effects below so it's directly unit-testable: given the incoming URL and
-// the previously-handled one, decides whether there's a new share fragment
-// to act on. Covers the "single tap must not double-fire" requirement —
-// some platforms redeliver the cold-start launch URL as a follow-up 'url'
-// event, and this treats a repeat of the same URL as a no-op.
+// effects below so it's directly unit-testable: given the incoming URL, the
+// previously-handled one, and their timestamps, decides whether there's a
+// new share fragment to act on.
 export function resolveInboundUrl(
   url: string | null,
   previouslyHandledUrl: string | null,
+  now: number = Date.now(),
+  previouslyHandledAt = 0,
 ): { handle: boolean; fragment: string | null } {
-  if (!url || url === previouslyHandledUrl) return { handle: false, fragment: null };
+  if (!url) return { handle: false, fragment: null };
   const fragment = extractFragment(url);
   if (!fragment) return { handle: false, fragment: null };
+  const isRedelivery =
+    url === previouslyHandledUrl && now - previouslyHandledAt < DUPLICATE_URL_WINDOW_MS;
+  if (isRedelivery) return { handle: false, fragment: null };
   return { handle: true, fragment };
 }
 
@@ -61,13 +73,22 @@ function toShareReceiveParams(result: DecodeResult): ShareReceiveParams {
 }
 
 let lastHandledUrl: string | null = null;
+let lastHandledAt = 0;
 
 function routeShareUrl(url: string | null): void {
-  const decision = resolveInboundUrl(url, lastHandledUrl);
+  if (__DEV__) console.log("[shareLink:url]", url);
+
+  const decision = resolveInboundUrl(url, lastHandledUrl, Date.now(), lastHandledAt);
   if (!decision.handle || !decision.fragment) return;
   lastHandledUrl = url;
+  lastHandledAt = Date.now();
 
-  const params = toShareReceiveParams(decodeShare(decision.fragment));
+  if (__DEV__) console.log("[shareLink:fragment]", decision.fragment);
+
+  const result = decodeShare(decision.fragment);
+  if (__DEV__) console.log("[shareLink:decode]", result.ok ? "ok" : result.reason);
+
+  const params = toShareReceiveParams(result);
 
   // Same readiness guard as notifications.ts's routeNotificationResponse — a
   // not-yet-mounted navigator is a silent no-op. For the warm 'url' listener
@@ -76,6 +97,8 @@ function routeShareUrl(url: string | null): void {
   // handleInitialShareLink's cold-start call, which is why that call happens
   // from onReady rather than a plain useEffect (see its own comment).
   if (!navigationRef.isReady()) return;
+
+  if (__DEV__) console.log("[shareLink:navigate]", params);
   navigationRef.navigate("ShareReceive", params);
 }
 

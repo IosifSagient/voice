@@ -26,9 +26,11 @@ authenticated with the user's Supabase session token — the OpenAI key is never
 
 ## Stack
 
-- Expo SDK 54 — PINNED for Expo Go compatibility. Do not bump it.
+- Expo SDK 54 — PINNED. Do not bump it.
 - React Native, single codebase iOS + Android.
 - `@react-navigation` (native-stack + bottom-tabs) for navigation.
+- expo-dev-client — custom development client backing the DEV build variant (see
+  App config & build variants below).
 - expo-audio (NOT the deprecated expo-av).
 - expo-sqlite ~16.x — async API. All DB access goes through `src/db/`.
 - expo-calendar — device calendar reminders for action items.
@@ -37,6 +39,28 @@ authenticated with the user's Supabase session token — the OpenAI key is never
 - `@supabase/supabase-js` — auth session + the OpenAI proxy's auth token. No note
   data is stored in Supabase; it is not a second data layer.
 - OpenAI: `gpt-4o-transcribe` (STT), `gpt-4o-mini` (extraction + agent).
+
+## App config & build variants
+
+Expo config is dynamic — `app.config.js`, driven by the `APP_VARIANT` env var.
+`app.json` is deprecated and retained only as `app.json.backup`; it is not read by
+the build. Do not treat `app.json`/`app.json.backup` as live config.
+
+Two iOS variants coexist on one device:
+
+- **DEV** — name "Ask Lisa Dev", bundle id `com.iosifsagient.heylisa.dev`, scheme
+  `asklisa-dev`, EAS `development` profile, uses `expo-dev-client` + Metro, requires
+  iOS Developer Mode.
+- **PROD** — name "Ask Lisa", bundle id `com.iosifsagient.heylisa`, scheme `asklisa`
+  (unchanged), EAS `production` profile, TestFlight, no Metro.
+
+Slug stays `heylisa`; `extra.eas.projectId` is unchanged. `eas.json` defines three
+profiles: `development` / `preview` / `production`.
+
+Local dev loop: `npm run start:dev` (runs `expo start --dev-client --tunnel` with
+`APP_VARIANT=development` set). That env var is REQUIRED for the dev app to identify itself as dev
+at runtime (e.g. share links) — running plain `expo start`/`npx expo start --dev-client --tunnel`
+without it makes the dev build behave as prod at the JS/manifest level.
 
 ## Extraction schema (exact — what the LLM returns; see `src/config/prompts.ts`)
 
@@ -319,7 +343,6 @@ Known deferred:
   "company" field) — general subjects/entities belong under `topics`.
 - Add a `decisions` prompt/UI — it was evaluated and intentionally left unimplemented.
 - Add vector DB (keyword search is enough at this scale).
-- Break Expo Go compatibility (no custom dev-build-only libraries without flagging it first).
 - Send note data (transcripts, summaries, tags) to Supabase or any other server —
   it stays on-device; Supabase is auth + an OpenAI-proxy relay only.
 - Create a second data layer beside `db/`.

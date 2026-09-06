@@ -42,14 +42,21 @@ describe("resolveInboundUrl", () => {
     });
   });
 
-  it("dedupes a repeat of the same URL already handled (single-tap double-fire guard)", () => {
+  it("dedupes a repeat of the same URL handled within the redelivery window (single-tap double-fire guard)", () => {
     const url = "https://iosifsagient.github.io/heyLisa/s#payload";
-    expect(resolveInboundUrl(url, url)).toEqual({ handle: false, fragment: null });
+    expect(resolveInboundUrl(url, url, 1000, 500)).toEqual({ handle: false, fragment: null });
   });
 
   it("still handles a genuinely new URL even when a different one was handled before", () => {
     const previous = "https://iosifsagient.github.io/heyLisa/s#old";
     const next = "https://iosifsagient.github.io/heyLisa/s#new";
-    expect(resolveInboundUrl(next, previous)).toEqual({ handle: true, fragment: "new" });
+    expect(resolveInboundUrl(next, previous, 1000, 500)).toEqual({ handle: true, fragment: "new" });
+  });
+
+  it("handles a repeat tap of the same URL once the redelivery window has elapsed (warm re-tap, not a platform redelivery)", () => {
+    const url = "https://iosifsagient.github.io/heyLisa/s#payload";
+    // 2000ms+ after the previous handling — same URL, but no longer treated
+    // as a redelivery of the same physical tap.
+    expect(resolveInboundUrl(url, url, 3000, 500)).toEqual({ handle: true, fragment: "payload" });
   });
 });

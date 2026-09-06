@@ -12,9 +12,10 @@ type Props = {
   onDeleteActionItem?: (itemId: string) => void;
   onCopy?: () => void;
   onShare?: () => void;
+  onSendToUser?: () => void;
 };
 
-export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDeleteActionItem, onCopy, onShare }: Props) {
+export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDeleteActionItem, onCopy, onShare, onSendToUser }: Props) {
   const [showTranscript, setShowTranscript] = useState(false);
 
   return (
@@ -61,7 +62,7 @@ export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDelet
         </View>
       )}
 
-      {onCopy || onShare ? (
+      {onCopy || onShare || onSendToUser ? (
         <>
           <View style={styles.divider} />
           <View style={styles.linkRow}>
@@ -79,6 +80,14 @@ export function NoteCard({ note, onToggleCalendar, onCompleteActionItem, onDelet
                 style={({ pressed }) => [styles.transcriptToggle, pressed && styles.transcriptTogglePressed]}
               >
                 <Text style={styles.transcriptToggleText}>Κοινοποίηση</Text>
+              </Pressable>
+            ) : null}
+            {onSendToUser ? (
+              <Pressable
+                onPress={onSendToUser}
+                style={({ pressed }) => [styles.transcriptToggle, pressed && styles.transcriptTogglePressed]}
+              >
+                <Text style={styles.transcriptToggleText}>Αποστολή σε…</Text>
               </Pressable>
             ) : null}
           </View>

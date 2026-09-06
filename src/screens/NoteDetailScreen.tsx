@@ -52,6 +52,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
   const {
     handleCopy,
     handleShare,
+    handleSendToUser,
     snackbarVisible: copySnackbarVisible,
     snackbarMessage: copySnackbarMessage,
     dismissSnackbar: dismissCopySnackbar,
@@ -147,6 +148,7 @@ export function NoteDetailScreen({ route, navigation }: Props) {
             onDeleteActionItem={deleteItem}
             onCopy={handleCopy}
             onShare={handleShare}
+            onSendToUser={handleSendToUser}
           />
           <View style={styles.viewActions}>
             <Pressable

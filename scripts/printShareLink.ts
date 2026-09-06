@@ -25,7 +25,8 @@ const transcript =
 const result = encodeShare(extraction, transcript);
 
 if (result.ok) {
-  console.log("https://iosifsagient.github.io/heyLisa/s#" + result.fragment);
+  console.log("PROD:", "https://iosifsagient.github.io/heyLisa/s#" + result.fragment);
+  console.log("DEV: ", "asklisa-dev://s#" + result.fragment);
   console.log("meta:", result.meta);
 } else {
   console.log("encodeShare failed:", result.reason);
