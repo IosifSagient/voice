@@ -11,6 +11,7 @@ import { Linking } from "react-native";
 import { navigationRef } from "../lib/navigationRef";
 import { decodeShare } from "./shareCodec";
 import type { DecodeResult } from "./shareCodec";
+import { setPendingShare } from "./pendingShare";
 import type { ShareReceiveParams } from "../types/navigation";
 
 // Pure — extracts the substring after a URL's first '#'. Returns null when
@@ -87,6 +88,13 @@ function routeShareUrl(url: string | null): void {
 
   const result = decodeShare(decision.fragment);
   if (__DEV__) console.log("[shareLink:decode]", result.ok ? "ok" : result.reason);
+
+  // Full payload for the eventual accept-save (ShareReceiveScreen only gets
+  // the reduced display params below) — set before navigating, and only on a
+  // successful decode, since a failed decode has nothing to accept.
+  if (result.ok) {
+    setPendingShare({ extraction: result.extraction, transcript: result.transcript });
+  }
 
   const params = toShareReceiveParams(result);
 

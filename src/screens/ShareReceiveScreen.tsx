@@ -1,7 +1,9 @@
-import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
+import { useState } from "react";
+import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { colors, spacing, type, radii } from "../config/theme";
+import { useAcceptSharedNote } from "../hooks/useAcceptSharedNote";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ShareReceive">;
 
@@ -13,12 +15,29 @@ const REASON_MESSAGES: Record<string, string> = {
   invalid_schema: "Τα δεδομένα του συνδέσμου δεν είναι έγκυρα.",
 };
 
-// STUB screen for Increment 2 — verifies an inbound share link decodes and
-// renders uncorrupted (Greek text included). No accept/reject, no save: this
-// never imports notesRepository or anything from src/db. The real
-// accept-flow is a later increment.
+// Presentational: renders the reduced display shape from route.params (the
+// full decoded payload lives in services/pendingShare.ts, not here — see its
+// comment) and delegates the actual save to useAcceptSharedNote. This screen
+// never imports notesRepository or anything from src/db.
 export function ShareReceiveScreen({ route, navigation }: Props) {
   const params = route.params;
+  const { accept, reject, error, loading } = useAcceptSharedNote();
+  const [rejected, setRejected] = useState(false);
+
+  const handleAccept = async () => {
+    const noteId = await accept();
+    if (noteId) {
+      navigation.replace("NoteDetail", { id: noteId });
+    }
+  };
+
+  const handleReject = () => {
+    reject();
+    setRejected(true);
+    navigation.goBack();
+  };
+
+  const canAct = !!params && params.ok && !rejected;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -56,9 +75,34 @@ export function ShareReceiveScreen({ route, navigation }: Props) {
         </>
       )}
 
-      <Pressable style={styles.closeButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.closeButtonText}>Κλείσιμο</Text>
-      </Pressable>
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      {canAct ? (
+        <View style={styles.actionRow}>
+          <Pressable
+            style={[styles.actionButton, styles.rejectButton]}
+            onPress={handleReject}
+            disabled={loading}
+          >
+            <Text style={[styles.actionButtonText, styles.rejectButtonText]}>Απόρριψη</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.actionButton, styles.acceptButton]}
+            onPress={handleAccept}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Text style={[styles.actionButtonText, styles.acceptButtonText]}>Αποδοχή</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable style={styles.closeButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.closeButtonText}>Κλείσιμο</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -85,6 +129,12 @@ const styles = StyleSheet.create({
     ...type.headline,
     color: colors.destructive,
   },
+  errorText: {
+    ...type.meta,
+    color: colors.destructive,
+    marginTop: spacing.base,
+    textAlign: "center",
+  },
   closeButton: {
     marginTop: spacing.xl,
     alignSelf: "flex-start",
@@ -96,5 +146,35 @@ const styles = StyleSheet.create({
   closeButtonText: {
     ...type.buttonSmall,
     color: colors.accent,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.base,
+    borderRadius: radii.pill,
+  },
+  rejectButton: {
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  acceptButton: {
+    backgroundColor: colors.accent,
+  },
+  actionButtonText: {
+    ...type.buttonSmall,
+  },
+  rejectButtonText: {
+    color: colors.text,
+  },
+  acceptButtonText: {
+    color: colors.white,
   },
 });
