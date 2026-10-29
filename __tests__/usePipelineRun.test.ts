@@ -186,3 +186,79 @@ describe('usePipelineRun — automatic notification scheduling on save', () => {
     expect(mockCancelReminder).toHaveBeenCalledWith('notif-1');
   });
 });
+
+describe('usePipelineRun — empty/whitespace transcript guard (#3)', () => {
+  it('does not extract or save when transcribe() resolves to whitespace, and sets phase "empty"', async () => {
+    mockTranscribe.mockResolvedValue('   ');
+    const { getResult } = await renderUsePipelineRun();
+
+    await act(async () => {
+      await getResult().runFromUri('file://rec.m4a');
+    });
+
+    expect(mockExtractNote).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(getResult().phase).toBe('empty');
+    expect(getResult().note).toBeNull();
+  });
+
+  it('proceeds normally when transcribe() resolves to real text', async () => {
+    mockTranscribe.mockResolvedValue('a real transcript');
+    mockGet.mockResolvedValue(mkNote([]));
+    const { getResult } = await renderUsePipelineRun();
+
+    await act(async () => {
+      await getResult().runFromUri('file://rec.m4a');
+    });
+
+    expect(mockExtractNote).toHaveBeenCalledWith('a real transcript');
+    expect(getResult().phase).toBe('done');
+  });
+});
+
+describe('usePipelineRun — transcription-failure retry (#2)', () => {
+  it('preserves the uri on a transcription failure and exposes canRetry', async () => {
+    mockTranscribe.mockRejectedValueOnce(new Error('network down'));
+    const { getResult } = await renderUsePipelineRun();
+
+    await act(async () => {
+      await getResult().runFromUri('file://rec.m4a');
+    });
+
+    expect(getResult().phase).toBe('error');
+    expect(getResult().canRetry).toBe(true);
+  });
+
+  it('retry() re-runs against the SAME uri and can succeed the second time', async () => {
+    mockTranscribe.mockRejectedValueOnce(new Error('network down'));
+    mockGet.mockResolvedValue(mkNote([]));
+    const { getResult } = await renderUsePipelineRun();
+
+    await act(async () => {
+      await getResult().runFromUri('file://rec.m4a');
+    });
+    expect(getResult().canRetry).toBe(true);
+
+    mockTranscribe.mockResolvedValueOnce('a real transcript');
+    await act(async () => {
+      await getResult().retry();
+    });
+
+    expect(mockTranscribe).toHaveBeenNthCalledWith(2, 'file://rec.m4a');
+    expect(getResult().phase).toBe('done');
+    expect(getResult().canRetry).toBe(false);
+  });
+
+  it('does not set canRetry for a failure after a successful transcription (e.g. extraction failure)', async () => {
+    mockTranscribe.mockResolvedValue('a real transcript');
+    mockExtractNote.mockRejectedValueOnce(new Error('boom'));
+    const { getResult } = await renderUsePipelineRun();
+
+    await act(async () => {
+      await getResult().runFromUri('file://rec.m4a');
+    });
+
+    expect(getResult().phase).toBe('error');
+    expect(getResult().canRetry).toBe(false);
+  });
+});

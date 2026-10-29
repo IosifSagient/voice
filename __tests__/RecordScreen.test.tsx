@@ -58,14 +58,18 @@ const mockGetPermissionStatus = getPermissionStatus as jest.Mock;
 
 const mockStart = jest.fn();
 const mockStop = jest.fn();
+const mockRequestPermission = jest.fn();
 
 function setRecorderState(overrides: Partial<ReturnType<typeof useRecorder>> = {}) {
   mockUseRecorder.mockReturnValue({
     isRecording: false,
     elapsed: 0,
     uri: null,
+    permissionGranted: true,
+    canAskAgain: true,
     start: mockStart,
     stop: mockStop,
+    requestPermission: mockRequestPermission,
     ...overrides,
   });
 }
@@ -265,5 +269,127 @@ describe('RecordScreen — inputs disabled while the pipeline is running', () =>
 
     const button = renderer.root.findByProps({ accessibilityLabel: 'Έναρξη ηχογράφησης' });
     expect(button.props.disabled).toBe(false);
+  });
+});
+
+describe('RecordScreen — microphone permission denied (#4)', () => {
+  it('disables the record button and offers to grant access when the OS can still be asked', async () => {
+    setRecorderState({ permissionGranted: false, canAskAgain: true });
+
+    const renderer = await renderScreen();
+
+    const button = renderer.root.findByProps({ accessibilityLabel: 'Έναρξη ηχογράφησης' });
+    expect(button.props.disabled).toBe(true);
+
+    const action = renderer.root.findByProps({ accessibilityLabel: 'Παραχώρηση πρόσβασης' });
+    await act(async () => {
+      action.props.onPress();
+    });
+    expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers to open Settings instead once the OS permission is permanently determined', async () => {
+    setRecorderState({ permissionGranted: false, canAskAgain: false });
+
+    const renderer = await renderScreen();
+
+    const button = renderer.root.findByProps({ accessibilityLabel: 'Έναρξη ηχογράφησης' });
+    expect(button.props.disabled).toBe(true);
+
+    const action = renderer.root.findByProps({ accessibilityLabel: 'Άνοιγμα Ρυθμίσεων' });
+    await act(async () => {
+      action.props.onPress();
+    });
+    expect(mockRequestPermission).not.toHaveBeenCalled();
+  });
+
+  it('does not disable the button once permission is granted', async () => {
+    setRecorderState({ permissionGranted: true, canAskAgain: true });
+
+    const renderer = await renderScreen();
+
+    const button = renderer.root.findByProps({ accessibilityLabel: 'Έναρξη ηχογράφησης' });
+    expect(button.props.disabled).toBe(false);
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: 'Παραχώρηση πρόσβασης' })
+    ).toHaveLength(0);
+  });
+});
+
+describe('RecordScreen — empty transcript (#3)', () => {
+  it('shows a "nothing captured" state and does not create a note when transcription returns whitespace', async () => {
+    setRecorderState({ isRecording: true, uri: 'file://rec.m4a' });
+    mockStop.mockResolvedValue(undefined);
+    mockTranscribe.mockResolvedValue('   ');
+
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      stopButton(renderer).props.onPress();
+    });
+    await flushMicrotasks();
+
+    expect(mockExtractNote).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+
+    // Recorder state moved back to idle (recording already stopped) — same
+    // real-useRecorder-transition rule the "inputs disabled" tests above follow.
+    setRecorderState({ isRecording: false, uri: 'file://rec.m4a' });
+    await act(async () => {
+      renderer.update(React.createElement(RecordScreen, { navigation, route }));
+    });
+
+    expect(renderer.root.findByProps({ children: 'Δεν καταγράφηκε ομιλία' })).toBeTruthy();
+  });
+});
+
+describe('RecordScreen — transcription failure retry (#2)', () => {
+  it('preserves the recording uri and offers a retry that re-runs against the SAME file', async () => {
+    setRecorderState({ isRecording: true, uri: 'file://rec.m4a' });
+    mockStop.mockResolvedValue(undefined);
+    mockTranscribe.mockRejectedValueOnce(new Error('network down'));
+
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      stopButton(renderer).props.onPress();
+    });
+    await flushMicrotasks();
+
+    expect(mockTranscribe).toHaveBeenCalledTimes(1);
+    const retryBtn = renderer.root.findByProps({ testID: 'record-retry' });
+
+    mockTranscribe.mockResolvedValueOnce('a transcript');
+    mockExtractNote.mockResolvedValue({ summary: 'S', people: [], topics: [], action_items: [] });
+    mockCreate.mockResolvedValue('n42');
+    mockGet.mockResolvedValue(mkNote({ id: 'n42' }));
+
+    await act(async () => {
+      retryBtn.props.onPress();
+    });
+    await flushMicrotasks();
+
+    expect(mockTranscribe).toHaveBeenCalledTimes(2);
+    expect(mockTranscribe).toHaveBeenNthCalledWith(2, 'file://rec.m4a');
+    expect(mockCreate).toHaveBeenCalledWith(
+      { summary: 'S', people: [], topics: [], action_items: [] },
+      'a transcript',
+    );
+  });
+
+  it('does not show a retry affordance for a non-transcription pipeline error', async () => {
+    setRecorderState({ isRecording: true, uri: 'file://rec.m4a' });
+    mockStop.mockResolvedValue(undefined);
+    mockTranscribe.mockResolvedValue('a transcript');
+    mockExtractNote.mockRejectedValue(new Error('boom'));
+
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      stopButton(renderer).props.onPress();
+    });
+    await flushMicrotasks();
+
+    expect(renderer.root.findAllByProps({ testID: 'record-retry' })).toHaveLength(0);
   });
 });

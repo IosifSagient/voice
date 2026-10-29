@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -86,10 +87,21 @@ function RecordingTimerText({ elapsed }: { elapsed: number }) {
 type Props = NativeStackScreenProps<RootStackParamList, "Record">;
 
 export function RecordScreen({ navigation }: Props) {
-  const { isRecording, elapsed, uri: recordingUri, start, stop } = useRecorder();
-  const { phase, note, error, setNote, runFromUri, runFromText, reset } = usePipelineRun();
+  const {
+    isRecording,
+    elapsed,
+    uri: recordingUri,
+    permissionGranted,
+    canAskAgain,
+    start,
+    stop,
+    requestPermission,
+  } = useRecorder();
+  const { phase, note, error, canRetry, setNote, runFromUri, runFromText, retry, reset } =
+    usePipelineRun();
   const [showTextEntry, setShowTextEntry] = useState(false);
   const [textEntry, setTextEntry] = useState("");
+  const [startError, setStartError] = useState<string | null>(null);
   const headerHeight = useHeaderHeight();
   const handleToggleCalendar = useCalendarToggle(note, setNote);
 
@@ -118,8 +130,14 @@ export function RecordScreen({ navigation }: Props) {
     reset();
     setShowTextEntry(false);
     setTextEntry("");
+    setStartError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await start();
+    try {
+      await start();
+    } catch (err: any) {
+      console.error("[RecordScreen:handleStart] failed to start recording", err);
+      setStartError("Δεν ήταν δυνατή η έναρξη της ηχογράφησης.");
+    }
   };
 
   const handleStop = async () => {
@@ -138,6 +156,7 @@ export function RecordScreen({ navigation }: Props) {
   };
 
   const busy = phase === "transcribing" || phase === "extracting";
+  const startDisabled = !isRecording && !permissionGranted;
 
   return (
     <LinearGradient
@@ -177,13 +196,17 @@ export function RecordScreen({ navigation }: Props) {
                       {phase === "transcribing" ? "Απομαγνητοφώνηση…" : "Δόμηση σημείωσης…"}
                     </Text>
                   </>
+                ) : !permissionGranted ? (
+                  <Text style={styles.statusText}>Δεν επιτρέπεται η πρόσβαση στο μικρόφωνο</Text>
                 ) : (
                   <Text style={styles.statusText}>
                     {phase === "done"
                       ? "Έτοιμο"
                       : phase === "error"
                         ? "Σφάλμα"
-                        : "Πάτησε για ηχογράφηση"}
+                        : phase === "empty"
+                          ? "Δεν καταγράφηκε ομιλία"
+                          : "Πάτησε για ηχογράφηση"}
                   </Text>
                 )}
               </View>
@@ -207,13 +230,13 @@ export function RecordScreen({ navigation }: Props) {
                 >
                   <Pressable
                     onPress={isRecording ? handleStop : handleStart}
-                    disabled={busy}
+                    disabled={busy || startDisabled}
                     accessibilityRole="button"
                     accessibilityLabel={isRecording ? "Διακοπή ηχογράφησης" : "Έναρξη ηχογράφησης"}
                     style={({ pressed }) => [
                       styles.buttonInner,
                       pressed && styles.buttonPressed,
-                      busy && styles.buttonDisabled,
+                      (busy || startDisabled) && styles.buttonDisabled,
                     ]}
                   >
                     <Animated.View style={[styles.buttonFillClip, morphStyle]}>
@@ -254,8 +277,48 @@ export function RecordScreen({ navigation }: Props) {
                 </Pressable>
               )}
 
+              {!isRecording && !busy && !permissionGranted && (
+                <View style={styles.permissionBox}>
+                  <Text style={styles.permissionHint}>
+                    {canAskAgain
+                      ? "Χρειάζεται πρόσβαση στο μικρόφωνο για να ηχογραφήσεις σημειώσεις."
+                      : "Η πρόσβαση στο μικρόφωνο έχει απορριφθεί. Ενεργοποίησέ την από τις Ρυθμίσεις."}
+                  </Text>
+                  <Pressable
+                    testID="record-permission-action"
+                    onPress={canAskAgain ? requestPermission : () => Linking.openSettings()}
+                    accessibilityRole="button"
+                    accessibilityLabel={canAskAgain ? "Παραχώρηση πρόσβασης" : "Άνοιγμα Ρυθμίσεων"}
+                    style={({ pressed }) => [styles.permissionBtn, pressed && styles.buttonPressed]}
+                  >
+                    <Text style={styles.permissionBtnText}>
+                      {canAskAgain ? "Παραχώρηση πρόσβασης" : "Άνοιγμα Ρυθμίσεων"}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {phase === "empty" && (
+                <Text style={styles.emptyText}>Δεν ακούστηκε τίποτα. Ηχογράφησε ξανά.</Text>
+              )}
+
+              {startError && <Text style={styles.errorText}>{startError}</Text>}
+
               {error && (
-                <Text style={styles.errorText}>{error}</Text>
+                <>
+                  <Text style={styles.errorText}>{error}</Text>
+                  {canRetry && (
+                    <Pressable
+                      testID="record-retry"
+                      onPress={retry}
+                      accessibilityRole="button"
+                      accessibilityLabel="Δοκιμάστε ξανά"
+                      style={({ pressed }) => [styles.retryBtn, pressed && styles.buttonPressed]}
+                    >
+                      <Text style={styles.retryBtnText}>Δοκιμάστε ξανά</Text>
+                    </Pressable>
+                  )}
+                </>
               )}
             </View>
 
@@ -435,6 +498,48 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     textAlign: "center",
     paddingHorizontal: spacing.xl,
+  },
+  emptyText: {
+    ...type.meta,
+    color: colors.inverseTextMuted,
+    marginTop: spacing.xl,
+    textAlign: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  retryBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.inverseGlass,
+    borderWidth: 1,
+    borderColor: colors.inverseBorderGlass,
+    borderRadius: radii.pill,
+  },
+  retryBtnText: {
+    ...type.meta,
+    color: colors.white,
+  },
+  permissionBox: {
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  permissionHint: {
+    ...type.meta,
+    color: colors.inverseTextMuted,
+    textAlign: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  permissionBtn: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.inverseGlass,
+    borderWidth: 1,
+    borderColor: colors.inverseBorderGlass,
+    borderRadius: radii.pill,
+  },
+  permissionBtnText: {
+    ...type.meta,
+    color: colors.white,
   },
   cardWrapper: {
     width: "100%",

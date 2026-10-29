@@ -1,19 +1,23 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   useAudioRecorder,
   useAudioRecorderState,
-  AudioModule,
   RecordingPresets,
   setAudioModeAsync,
 } from "expo-audio";
-import { Alert } from "react-native";
+import { ensurePermission, getPermissionStatus } from "../services/microphone";
 
 export type RecorderState = {
   isRecording: boolean;
   elapsed: number;
   uri: string | null;
+  permissionGranted: boolean;
+  // False once the OS has already determined the permission and won't
+  // re-prompt — caller should send the user to Settings instead.
+  canAskAgain: boolean;
   start: () => Promise<void>;
   stop: () => Promise<void>;
+  requestPermission: () => Promise<void>;
 };
 
 // Encapsulates all expo-audio concerns: permission, audio mode, recorder lifecycle,
@@ -22,17 +26,29 @@ export function useRecorder(): RecorderState {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const [elapsed, setElapsed] = useState(0);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [canAskAgain, setCanAskAgain] = useState(true);
+
+  const refreshPermission = useCallback(async () => {
+    const status = await getPermissionStatus();
+    setPermissionGranted(status.granted);
+    setCanAskAgain(status.canAskAgain);
+    if (status.granted) {
+      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
-      const status = await AudioModule.requestRecordingPermissionsAsync();
-      if (!status.granted) {
-        Alert.alert("Απαιτείται άδεια", "Δεν επιτράπηκε η πρόσβαση στο μικρόφωνο.");
-        return;
-      }
-      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+      await ensurePermission();
+      await refreshPermission();
     })();
-  }, []);
+  }, [refreshPermission]);
+
+  const requestPermission = useCallback(async () => {
+    await ensurePermission();
+    await refreshPermission();
+  }, [refreshPermission]);
 
   useEffect(() => {
     if (!recorderState.isRecording) {
@@ -56,7 +72,10 @@ export function useRecorder(): RecorderState {
     isRecording: recorderState.isRecording,
     elapsed,
     uri: recorder.uri ?? null,
+    permissionGranted,
+    canAskAgain,
     start,
     stop,
+    requestPermission,
   };
 }

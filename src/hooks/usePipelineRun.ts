@@ -10,15 +10,28 @@ import {
 } from "../services/notifications";
 import type { Note } from "../types/note";
 
-type PipelinePhase = "idle" | "transcribing" | "extracting" | "done" | "error";
+type PipelinePhase =
+  | "idle"
+  | "transcribing"
+  | "extracting"
+  | "done"
+  | "error"
+  // Transcription succeeded but produced nothing usable (silence / too-short
+  // recording) — distinct from "error": nothing failed, there's just no note
+  // to build. No DB write happens for this phase.
+  | "empty";
 
 export type PipelineRunState = {
   phase: PipelinePhase;
   note: Note | null;
   error: string | null;
+  // True only when the last failure was a transcription failure against a
+  // still-available recording uri — i.e. retry() has something to re-run.
+  canRetry: boolean;
   setNote: React.Dispatch<React.SetStateAction<Note | null>>;
   runFromUri: (uri: string) => Promise<void>;
   runFromText: (text: string) => Promise<void>;
+  retry: () => Promise<void>;
   reset: () => void;
 };
 
@@ -28,16 +41,31 @@ export function usePipelineRun(): PipelineRunState {
   const [phase, setPhase] = useState<PipelinePhase>("idle");
   const [note, setNote] = useState<Note | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [failedUri, setFailedUri] = useState<string | null>(null);
 
   const run = async (transcript: string, skipTranscribe: boolean, uri?: string) => {
     setNote(null);
     setError(null);
+    setFailedUri(null);
     try {
       let text = transcript;
       if (!skipTranscribe && uri) {
         setPhase("transcribing");
-        text = await transcribe(uri);
+        try {
+          text = await transcribe(uri);
+        } catch (e) {
+          // Preserve the uri so the caller can retry against the SAME
+          // recording instead of forcing a brand-new one.
+          setFailedUri(uri);
+          throw e;
+        }
       }
+
+      if (!text.trim()) {
+        setPhase("empty");
+        return;
+      }
+
       setPhase("extracting");
       const extracted = await extractNote(text);
       const noteId = await notesRepository.create(extracted, text);
@@ -84,12 +112,24 @@ export function usePipelineRun(): PipelineRunState {
 
   const runFromUri = (uri: string) => run("", false, uri);
   const runFromText = (text: string) => run(text, true);
+  const retry = () => (failedUri ? run("", false, failedUri) : Promise.resolve());
 
   const reset = () => {
     setPhase("idle");
     setNote(null);
     setError(null);
+    setFailedUri(null);
   };
 
-  return { phase, note, error, setNote, runFromUri, runFromText, reset };
+  return {
+    phase,
+    note,
+    error,
+    canRetry: failedUri !== null,
+    setNote,
+    runFromUri,
+    runFromText,
+    retry,
+    reset,
+  };
 }
