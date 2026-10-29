@@ -10,7 +10,12 @@ import {
   deleteActionItem,
 } from "./actionItems";
 import { searchNotes, searchNotesInRange, searchNotesLiteral } from "./fts";
-import { getActionItemsFiltered, getTasksWithDueDates } from "./agentQueries";
+import {
+  getActionItemsFiltered,
+  getTasksWithDueDates,
+  countOpenActionItems,
+  getOpenActionItemsForWidget,
+} from "./agentQueries";
 import {
   getNote,
   getRecentNotes,
@@ -31,7 +36,12 @@ export {
   deleteActionItem,
 };
 export { searchNotes, searchNotesInRange, searchNotesLiteral };
-export { getActionItemsFiltered, getTasksWithDueDates };
+export {
+  getActionItemsFiltered,
+  getTasksWithDueDates,
+  countOpenActionItems,
+  getOpenActionItemsForWidget,
+};
 export {
   getNote,
   getRecentNotes,

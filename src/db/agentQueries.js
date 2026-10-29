@@ -78,6 +78,43 @@ export async function getActionItemsFiltered({
   }));
 }
 
+// Every open action item, dated or undated — uncapped, unlike the list
+// queries here (LIMIT 50), so a count above 50 is still exact.
+export async function countOpenActionItems() {
+  const db = await getDb();
+  const row = await db.getFirstAsync(
+    `SELECT COUNT(*) AS count FROM action_items WHERE status = 'open'`,
+  );
+  return row?.count ?? 0;
+}
+
+// The first `limit` open action items for the lock-screen widget: earliest
+// due date first, timed before untimed on the same day, undated last, then
+// created_at/id so ties are deterministic. No note join — the widget shows
+// task text only.
+export async function getOpenActionItemsForWidget(limit) {
+  const db = await getDb();
+  const rows = await db.getAllAsync(
+    `SELECT id, text, due_date, due_time, all_day
+     FROM action_items
+     WHERE status = 'open'
+     ORDER BY due_date IS NULL, due_date ASC,
+              due_time IS NULL, due_time ASC,
+              created_at ASC, id ASC
+     LIMIT ?`,
+    limit,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    text: r.text,
+    dueDate: r.due_date
+      ? new Date(r.due_date).toISOString().slice(0, 10)
+      : null,
+    dueTime: r.due_time ?? null,
+    allDay: r.all_day !== 0,
+  }));
+}
+
 // All open action items with a due_date, joined with parent note context.
 // No date-bucket filtering here — that's done in the service layer
 // (src/services/taskBuckets.ts) so the boundary logic is testable in JS.
