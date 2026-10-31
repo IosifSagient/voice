@@ -198,8 +198,8 @@ export default function App() {
     Inter_600SemiBold,
   });
   const { session, loading, signOut } = useAuth();
-  const { locked, lockAvailable, lockEnabled, unlock, setLockEnabled } =
-    useAppLock(!!session);
+  const { locked, lockDecided, lockAvailable, lockEnabled, unlock, setLockEnabled } =
+    useAppLock(!!session, loading);
   const {
     loading: calendarLoading,
     permissionGranted: calendarPermissionGranted,
@@ -229,7 +229,9 @@ export default function App() {
   // avoids any flash of system-font text.
   if (!fontsLoaded) return null;
 
-  if (loading) {
+  // Nothing below renders until the lock decision is final: a container that
+  // mounted first would drain a held deep link, then unmount when the lock engaged.
+  if (loading || !lockDecided) {
     return (
       <View style={styles.splash}>
         <ActivityIndicator

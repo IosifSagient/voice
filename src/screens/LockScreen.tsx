@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, type, radii } from '../config/theme';
@@ -7,12 +6,9 @@ type Props = {
   onUnlock: () => void;
 };
 
+// Presentational: useAppLock decides when to auto-prompt, since mounting here
+// can happen while the app is backgrounded.
 export function LockScreen({ onUnlock }: Props) {
-  // Auto-trigger biometric prompt on mount
-  useEffect(() => {
-    onUnlock();
-  }, []);
-
   return (
     <View style={styles.container}>
       <Text style={styles.appName}>VoiceNote</Text>
