@@ -95,7 +95,7 @@ export async function countOpenActionItems() {
 export async function getOpenActionItemsForWidget(limit) {
   const db = await getDb();
   const rows = await db.getAllAsync(
-    `SELECT id, text, due_date, due_time, all_day
+    `SELECT id, text, short_title, due_date, due_time, all_day
      FROM action_items
      WHERE status = 'open'
      ORDER BY due_date IS NULL, due_date ASC,
@@ -107,6 +107,7 @@ export async function getOpenActionItemsForWidget(limit) {
   return rows.map((r) => ({
     id: r.id,
     text: r.text,
+    shortTitle: r.short_title ?? null,
     dueDate: r.due_date
       ? new Date(r.due_date).toISOString().slice(0, 10)
       : null,

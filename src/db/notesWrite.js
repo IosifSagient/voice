@@ -54,8 +54,8 @@ export async function saveNote(extraction, transcript) {
     for (const item of action_items) {
       const due = parseDueDate(item?.due_date);
       await db.runAsync(
-        `INSERT INTO action_items (id, note_id, text, due_date, due_time, all_day, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`,
+        `INSERT INTO action_items (id, note_id, text, due_date, due_time, all_day, status, created_at, short_title)
+         VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
         uuid(),
         noteId,
         item.text ?? "",
@@ -63,6 +63,7 @@ export async function saveNote(extraction, transcript) {
         item.due_time ?? null,
         item.all_day === false ? 0 : 1,
         now,
+        item.short_title ?? null,
       );
     }
   });

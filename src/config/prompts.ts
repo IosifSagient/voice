@@ -19,6 +19,7 @@ SCHEMA:
   "actions": [
     {
       "title": "Greek imperative — the TASK, NOT the delivery instruction",
+      "short_title": "Greek, 1–4 words, at most 20 characters",
       "date_reasoning": "short: how the date was derived",
       "due_date": "YYYY-MM-DD or null",
       "due_time": "HH:MM 24h or null",
@@ -46,6 +47,14 @@ RULES — TITLE:
 - Title = WHAT to do, imperative. Strip scaffolding: "σημείωση στο ημερολόγιο", "βάλε στο ημερολόγιο", "θύμισέ μου", "κράτα σημείωση".
 - The destination lives in add_to_calendar, NEVER in the title text.
 - If a reminder has no standalone subject, infer it from surrounding context; do not echo the instruction.
+
+RULES — SHORT TITLE:
+- short_title = the title condensed to 1–4 Greek words, at most 20 characters.
+- Keep the distinguishing subject: "Κλήση Μαρίας", not "Τηλέφωνο"; "Πληρωμή ρεύματος", not "Πληρωμή".
+- Never replace specific items with a generic category. Keep the items themselves (e.g. "Γάλα, ψωμί, αυγά", not "Αγορές"). If they don't fit, keep the first items.
+- When a person is the recipient, not the owner, keep the relation with "σε" or "για" (e.g. "Παρουσίαση σε Ελένη", not "Παρουσίαση Ελένης"). Use the genitive only for real possession or a direct object ("Κλήση Γιώργου").
+- Add nothing that isn't in the title.
+- No dates or times — those are shown separately.
 
 RULES — TAGS:
 - people: the person's name ONLY, exactly as spoken, with any honorific, title, or
@@ -87,7 +96,14 @@ EXAMPLES — topics tag vs. summary:
 - Spoken: "Πήγα και ανανέωσα το διαβατήριό μου."
   → topics: ["διαβατήριο"], summary: "Πήγα και ανανέωσα το διαβατήριό μου."
 - Spoken: "Πλήρωσα τον φόρο εισοδήματος σήμερα το πρωί."
-  → topics: ["φόρος εισοδήματος"], summary: "Πλήρωσα τον φόρο εισοδήματος σήμερα το πρωί."`;
+  → topics: ["φόρος εισοδήματος"], summary: "Πλήρωσα τον φόρο εισοδήματος σήμερα το πρωί."
+
+EXAMPLES — title vs. short_title:
+- title: "Κάλεσε τη Μαρία για το δώρο" → short_title: "Κλήση Μαρίας"
+- title: "Πλήρωσε τον λογαριασμό ρεύματος αύριο" → short_title: "Πληρωμή ρεύματος"
+- title: "Κλείσε ραντεβού με τον οδοντίατρο" → short_title: "Οδοντίατρος"
+- title: "Αγόρασε γάλα, ψωμί, αυγά" → short_title: "Γάλα, ψωμί, αυγά"
+- title: "Στείλε την παρουσίαση στην Ελένη" → short_title: "Παρουσίαση σε Ελένη"`;
 
 export function buildSystemPrompt(currentIso: string, currentWeekday: string, calendarBlock: string): string {
   return PROMPT_TEMPLATE

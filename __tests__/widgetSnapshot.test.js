@@ -60,6 +60,7 @@ const raw = () => jest.requireMock("expo-sqlite").raw;
 function seed({
   id,
   text = id,
+  shortTitle = null,
   due = null, // 'YYYY-MM-DD', stored exactly as saveNote does (parseDueDate)
   time = null,
   allDay = 1,
@@ -68,10 +69,10 @@ function seed({
 }) {
   raw()
     .prepare(
-      `INSERT INTO action_items (id, note_id, text, due_date, due_time, all_day, status, created_at)
-       VALUES (?, 'n1', ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO action_items (id, note_id, text, short_title, due_date, due_time, all_day, status, created_at)
+       VALUES (?, 'n1', ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, text, parseDueDate(due), time, allDay, status, createdAt);
+    .run(id, text, shortTitle, parseDueDate(due), time, allDay, status, createdAt);
 }
 
 beforeAll(async () => {
@@ -117,14 +118,14 @@ describe("getOpenActionItemsForWidget — ordering", () => {
   });
 
   it("maps a row to the WidgetTask shape", async () => {
-    seed({ id: "a", text: "Ραντεβού", due: "2026-07-09", time: "09:30", allDay: 0 });
+    seed({ id: "a", text: "Ραντεβού με τον γιατρό", shortTitle: "Γιατρός", due: "2026-07-09", time: "09:30", allDay: 0 });
     seed({ id: "b", text: "Γάλα" });
     const [timed, undated] = await getOpenActionItemsForWidget(3);
     expect(timed).toEqual({
-      id: "a", text: "Ραντεβού", dueDate: "2026-07-09", dueTime: "09:30", allDay: false,
+      id: "a", text: "Ραντεβού με τον γιατρό", shortTitle: "Γιατρός", dueDate: "2026-07-09", dueTime: "09:30", allDay: false,
     });
     expect(undated).toEqual({
-      id: "b", text: "Γάλα", dueDate: null, dueTime: null, allDay: true,
+      id: "b", text: "Γάλα", shortTitle: null, dueDate: null, dueTime: null, allDay: true,
     });
   });
 });
@@ -184,7 +185,7 @@ describe("dueDate conversion", () => {
 });
 
 describe("buildWidgetSnapshot", () => {
-  const task = (id) => ({ id, text: id, dueDate: null, dueTime: null, allDay: true });
+  const task = (id) => ({ id, text: id, shortTitle: null, dueDate: null, dueTime: null, allDay: true });
 
   it("caps tasks at 3 even when more rows are passed, preserving order", () => {
     const snap = buildWidgetSnapshot({
@@ -234,6 +235,7 @@ describe("loadWidgetSnapshot", () => {
     seed({
       id: "3f2b8c1e-9a4d-4e7f-b6c2-1d0e5a7b9c3f",
       text: "Ραντεβού με τον οδοντίατρο για τον καθαρισμό",
+      shortTitle: "Οδοντίατρος",
       due: "2026-07-09",
       time: "17:30",
       allDay: 0,
@@ -241,17 +243,25 @@ describe("loadWidgetSnapshot", () => {
     seed({
       id: "a1c4e7d2-5b8f-4a3e-9c6d-2f1b0e8a7d5c",
       text: "Να πληρώσω τον λογαριασμό της ΔΕΗ",
+      shortTitle: "Πληρωμή ΔΕΗ",
       due: "2026-07-10",
     });
     seed({
       id: "7e9d2a4b-1c6f-4b8e-a3d5-9f0c2e4b6a8d",
       text: "Να πάρω τηλέφωνο τη Μαρία για το δώρο",
+      shortTitle: "Κλήση Μαρίας",
     });
 
     const snap = await loadWidgetSnapshot({ now: Date.UTC(2026, 6, 8, 9, 0) });
     const json = JSON.stringify(snap);
 
     expect(JSON.parse(json)).toEqual(snap);
+    expect(snap.version).toBe(1);
+    expect(JSON.parse(json).tasks.map((t) => t.shortTitle)).toEqual([
+      "Οδοντίατρος",
+      "Πληρωμή ΔΕΗ",
+      "Κλήση Μαρίας",
+    ]);
     expect(Buffer.byteLength(json, "utf8")).toBeLessThan(1024);
   });
 });

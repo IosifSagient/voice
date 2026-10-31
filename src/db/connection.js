@@ -55,6 +55,7 @@ export async function migrate(db) {
     "ALTER TABLE action_items ADD COLUMN all_day INTEGER DEFAULT 1",
     "ALTER TABLE notes ADD COLUMN people_normalized_json TEXT",
     "ALTER TABLE action_items ADD COLUMN notification_id TEXT",
+    "ALTER TABLE action_items ADD COLUMN short_title TEXT",
   ];
   for (const sql of migrations) {
     try {

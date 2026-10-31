@@ -70,6 +70,7 @@ without it makes the dev build behave as prod at the JS/manifest level.
   "actions": [
     {
       "title": "string",
+      "short_title": "string",
       "date_reasoning": "string",
       "due_date": "YYYY-MM-DD or null",
       "due_time": "HH:MM 24h or null",
@@ -86,6 +87,12 @@ without it makes the dev build behave as prod at the JS/manifest level.
 (`types/note.ts`): `actions[].title` → `ActionItem.text`, `due_date`/`due_time`/`all_day`
 pass through as-is. `ActionItem` additionally carries `status` and `calendar_event_id`,
 which are app-managed (never produced by the LLM).
+
+`short_title` exists for the lock-screen widget only and is never shown in the app UI.
+The prompt asks for 1–4 words, at most 20 characters. The parser (`extraction.ts`) trims
+it and turns a non-string, empty, or over-24-character value into `null`, never
+truncating. It lives on `ExtractedActionItem`, not `ActionItem`, so a hydrated `Note`
+never carries it.
 
 `topics` is a single general-purpose tag for subjects, things, or organizations
 mentioned — it replaced an earlier `products`/`companies` split left over from a
@@ -116,6 +123,11 @@ barrel; do not add a second data layer.
 - `agentQueries.js` — `getActionItemsFiltered`, `getTasksWithDueDates`,
   `countOpenActionItems`, `getOpenActionItemsForWidget`.
 - `index.js` — barrel re-export; the only import path other code should use.
+
+**`action_items.short_title` is widget-only.** It must never be selected by `getNote`,
+written by `updateNote`'s insert path, carried in `ActionItem`/`Note`, the share payload,
+notifications, calendar, or the agent. Editing a task's text clears it by design (delete
++ insert). Only `saveNote` writes it and only `getOpenActionItemsForWidget` reads it.
 
 ### Search is THREE mechanisms — do not conflate them
 
@@ -342,7 +354,7 @@ Known deferred:
   no timeline set.
 - `tsc --noEmit` has 6 expected errors, all in `supabase/functions/openai-proxy/index.ts`
   — a Deno-runtime file not covered by this project's tsconfig; not a regression signal.
-- `npx jest` baseline: 76 suites / 669 tests passing, 0 failures — ground truth as of
+- `npx jest` baseline: 78 suites / 714 tests passing, 0 failures — ground truth as of
   2026-10-31; a future run producing a different count signals drift to investigate.
 - db tests use `node:sqlite` (real in-memory SQLite) and require Node ≥ 22.5.
 - `NoteDetailScreen`'s reminder-cleanup wiring (`saveEdit`/`handleDelete`) has no

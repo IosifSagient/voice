@@ -3,6 +3,7 @@
 export type WidgetTask = {
   id: string; // action_items.id is TEXT (uuid)
   text: string;
+  shortTitle: string | null; // preferred display text; null falls back to `text`
   dueDate: string | null; // 'YYYY-MM-DD', same UTC-midnight → toISOString().slice(0,10) conversion as db/agentQueries.js
   dueTime: string | null; // 'HH:MM' local, as stored
   allDay: boolean;
