@@ -12,6 +12,7 @@ export default {
 
     ios: {
       supportsTablet: true,
+      appleTeamId: "T58M6DT8J5",
 
       // Dev and TestFlight are now separate iOS apps.
       bundleIdentifier: IS_DEV
@@ -19,6 +20,15 @@ export default {
         : "com.iosifsagient.heylisa",
 
       associatedDomains: ["applinks:iosifsagient.github.io"],
+
+      // Shared with the widget target (targets/widget), which inherits it.
+      entitlements: {
+        "com.apple.security.application-groups": [
+          IS_DEV
+            ? "group.com.iosifsagient.heylisa.dev"
+            : "group.com.iosifsagient.heylisa",
+        ],
+      },
 
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -73,6 +83,7 @@ export default {
       "expo-font",
       "expo-asset",
       "expo-notifications",
+      "@bacons/apple-targets",
     ],
 
     extra: {

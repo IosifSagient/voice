@@ -40,5 +40,9 @@ yarn-error.*
 /ios
 /android
 
+# generated per variant when targets/widget/expo-target.config.js is evaluated
+/targets/widget/Info.plist
+/targets/widget/generated.entitlements
+
 .env
 supabase/.env
