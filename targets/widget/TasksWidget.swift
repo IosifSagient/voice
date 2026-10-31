@@ -57,15 +57,19 @@ struct TasksProvider: TimelineProvider {
 struct CircularView: View {
   let snapshot: WidgetSnapshot
 
+  private var countText: String {
+    snapshot.openCount >= 100 ? "99+" : "\(snapshot.openCount)"
+  }
+
   var body: some View {
     ZStack {
       AccessoryWidgetBackground()
       VStack(spacing: 0) {
         Image(systemName: "checklist")
-          .font(.caption)
+          .font(.caption2)
           .widgetAccentable()
-        Text("\(snapshot.openCount)")
-          .font(.system(.title3, design: .default).weight(.semibold))
+        Text(countText)
+          .font(.title2.bold())
           .minimumScaleFactor(0.6)
           .lineLimit(1)
       }
@@ -79,10 +83,8 @@ struct RectangularView: View {
 
   private static let visibleTasks = 2
 
-  private var countText: String {
-    let count = entry.snapshot.openCount
-    let noun = count == 1 ? WidgetStrings.countSingular : WidgetStrings.countPlural
-    return "\(count) \(noun)"
+  private var countNoun: String {
+    entry.snapshot.openCount == 1 ? WidgetStrings.countSingular : WidgetStrings.countPlural
   }
 
   var body: some View {
@@ -92,10 +94,7 @@ struct RectangularView: View {
           .font(.caption)
           .lineLimit(2)
       } else {
-        Label(countText, systemImage: "checklist")
-          .font(.caption.weight(.semibold))
-          .lineLimit(1)
-          .widgetAccentable()
+        header
         ForEach(entry.snapshot.tasks.prefix(Self.visibleTasks), id: \.id) { task in
           taskRow(task)
         }
@@ -105,19 +104,48 @@ struct RectangularView: View {
     .privacySensitive()
   }
 
+  private var header: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 4) {
+      Image(systemName: "checklist")
+        .font(.caption2)
+        .widgetAccentable()
+      Text("\(entry.snapshot.openCount)")
+        .font(.headline.bold())
+        .widgetAccentable()
+      Text(countNoun)
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+    .lineLimit(1)
+  }
+
+  // The text outranks the Spacer: at equal priority they split the free width,
+  // which truncates the text early and strands the label mid-widget.
   private func taskRow(_ task: WidgetTask) -> some View {
-    HStack(spacing: 4) {
-      Text(task.text)
+    HStack(alignment: .firstTextBaseline, spacing: 4) {
+      Text(DueDates.sentenceCased(task.text))
+        .font(.caption)
         .lineLimit(1)
         .truncationMode(.tail)
+        .layoutPriority(1)
       Spacer(minLength: 0)
       if let label = DueDates.label(for: task, now: entry.date, calendar: .current) {
-        Text(label)
-          .lineLimit(1)
-          .fixedSize()
+        dueLabel(label)
       }
     }
-    .font(.caption2)
+  }
+
+  @ViewBuilder private func dueLabel(_ label: DueLabel) -> some View {
+    let text = Text(label.text).font(.caption2)
+    Group {
+      if label.isOverdue {
+        text.bold()
+      } else {
+        text.foregroundStyle(.secondary)
+      }
+    }
+    .lineLimit(1)
+    .fixedSize()
   }
 }
 
