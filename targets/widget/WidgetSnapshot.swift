@@ -4,6 +4,7 @@ import Foundation
 struct WidgetTask: Decodable {
   let id: String
   let text: String
+  let shortTitle: String?  // preferred display text; missing or null falls back to `text`
   let dueDate: String?  // "YYYY-MM-DD"
   let dueTime: String?  // "HH:MM", local
   let allDay: Bool

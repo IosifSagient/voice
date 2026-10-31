@@ -44,7 +44,7 @@ enum DueDates {
     let text: String
     switch daysAway {
     case 0:
-      text = task.dueTime.map { "\(WidgetStrings.today) \($0)" } ?? WidgetStrings.today
+      text = task.dueTime ?? WidgetStrings.today
     case 1:
       text = WidgetStrings.tomorrow
     case 2...6:

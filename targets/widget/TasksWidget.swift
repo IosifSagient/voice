@@ -81,11 +81,8 @@ struct CircularView: View {
 struct RectangularView: View {
   let entry: TasksEntry
 
-  private static let visibleTasks = 2
-
-  private var countNoun: String {
-    entry.snapshot.openCount == 1 ? WidgetStrings.countSingular : WidgetStrings.countPlural
-  }
+  private static let visibleTasks = 3
+  private static let compactVisibleTasks = 2
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -94,9 +91,10 @@ struct RectangularView: View {
           .font(.caption)
           .lineLimit(2)
       } else {
-        header
-        ForEach(entry.snapshot.tasks.prefix(Self.visibleTasks), id: \.id) { task in
-          taskRow(task)
+        // Falls back to 2 rows where 3 would clip.
+        ViewThatFits(in: .vertical) {
+          taskRows(limit: Self.visibleTasks)
+          taskRows(limit: Self.compactVisibleTasks)
         }
       }
     }
@@ -104,26 +102,19 @@ struct RectangularView: View {
     .privacySensitive()
   }
 
-  private var header: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 4) {
-      Image(systemName: "checklist")
-        .font(.caption2)
-        .widgetAccentable()
-      Text("\(entry.snapshot.openCount)")
-        .font(.headline.bold())
-        .widgetAccentable()
-      Text(countNoun)
-        .font(.caption2)
-        .foregroundStyle(.secondary)
+  private func taskRows(limit: Int) -> some View {
+    VStack(alignment: .leading, spacing: 1) {
+      ForEach(entry.snapshot.tasks.prefix(limit), id: \.id) { task in
+        taskRow(task)
+      }
     }
-    .lineLimit(1)
   }
 
   // The text outranks the Spacer: at equal priority they split the free width,
   // which truncates the text early and strands the label mid-widget.
   private func taskRow(_ task: WidgetTask) -> some View {
     HStack(alignment: .firstTextBaseline, spacing: 4) {
-      Text(DueDates.sentenceCased(task.text))
+      Text(DueDates.sentenceCased(task.shortTitle ?? task.text))
         .font(.caption)
         .lineLimit(1)
         .truncationMode(.tail)
