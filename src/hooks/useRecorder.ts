@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AppState } from "react-native";
 import {
   useAudioRecorder,
   useAudioRecorderState,
@@ -43,6 +44,18 @@ export function useRecorder(): RecorderState {
       await ensurePermission();
       await refreshPermission();
     })();
+  }, [refreshPermission]);
+
+  // The mic may have been enabled in Settings while the app was away, and a
+  // deep link can return to this same mounted screen rather than remount it.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") return;
+      refreshPermission().catch((err) => {
+        console.error("[useRecorder:refreshPermission] failed to refresh permission", err);
+      });
+    });
+    return () => sub.remove();
   }, [refreshPermission]);
 
   const requestPermission = useCallback(async () => {

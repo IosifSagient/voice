@@ -332,8 +332,9 @@ Known deferred:
   no timeline set.
 - `tsc --noEmit` has 6 expected errors, all in `supabase/functions/openai-proxy/index.ts`
   — a Deno-runtime file not covered by this project's tsconfig; not a regression signal.
-- `npx jest` baseline: 66 suites / 510 tests passing, 0 failures — ground truth as of
-  2026-10-29; a future run producing a different count signals drift to investigate.
+- `npx jest` baseline: 67 suites / 541 tests passing, 0 failures — ground truth as of
+  2026-10-31; a future run producing a different count signals drift to investigate.
+- db tests use `node:sqlite` (real in-memory SQLite) and require Node ≥ 22.5.
 - `NoteDetailScreen`'s reminder-cleanup wiring (`saveEdit`/`handleDelete`) has no
   dedicated screen-level test.
 

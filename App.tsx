@@ -48,6 +48,11 @@ import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
 import { useCalendarSettings } from "./src/hooks/useCalendarSettings";
 import { useNotificationSettings } from "./src/hooks/useNotificationSettings";
+import {
+  LINKING_CONFIG,
+  LINKING_PREFIXES,
+  getLinkingActionFromState,
+} from "./src/lib/linking";
 import { navigationRef } from "./src/lib/navigationRef";
 import { handleInitialNotification } from "./src/services/notifications";
 import { handleInitialShareLink } from "./src/services/shareLink";
@@ -87,30 +92,9 @@ const serifHeaderTitleStyle = {
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
-  // https prefix matches the AASA-verified Universal Link domain
-  // (iosifsagient.github.io, paths /heyLisa/s and /heyLisa/s/*) — kept so
-  // this prefix is recognized as belonging to the app. The share path ("s")
-  // is deliberately NOT mapped in `screens` below: react-navigation's path
-  // parser can't see the URL fragment (the actual share payload), so if it
-  // path-matched and auto-navigated here, it would do so with empty/undefined
-  // params, racing services/shareLink.ts's own fragment-aware listener for
-  // the same URL. Leaving the path unmapped means react-navigation ignores
-  // it entirely and shareLink.ts is the sole handler of inbound share links.
-  prefixes: ["asklisa://", "https://iosifsagient.github.io/heyLisa"],
-  config: {
-    screens: {
-      Record: "record",
-      Main: {
-        screens: {
-          NotesList: "notes",
-          Tasks: "tasks",
-          Chat: "chat",
-        },
-      },
-      NoteDetail: "note/:id",
-      Settings: "settings",
-    },
-  },
+  prefixes: LINKING_PREFIXES,
+  config: LINKING_CONFIG,
+  getActionFromState: getLinkingActionFromState,
 };
 
 function MainTabs() {

@@ -314,6 +314,25 @@ describe('RecordScreen — microphone permission denied (#4)', () => {
       renderer.root.findAllByProps({ accessibilityLabel: 'Παραχώρηση πρόσβασης' })
     ).toHaveLength(0);
   });
+
+  it('shows the start-error message when start() throws', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockStart.mockRejectedValueOnce(new Error('prepare failed'));
+
+    const renderer = await renderScreen();
+
+    const button = renderer.root.findByProps({ accessibilityLabel: 'Έναρξη ηχογράφησης' });
+    await act(async () => {
+      await button.props.onPress();
+    });
+
+    expect(
+      renderer.root.findAll(
+        (node) => node.children.includes('Δεν ήταν δυνατή η έναρξη της ηχογράφησης.')
+      ).length
+    ).toBeGreaterThan(0);
+    consoleError.mockRestore();
+  });
 });
 
 describe('RecordScreen — empty transcript (#3)', () => {
