@@ -48,6 +48,7 @@ import { useAuth } from "./src/hooks/useAuth";
 import { useAppLock } from "./src/hooks/useAppLock";
 import { useCalendarSettings } from "./src/hooks/useCalendarSettings";
 import { useNotificationSettings } from "./src/hooks/useNotificationSettings";
+import { useWidgetSync } from "./src/hooks/useWidgetSync";
 import {
   LINKING_CONFIG,
   LINKING_PREFIXES,
@@ -200,6 +201,7 @@ export default function App() {
   const { session, loading, signOut } = useAuth();
   const { locked, lockDecided, lockAvailable, lockEnabled, unlock, setLockEnabled } =
     useAppLock(!!session, loading);
+  useWidgetSync(!!session);
   const {
     loading: calendarLoading,
     permissionGranted: calendarPermissionGranted,

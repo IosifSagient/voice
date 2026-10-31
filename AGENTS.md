@@ -113,7 +113,8 @@ barrel; do not add a second data layer.
   keeping `notes_fts` in sync on every write.
 - `actionItems.js` — `completeActionItem`, `setActionCalendarEvent`,
   `setActionNotificationId`, `reopenActionItem`, `deleteActionItem`.
-- `agentQueries.js` — `getActionItemsFiltered`, `getTasksWithDueDates`.
+- `agentQueries.js` — `getActionItemsFiltered`, `getTasksWithDueDates`,
+  `countOpenActionItems`, `getOpenActionItemsForWidget`.
 - `index.js` — barrel re-export; the only import path other code should use.
 
 ### Search is THREE mechanisms — do not conflate them
@@ -279,6 +280,15 @@ Hard invariants — a violation is a BUG, not a style choice:
   modal open) — anything touching the pipeline belongs in a hook.
 - Device-reminder scheduling (`scheduleReminder`/`cancelReminder`,
   `expo-calendar` equivalents) is HOOKS-ONLY — see Notifications above.
+- notesRepository's six task-affecting write methods (`create`, `save`, `delete`,
+  `completeActionItem`, `reopenActionItem`, `deleteActionItem`) call
+  `scheduleWidgetSync()` after a successful write. This is the only sanctioned side
+  effect in the repository. Any new method that changes the open-task set must do
+  the same.
+
+`targets/widget/` is native Swift (WidgetKit), outside the JS layering. WidgetSnapshot
+v1 in `src/types/widget.ts` is a cross-language contract with
+`targets/widget/WidgetSnapshot.swift`.
 
 If you spot a violation, fix it; don't preserve it.
 
@@ -332,7 +342,7 @@ Known deferred:
   no timeline set.
 - `tsc --noEmit` has 6 expected errors, all in `supabase/functions/openai-proxy/index.ts`
   — a Deno-runtime file not covered by this project's tsconfig; not a regression signal.
-- `npx jest` baseline: 71 suites / 611 tests passing, 0 failures — ground truth as of
+- `npx jest` baseline: 76 suites / 669 tests passing, 0 failures — ground truth as of
   2026-10-31; a future run producing a different count signals drift to investigate.
 - db tests use `node:sqlite` (real in-memory SQLite) and require Node ≥ 22.5.
 - `NoteDetailScreen`'s reminder-cleanup wiring (`saveEdit`/`handleDelete`) has no

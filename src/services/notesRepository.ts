@@ -24,10 +24,20 @@ import type { Note, ReminderIds, UpdateNoteDiff } from "../types/note";
 import type { ExtractedNote } from "./extraction";
 import type { TaskWithDueDate } from "../types/tasks";
 import type { LiteralSearchResult } from "../types/agent";
+import { scheduleWidgetSync } from "./widgetSync";
+
+// The repository's only side effect: any method that changes the open-task set
+// wraps its write in this, so the widget refreshes only after the write succeeds.
+function syncWidgetAfter<T>(write: Promise<T>): Promise<T> {
+  return write.then((result) => {
+    scheduleWidgetSync();
+    return result;
+  });
+}
 
 export const notesRepository = {
   create: (extraction: ExtractedNote, transcript: string): Promise<string> =>
-    saveNote(extraction, transcript),
+    syncWidgetAfter(saveNote(extraction, transcript)),
   list: (): Promise<Note[]> => getRecentNotes(),
   listAll: (): Promise<Note[]> => getAllNotes(),
   search: (terms: string | string[]): Promise<Note[]> => searchNotes(terms),
@@ -36,8 +46,10 @@ export const notesRepository = {
   searchLiteral: (term: string | string[], limit?: number): Promise<LiteralSearchResult> =>
     searchNotesLiteral(term, limit) as Promise<LiteralSearchResult>,
   get: (id: string): Promise<Note | null> => getNote(id),
-  delete: (id: string): Promise<ReminderIds[]> => deleteNote(id),
-  save: (note: Note): Promise<UpdateNoteDiff> => updateNote(note),
+  delete: (id: string): Promise<ReminderIds[]> =>
+    syncWidgetAfter(deleteNote(id)),
+  save: (note: Note): Promise<UpdateNoteDiff> =>
+    syncWidgetAfter(updateNote(note)),
   setCalendarEvent: (
     actionItemId: string,
     eventId: string | null,
@@ -61,10 +73,12 @@ export const notesRepository = {
   ): Promise<Note[]> => getNotesByTag(tagType, value),
   getRecentByDays: (days: number): Promise<Note[]> =>
     getRecentNotesByDays(days),
-  completeActionItem: (id: string): Promise<void> => completeActionItem(id),
-  reopenActionItem: (id: string): Promise<void> => reopenActionItem(id),
+  completeActionItem: (id: string): Promise<void> =>
+    syncWidgetAfter(completeActionItem(id)),
+  reopenActionItem: (id: string): Promise<void> =>
+    syncWidgetAfter(reopenActionItem(id)),
   deleteActionItem: (id: string): Promise<ReminderIds | null> =>
-    deleteActionItem(id),
+    syncWidgetAfter(deleteActionItem(id)),
   getTasksWithDueDates: (): Promise<TaskWithDueDate[]> =>
     getTasksWithDueDates(),
 };

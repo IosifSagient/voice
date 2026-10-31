@@ -43,6 +43,10 @@ jest.mock("expo-splash-screen", () => ({
 jest.mock("@expo-google-fonts/literata", () => ({ useFonts: () => [true] }));
 jest.mock("@expo-google-fonts/inter", () => ({}));
 jest.mock("../src/db", () => ({ initDb: jest.fn(() => Promise.resolve()) }));
+jest.mock("../src/services/widgetSync", () => ({
+  scheduleWidgetSync: jest.fn(),
+  clearWidget: jest.fn(),
+}));
 
 jest.mock("../src/services/notifications", () => ({
   handleInitialNotification: jest.fn(),

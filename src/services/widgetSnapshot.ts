@@ -1,5 +1,5 @@
-// Builds the lock-screen widget's data snapshot. Not wired to anything yet —
-// a later increment writes it to App Group storage and reloads the widget.
+// Builds the lock-screen widget's data snapshot. widgetSync.ts writes it to
+// App Group storage and reloads the widget.
 import { countOpenActionItems, getOpenActionItemsForWidget } from "../db";
 import type { WidgetSnapshot, WidgetTask } from "../types/widget";
 
