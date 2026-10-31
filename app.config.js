@@ -33,6 +33,17 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
+
+      // 1C8F.1: the App Group defaults shared with the widget. pod install merges
+      // what React Native and Expo modules declare into this.
+      privacyManifests: {
+        NSPrivacyAccessedAPITypes: [
+          {
+            NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryUserDefaults",
+            NSPrivacyAccessedAPITypeReasons: ["CA92.1", "1C8F.1"],
+          },
+        ],
+      },
     },
 
     android: {
