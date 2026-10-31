@@ -24,9 +24,9 @@ import {
 // Registers the foreground notification handler at module scope (R5) —
 // importing this once, here, before anything else runs is enough.
 import "./src/services/notifications";
-// Registers the inbound-share-link 'url' listener at module scope, same
-// timing rationale as notifications.ts above.
-import "./src/services/shareLink";
+// Registers the app's only 'url' listener and launch-URL read at module scope,
+// same timing rationale as notifications.ts above.
+import "./src/services/inboundLinks";
 
 // Keep the native splash up until the custom fonts below are loaded, so
 // there's no flash of system-font text before Literata/Inter swap in.
@@ -55,7 +55,11 @@ import {
 } from "./src/lib/linking";
 import { navigationRef } from "./src/lib/navigationRef";
 import { handleInitialNotification } from "./src/services/notifications";
-import { handleInitialShareLink } from "./src/services/shareLink";
+import {
+  drainPendingLink,
+  getInitialLinkUrl,
+  subscribeToLinks,
+} from "./src/services/inboundLinks";
 import type {
   RootStackParamList,
   MainTabParamList,
@@ -95,6 +99,8 @@ const linking: LinkingOptions<RootStackParamList> = {
   prefixes: LINKING_PREFIXES,
   config: LINKING_CONFIG,
   getActionFromState: getLinkingActionFromState,
+  getInitialURL: getInitialLinkUrl,
+  subscribe: subscribeToLinks,
 };
 
 function MainTabs() {
@@ -252,7 +258,7 @@ export default function App() {
       linking={linking}
       onReady={() => {
         handleInitialNotification();
-        handleInitialShareLink();
+        drainPendingLink();
       }}
     >
       <Stack.Navigator screenOptions={sharedHeaderOptions}>

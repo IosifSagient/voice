@@ -12,7 +12,6 @@ export function useAppLock(sessionExists: boolean) {
 
   // Track whether we've completed the initial availability check
   const initialized = useRef(false);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     async function init() {
@@ -35,19 +34,18 @@ export function useAppLock(sessionExists: boolean) {
     init();
   }, []);
 
-  // Re-lock when app returns from background
+  // Re-lock on the way INTO background, not on return: a URL opening the app
+  // can reach JS before 'active', and would otherwise be handled by a container
+  // that unmounts a moment later. 'inactive' (Face ID prompt, Control Center,
+  // Notification Center) must not lock.
   useEffect(() => {
     function handleAppStateChange(nextState: AppStateStatus) {
-      const prev = appStateRef.current;
-      appStateRef.current = nextState;
-
       if (
         initialized.current &&
         sessionExists &&
         lockAvailable &&
         lockEnabled &&
-        prev === 'background' &&
-        nextState === 'active'
+        nextState === 'background'
       ) {
         setLocked(true);
       }

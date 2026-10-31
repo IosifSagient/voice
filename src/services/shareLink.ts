@@ -7,7 +7,6 @@
 // the share path — its parser can't see the URL fragment (the actual share
 // payload) anyway, so this module is the sole handler of inbound share
 // links, with no competing auto-navigation to race or sequence against.
-import { Linking } from "react-native";
 import { navigationRef } from "../lib/navigationRef";
 import { decodeShare } from "./shareCodec";
 import type { DecodeResult } from "./shareCodec";
@@ -76,7 +75,9 @@ function toShareReceiveParams(result: DecodeResult): ShareReceiveParams {
 let lastHandledUrl: string | null = null;
 let lastHandledAt = 0;
 
-function routeShareUrl(url: string | null): void {
+// Called only by services/inboundLinks.ts, which owns the URL listener and
+// the launch-URL read and holds a share URL until navigation is ready.
+export function routeShareUrl(url: string | null): void {
   if (__DEV__) console.log("[shareLink:url]", url);
 
   const decision = resolveInboundUrl(url, lastHandledUrl, Date.now(), lastHandledAt);
@@ -99,26 +100,10 @@ function routeShareUrl(url: string | null): void {
   const params = toShareReceiveParams(result);
 
   // Same readiness guard as notifications.ts's routeNotificationResponse — a
-  // not-yet-mounted navigator is a silent no-op. For the warm 'url' listener
-  // below, the container is already mounted by definition (the app is
-  // running), so this is never actually false there; it only matters for
-  // handleInitialShareLink's cold-start call, which is why that call happens
-  // from onReady rather than a plain useEffect (see its own comment).
+  // not-yet-mounted navigator is a silent no-op. inboundLinks.ts only calls
+  // this once navigation is ready, so this is a backstop.
   if (!navigationRef.isReady()) return;
 
   if (__DEV__) console.log("[shareLink:navigate]", params);
   navigationRef.navigate("ShareReceive", params);
-}
-
-// Tap while the app is already running (foreground/background) — same
-// module-scope registration timing as notifications.ts's own tap listener.
-Linking.addEventListener("url", ({ url }) => routeShareUrl(url));
-
-// The tap that launched the app from killed isn't delivered via the 'url'
-// event above. Call this once from NavigationContainer's onReady (not a
-// plain useEffect) so navigationRef.isReady() above is guaranteed true —
-// same cold-start gap handleInitialNotification fills for notification taps.
-export async function handleInitialShareLink(): Promise<void> {
-  const url = await Linking.getInitialURL();
-  routeShareUrl(url);
 }
