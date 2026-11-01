@@ -154,7 +154,7 @@ function setup(initialUrl: string | null = null) {
     },
     unmount: () =>
       act(async () => {
-        renderer.unmount();
+        renderer?.unmount();
       }),
     emitUrl: (url: string) =>
       act(async () => {
@@ -173,6 +173,13 @@ function setup(initialUrl: string | null = null) {
 const launchReadSettled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 let app: ReturnType<typeof setup> | null = null;
+
+// Loads the module tree once, so a cold-cache Babel transform isn't charged to
+// whichever test happens to run first.
+beforeAll(() => {
+  setup();
+  jest.restoreAllMocks();
+}, 60000);
 
 beforeEach(() => {
   jest.clearAllMocks();

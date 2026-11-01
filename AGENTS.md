@@ -380,6 +380,7 @@ Known deferred:
   — a Deno-runtime file not covered by this project's tsconfig; not a regression signal.
 - `npx jest` baseline: 78 suites / 714 tests passing, 0 failures — ground truth as of
   2026-10-31; a future run producing a different count signals drift to investigate.
+  The baseline must hold on both `npx jest` and `npx jest --no-cache`.
 - db tests use `node:sqlite` (real in-memory SQLite) and require Node ≥ 22.5.
 - `NoteDetailScreen`'s reminder-cleanup wiring (`saveEdit`/`handleDelete`) has no
   dedicated screen-level test.

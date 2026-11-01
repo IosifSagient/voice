@@ -130,6 +130,13 @@ afterEach(async () => {
 });
 
 describe("inbound links through a real NavigationContainer", () => {
+  // Loads the module tree once, so a cold-cache Babel transform isn't charged to
+  // whichever test happens to run first.
+  beforeAll(() => {
+    setup();
+    jest.restoreAllMocks();
+  }, 60000);
+
   it("cold launch URL: mounts on Main, then pushes Record", async () => {
     const app = setup(RECORD);
     await launchReadSettled();
