@@ -44,7 +44,7 @@ One bold move per screen. On Home it is the large Literata date header, and ever
 | `muted` | `#6A7077` | Meta text, inactive tab |
 | `faint` | `#8A8F96` | Display second line and completed-task text only |
 | `hairline` | `rgba(0,0,0,0.08)` | Row dividers |
-| `checkRing` | `#B4B8BD` | Open checkbox stroke |
+| `checkRing` | `#8A8F96` | Open checkbox stroke |
 | `overdue` | `#B42318` | Overdue text and ring |
 | `overdueFill` | `#FDECEA` | Overdue chip ground |
 | `today` | `#F2B227` | Decorative dots only, never text |
@@ -113,11 +113,9 @@ Non-text elements, measured against the 3:1 bar of WCAG 1.4.11:
 | `overdue` ring | `paper` | 6.29 | Pass |
 | `done` fill | `paper` | 3.26 | Pass |
 | White check | `done` | 3.41 | Pass |
-| `checkRing` open ring | `paper` | 1.91 | **Below 3:1, kept as directed** |
+| `checkRing` open ring | `paper` | 3.12 | Pass |
 | `today` dot | `paper` | 1.80 | Decorative: the word "Σήμερα" carries the meaning |
 | `today` dot | `todayFill` | 1.72 | Decorative: the chip text carries the meaning |
-
-The open checkbox ring is the one real accessibility gap. It is the control's only visible boundary, and `#B4B8BD` was specified deliberately for its quiet look. Passing would need a shade no lighter than about `#8A8F96` (3.12:1 on `paper`), the same value as `faint`. Decide this on device during the TaskRow increment.
 
 ---
 
@@ -351,7 +349,9 @@ While data loads, the date header renders at once and the list stays empty, with
 
 ## 7. Motion
 
-`src/ANIMATION_SPEC.md` wins on conflict. The values below that differ from it take effect only once the updates at the end of this section are adopted there. Until then, implement the current `ANIMATION_SPEC.md` values.
+`src/ANIMATION_SPEC.md` wins on conflict.
+
+Adopted into src/ANIMATION_SPEC.md on 2026-11-01.
 
 ### Completion sequence
 
@@ -373,39 +373,6 @@ While data loads, the date header renders at once and the list stays empty, with
 - Press scale is 0.97 on every pressable, with a spring back.
 - There is no tab-switch animation, neither content nor indicator.
 - The capture button has no idle animation.
-
-### Proposed ANIMATION_SPEC updates
-
-`ANIMATION_SPEC.md` has not been edited. Each row below needs adopting there.
-
-| Section | Current value | Proposed |
-|---|---|---|
-| Global > Tab switch | Crossfade 200ms | None |
-| Global > Tab Bar > Active indicator | Line slides, 250ms | Remove: fill inner pill changes instantly |
-| Global > Tab Bar > Icon | Scale pop 1.0→1.1→1.0, 200ms | Remove |
-| Tasks > Checkbox > Circle fill | Accent, 250ms | `done`, 200ms |
-| Tasks > Checkbox > Scale bounce | 1.0→0.85→1.15→1.0, 400ms | Remove |
-| Tasks > Checkbox > Checkmark | Stroke draw, 300ms after fill | Spring scale 0→1 at 200ms |
-| Tasks > Task Text on Complete | Opacity to 0.5, strikethrough, nudge | Remove: hold 400ms, then collapse |
-| Tasks > row exit on completion | Not specified | Height and opacity collapse, 200ms |
-| Tasks > Task Card Deletion | 300ms, scale to 0.95 | Keep for delete only, rename to "Task row" |
-| Tasks > Task Card Swipe | Optional | Mark deferred (needs gesture-handler) |
-| Tasks > Filter Pills | Crossfade on dark header | Remove: Home has no filter bar |
-| Notes > FAB idle pulse | Shadow loop, 2000ms | Remove |
-| Notes > FAB press | Scale 0.9 | 0.97 |
-| Notes > FAB scroll show/hide | Hide on scroll down | Remove: never hides on scroll |
-| Notes > Note Card press | Scale 0.98 | 0.97, and rename "Note row" |
-| Login > Button press | Scale 0.96 | 0.97 |
-| Login > Background glow blobs | Drift and pulse loops | Remove |
-| Login > Input focus | Border to green `rgba(52,211,153,0.5)` | Border to `paper` |
-| Chat > Clarification card press | Scale 0.98, accent tint | 0.97, `fill` tint |
-| Chat > Send button press | Scale 0.85 | 0.97 |
-| Record > Button press | Scale 0.9, gradient color shift | 0.97, no gradient |
-| Record > Recording glow, background glow | Radial gradient loops | Remove |
-| Settings > Logout press | Scale 0.98, red flash | 0.97, `overdueFill` flash |
-| Settings > Toggle | Track `#E2E8F0`→`#10B981` | Track `fill`→`ink` |
-| Settings > Calendar row, notification dot | Green tint, glow pulse | `fill` tint, no glow |
-| Priority order | FAB pulse is item 5 | Remove item 5's pulse |
 
 ---
 
