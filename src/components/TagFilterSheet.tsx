@@ -78,7 +78,7 @@ export function TagFilterSheet({ visible, chips, activeChip, onSelect, onCancel 
             value={query}
             onChangeText={setQuery}
             placeholder="Φιλτράρισμα…"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.textSecondary}
             returnKeyType="search"
           />
           <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">

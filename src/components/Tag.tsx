@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentFaint,
   },
   topic: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     backgroundColor: colors.borderLight,
   },
   selected: {

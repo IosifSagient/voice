@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
 
   clearText: {
     ...type.meta,
-    color: colors.accentVivid,
+    color: colors.accent,
     fontFamily: "Inter_600SemiBold",
   },
 });

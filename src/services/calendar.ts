@@ -82,7 +82,7 @@ async function resolveDefaultCalendarId(cache: boolean): Promise<string | null> 
     );
     const id = await Calendar.createCalendarAsync({
       title: 'VoiceNote',
-      color: colors.accent,
+      color: colors.calendarColor,
       entityType: Calendar.EntityTypes.EVENT,
       sourceId: local?.id,
       source: local ?? { isLocalAccount: true, name: 'VoiceNote', type: Calendar.SourceType.LOCAL },

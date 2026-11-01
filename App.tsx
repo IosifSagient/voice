@@ -80,12 +80,22 @@ const sharedHeaderOptions = {
       style={StyleSheet.absoluteFill}
     />
   ),
-  headerTintColor: colors.white,
+  headerTintColor: colors.text,
   headerTitleStyle: {
     fontFamily: "Inter_600SemiBold",
-    color: colors.white,
+    color: colors.text,
   },
   headerShadowVisible: false,
+};
+
+// Record is an inverse (ink) screen, so its header matches the ground below it.
+const recordHeaderOptions = {
+  headerBackground: () => <View style={styles.recordHeaderBackground} />,
+  headerTintColor: colors.inverseText,
+  headerTitleStyle: {
+    fontFamily: "Inter_600SemiBold",
+    color: colors.inverseText,
+  },
 };
 
 // "Ask Lisa" (NotesList) and the NoteDetail title get the serif display
@@ -93,7 +103,7 @@ const sharedHeaderOptions = {
 const serifHeaderTitleStyle = {
   fontFamily: type.displaySerif.fontFamily,
   fontSize: type.displaySerif.fontSize,
-  color: colors.white,
+  color: colors.text,
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
@@ -145,7 +155,7 @@ function MainTabs() {
               <Ionicons
                 name="person-outline"
                 size={18}
-                color={colors.white}
+                color={colors.text}
               />
             </Pressable>
           ),
@@ -238,7 +248,7 @@ export default function App() {
       <View style={styles.splash}>
         <ActivityIndicator
           size="large"
-          color={colors.accent}
+          color={colors.inverseText}
         />
       </View>
     );
@@ -275,7 +285,7 @@ export default function App() {
         <Stack.Screen
           name="Record"
           component={RecordScreen}
-          options={{ title: "Νέα σημείωση" }}
+          options={{ title: "Νέα σημείωση", ...recordHeaderOptions }}
         />
         <Stack.Screen
           name="NoteDetail"
@@ -331,8 +341,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.glassLight,
+    backgroundColor: colors.borderLight,
     borderWidth: 1,
-    borderColor: colors.borderGlass,
+    borderColor: colors.border,
+  },
+  recordHeaderBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.inverseBg,
   },
 });

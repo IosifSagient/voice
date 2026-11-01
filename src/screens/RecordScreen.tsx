@@ -51,10 +51,10 @@ function RecordIcon({ isRecording }: { isRecording: boolean }) {
   return (
     <View style={styles.iconStack}>
       <Animated.View style={[styles.iconLayer, micStyle]}>
-        <Ionicons name="mic" size={56} color={colors.white} />
+        <Ionicons name="mic" size={56} color={colors.inverseBg} />
       </Animated.View>
       <Animated.View style={[styles.iconLayer, stopStyle]}>
-        <Ionicons name="stop" size={56} color={colors.white} />
+        <Ionicons name="stop" size={56} color={colors.inverseBg} />
       </Animated.View>
     </View>
   );
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: radii.full,
-    backgroundColor: colors.destructive,
+    backgroundColor: colors.inverseError,
     marginRight: spacing.sm,
   },
   spinner: { marginRight: spacing.sm },
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     ...shadows.dark.fab,
   },
   buttonMorphRecording: {
-    shadowColor: colors.destructive,
+    shadowColor: colors.inverseError,
   },
   buttonInner: {
     flex: 1,
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   },
   buttonFillRecording: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.destructive,
+    backgroundColor: colors.inverseError,
   },
   iconStack: {
     width: 56,
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...type.meta,
-    color: colors.destructive,
+    color: colors.inverseError,
     marginTop: spacing.xl,
     textAlign: "center",
     paddingHorizontal: spacing.xl,
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   buildBtnDisabled: { opacity: 0.4 },
   buildBtnText: {
     ...type.buttonSmall,
-    color: colors.white,
+    color: colors.inverseBg,
   },
   cancelLink: {
     alignItems: "center",

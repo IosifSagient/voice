@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     borderWidth: 2,
     borderColor: colors.accent,
-    backgroundColor: colors.accentFaint,
+    backgroundColor: "transparent",
     marginRight: spacing.md,
     marginTop: 1,
     flexShrink: 0,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   due: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     backgroundColor: colors.borderLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,

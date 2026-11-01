@@ -119,6 +119,6 @@ const styles = StyleSheet.create({
     borderRadius: recordButton.outerRadius,
     borderWidth: 3,
     borderColor: "transparent",
-    borderTopColor: colors.destructive,
+    borderTopColor: colors.inverseError,
   },
 });

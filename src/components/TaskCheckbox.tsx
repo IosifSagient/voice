@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: radii.full,
     borderWidth: 2,
-    borderColor: colors.accent,
-    backgroundColor: colors.accentFaint,
+    borderColor: colors.checkRing,
+    backgroundColor: "transparent",
     marginRight: spacing.md,
     marginTop: 1,
     flexShrink: 0,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   fill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.done,
     borderRadius: radii.full,
   },
   checkmark: {

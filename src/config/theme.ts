@@ -7,30 +7,45 @@
 // unprefixed/inverse pair happens to collide in name.
 export const colors = {
   // Backgrounds
-  bg:                "#F5F2EC",
-  bgCard:             "#FDFBF7",
-  inverseBg:          "#0A1F18",
+  bg:                "#FAFAF8",
+  bgCard:             "#FFFFFF",
+  fill:               "#EEEEEA",
+  inverseBg:          "#16181B",
   inverseBgCard:      "#161A22",
   inverseBgElevated:  "#1E2330",
 
   // Accent
-  accent:             "#0E7A54",
-  accentVivid:        "#1FA36E",
-  accentSoft:         "#DCEAE1",
-  accentFaint:        "rgba(14,122,84,0.05)",
+  accent:             "#16181B",
+  accentVivid:        "#FAFAF8",
+  accentSoft:         "#EEEEEA",
+  accentFaint:        "#EEEEEA",
   inverseAccentMuted: "#0D2926",
 
   // Recording / destructive state
-  destructive:          "#C9503F",
+  destructive:          "#B42318",
   inverseRecordingMuted: "#2A1010",
 
+  // Meaning colors (DESIGN_SPEC.md section 1): overdue, today, done
+  overdue:     "#B42318",
+  overdueFill: "#FDECEA",
+  today:       "#F2B227",
+  todayText:   "#7A4A00",
+  todayFill:   "#FFF4D6",
+  done:        "#2F9E5B",
+
+  // Device calendars persist after creation, so this stays pinned rather
+  // than following the app palette.
+  calendarColor: "#0E7A54",
+
   // Text hierarchy
-  text:                 "#1E1B16",
-  textMuted:            "#7A7368",
-  textSecondary:        "#6B6459",
-  inverseText:          "#F1F5F9",
-  inverseTextSecondary: "#B9AE9C",
-  inverseTextMuted:     "rgba(255,255,255,0.5)",
+  text:                 "#16181B",
+  textMuted:            "#6A7077",
+  textSecondary:        "#3F444A",
+  faint:                "#8A8F96",
+  inverseText:          "#FAFAF8",
+  inverseTextSecondary: "#A9ACB0",
+  inverseTextMuted:     "#A9ACB0",
+  inverseMuted:         "#A9ACB0",
   white:                "#FFFFFF",
 
   // Person tags — amber, warm but quiet (dark-surface only)
@@ -46,43 +61,41 @@ export const colors = {
   inverseDueBg:   "#0D2926",
 
   // Structural / borders
-  border:             "#E7E1D6",
-  borderLight:        "#F0EBE1",
-  borderGlass:        "rgba(255,255,255,0.1)",
+  border:             "rgba(0,0,0,0.08)",
+  borderLight:        "#EEEEEA",
+  checkRing:          "#8A8F96",
   inverseBorder:      "#252A35",
   inverseBorderFaint: "#1C2130",
   inverseBorderGlass: "rgba(255,255,255,0.15)",
+  inverseHairline:    "rgba(255,255,255,0.15)",
 
   // Status
   inverseError: "#FCA5A5",
 
   // Modal/sheet backdrop tint (e.g. TagFilterSheet).
-  scrim: "rgba(30,27,22,0.45)",
+  scrim: "rgba(22,24,27,0.45)",
 
-  glassLight: "rgba(255,255,255,0.12)",
+  // TaskFilterBar background crossfade endpoints, on the paper header band.
+  filterPillBg:       "rgba(22,24,27,0)",
+  filterPillBgActive: "#16181B",
 
-  // ANIMATION_SPEC.md TASKS > Filter Pills, on-dark-header background
-  // crossfade endpoints — pinned to the spec's exact pill values.
-  filterPillBg:       "rgba(255,255,255,0.08)",
-  filterPillBgActive: "rgba(255,255,255,0.2)",
+  // RecordScreen and Auth glass fill (dark-surface only).
+  inverseGlass: "rgba(255,255,255,0.10)",
+  inverseFill:  "rgba(255,255,255,0.10)",
 
-  // RecordScreen glass fill — same rgba as filterPillBg above but a
-  // distinct semantic token (dark-surface only); do not merge the two.
-  inverseGlass: "rgba(255,255,255,0.08)",
-
-  gradientHeader:     ["#0C3B2E", "#103F31", "#0E4A38"],
-  gradientButton:     ["#0E7A54", "#0A5C40"],
-  gradientUserBubble: ["#0E7A54", "#0A5C40"],
+  gradientHeader:     ["#FAFAF8", "#FAFAF8", "#FAFAF8"],
+  gradientButton:     ["#16181B", "#16181B"],
+  gradientUserBubble: ["#16181B", "#16181B"],
 } as const;
 
 // Cross-screen gradient stops (spec DESIGN_SPEC.md) not tied to a single
 // light/dark namespace. Record-only for now.
 export const gradients = {
   recordScreen: {
-    colors: ["#0C3B2E", "#0A1712"] as [string, string],
+    colors: ["#16181B", "#16181B"] as [string, string],
   },
   recordButton: {
-    colors: ["#1FA36E", "#0E7A54", "#0A5C40"] as [string, string, string],
+    colors: ["#FAFAF8", "#FAFAF8", "#FAFAF8"] as [string, string, string],
   },
 
   // Auth screen (spec DESIGN_SPEC.md LOGIN/REGISTER) — dark gradient bg and
@@ -90,10 +103,10 @@ export const gradients = {
   // colors.gradientButton but is referenced under gradients.* here for
   // semantic cleanliness on a dark screen.
   auth: {
-    colors: ["#0A1F18", "#0C3B2E", "#0E4A38"] as [string, string, string],
+    colors: ["#16181B", "#16181B", "#16181B"] as [string, string, string],
   },
   authButton: {
-    colors: ["#0E7A54", "#0A5C40"] as [string, string],
+    colors: ["#FAFAF8", "#FAFAF8"] as [string, string],
   },
 } as const;
 
@@ -242,26 +255,25 @@ export const radii = {
   cardLg: 20,
 } as const;
 
-// Neutral, subtle shadows (no colored glow) on light surfaces. Record's
-// dark-screen shadow keeps its accent-colored glow — see shadows.dark.fab.
+// Neutral, subtle shadows (no colored glow).
 export const shadows = {
   light: {
     card: {
-      shadowColor: "#1E1B16",
+      shadowColor: "#16181B",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
       shadowRadius: 6,
       elevation: 1,
     },
     bubbleUser: {
-      shadowColor: "#1E1B16",
+      shadowColor: "#16181B",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.12,
       shadowRadius: 8,
       elevation: 3,
     },
     button: {
-      shadowColor: "#1E1B16",
+      shadowColor: "#16181B",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.12,
       shadowRadius: 12,
@@ -269,13 +281,10 @@ export const shadows = {
     },
   },
 
-  // Dark-record palette (spec DESIGN_SPEC.md `shadows.fab`) — scoped to
-  // RecordScreen's button glow. Kept as an intentional accent-colored glow
-  // (unlike the light-surface shadows above) — the Record orb is meant to
-  // glow; only the banned literal was replaced, not the glow itself.
+  // Shared by RecordFab and RecordScreen's button.
   dark: {
     fab: {
-      shadowColor: "#1FA36E",
+      shadowColor: "#16181B",
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.4,
       shadowRadius: 20,

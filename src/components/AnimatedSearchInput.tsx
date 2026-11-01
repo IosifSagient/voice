@@ -18,8 +18,8 @@ type Props = Pick<
 // token, so its own external behavior (props, rendered output) is unchanged
 // from before the extraction.
 const FOCUS_THEME = {
-  restColor: colors.borderGlass,
-  focusColor: colors.accentVivid,
+  restColor: colors.border,
+  focusColor: colors.accent,
   restShadowOpacity: 0,
   focusShadowOpacity: 0.35,
 };
@@ -49,12 +49,12 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    shadowColor: colors.accentVivid,
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
   },
   input: {
-    backgroundColor: colors.glassLight,
-    color: colors.white,
+    backgroundColor: colors.bgCard,
+    color: colors.text,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 11,

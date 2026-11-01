@@ -23,9 +23,8 @@ type Props = {
   onChange: (filter: TaskFilter) => void;
 };
 
-// ANIMATION_SPEC.md TASKS > Filter Pills: background color crossfade only —
-// text stays a constant on-dark color, active state is communicated purely
-// by the background opacity step.
+// Background color crossfades between transparent and ink; the label switches
+// from ink to white with it so it stays legible on either ground.
 function FilterPill({
   label,
   active,
@@ -60,7 +59,7 @@ function FilterPill({
       onPress={onPress}
     >
       <Animated.View style={[styles.pill, pillStyle]}>
-        <Text style={styles.pillText}>{label}</Text>
+        <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -98,12 +97,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.borderGlass,
+    borderColor: colors.border,
   },
   pillPressed: { opacity: 0.7 },
   pillText: {
     ...type.meta,
-    color: colors.white,
+    color: colors.text,
     fontFamily: "Inter_600SemiBold",
+  },
+  pillTextActive: {
+    color: colors.white,
   },
 });

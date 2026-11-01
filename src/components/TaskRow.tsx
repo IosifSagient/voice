@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   due: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     marginTop: spacing.xs,
     alignSelf: "flex-start",
     backgroundColor: colors.borderLight,

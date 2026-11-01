@@ -152,7 +152,7 @@ export function AuthScreen() {
                   />
                 </View>
                 {submitting ? (
-                  <ActivityIndicator color={colors.white} />
+                  <ActivityIndicator color={colors.inverseBg} />
                 ) : (
                   <Text style={styles.btnText}>
                     {mode === "signIn" ? "Σύνδεση" : "Εγγραφή"}
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...type.meta,
-    color: colors.destructive,
+    color: colors.inverseError,
     textAlign: "center",
     marginBottom: spacing.md,
   },
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   btnText: {
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
-    color: colors.white,
+    color: colors.inverseBg,
     textAlign: "center",
   },
   toggleBtn: {

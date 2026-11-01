@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   },
   dueInput: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     backgroundColor: colors.borderLight,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.sm,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   },
   topicChipText: {
     ...type.meta,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   addTagRow: {
     flexDirection: "row",

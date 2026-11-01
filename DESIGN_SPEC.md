@@ -18,6 +18,8 @@ Color appears only for meaning:
 | Amber | Today | Dot, chip |
 | Green | Done | Checkbox fill only, and only from the moment of completion |
 
+Exception: on inverse (ink) screens, inverseError also marks the active recording state.
+
 Rules:
 
 - No cards for lists.
