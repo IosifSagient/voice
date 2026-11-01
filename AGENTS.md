@@ -51,7 +51,7 @@ what a skill says:
 ## Stack
 
 - Expo SDK 54 — PINNED. Do not bump it.
-- React Native, single codebase iOS + Android.
+- React Native, single codebase. iOS is the design target; Android must not break.
 - `@react-navigation` (native-stack + bottom-tabs) for navigation.
 - expo-dev-client — custom development client backing the DEV build variant (see
   App config & build variants below).
