@@ -13,6 +13,30 @@ extract structured note (`gpt-4o-mini`, JSON) → `saveNote()` → render note c
 All OpenAI calls go through a Supabase Edge Function proxy (`src/services/openaiClient.ts`),
 authenticated with the user's Supabase session token — the OpenAI key is never on-device.
 
+## Installed skills
+
+Skills in `.claude/skills/` are advisory. AGENTS.md, `src/ANIMATION_SPEC.md`,
+`DESIGN_SPEC.md`, and the current task prompt always override them. Regardless of
+what a skill says:
+
+- Never commit. The developer commits after device verification.
+- Never install or propose packages unless the task prompt asks.
+- Never write files outside the task prompt's declared scope. Design decisions go
+  into `DESIGN_SPEC.md`, not `MOBILE-DESIGN.md`, `design-baseline.json`, or new theme
+  files. `src/config/theme.ts` is the single token source.
+- Stack is fixed: Expo SDK 54, React Navigation (no Expo Router), plain StyleSheet
+  with `theme.ts` tokens (no NativeWind or other styling library), Literata + Inter
+  fonts, Reanimated 4.
+- The redesign targets iOS, light mode only. Android must not break, but is not a
+  design target. Dark mode is deferred.
+- Follow this repo's layout (`src/screens`, `src/components`, …), not a skill's `app/`
+  or web conventions.
+- `frontend-design` is web-oriented: apply its aesthetic principles (direction,
+  typography, hierarchy, restraint) and ignore its web-specific code guidance (CSS,
+  HTML, Tailwind, web fonts).
+- Skill checklists (e.g. anti-pattern greps) may be run against this repo's actual
+  folders; findings are reported, not auto-fixed.
+
 ## Design philosophy (do NOT violate)
 
 - PERSONAL-UTILITY-FIRST. Features serve the individual user. NO manager dashboards,
